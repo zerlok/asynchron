@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "asyncapi-python-aio-pika-template"
+version = "0.1.0"
+description = ""
+authors = ["zerlok <denergytro@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+Jinja2 = "^3.0.3"
+pydantic = "^1.8.2"
+aio-pika = "^6.8.0"
+PyYAML = "^6.0"
+click = "^8.0.3"
+dependency-injector = "^4.37.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+requests = "^2.26.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
