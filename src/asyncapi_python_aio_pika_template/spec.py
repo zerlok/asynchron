@@ -1,8 +1,11 @@
 import abc
 import re
 import typing as t
+from pathlib import Path
+from pprint import pprint
 
-from pydantic import AnyUrl, BaseModel, Extra, Field, HttpUrl
+import yaml
+from pydantic import AnyUrl, BaseModel, Field, HttpUrl
 
 T = t.TypeVar("T")
 
@@ -90,12 +93,51 @@ class Protocol(BaseModel):
                         "secure-mqtt", "stomp", "stomps", "ws", "wss", "mercure"]
 
 
-class Traits:
-    class Field:
-        DESCRIPTION: t.Final[t.Any] = Field(
-            description="""A short description of the application. <a href="https://spec.commonmark.org/">CommonMark 
-            syntax</a> can be used for rich text representation.""",
-        )
+class WithDescriptionField(BaseModel):
+    description: t.Optional[str] = Field(
+        description="""A short description of the application. <a href="https://spec.commonmark.org/">CommonMark 
+        syntax</a> can be used for rich text representation.""",
+    )
+
+
+class ExternalDocumentationObject(WithDescriptionField, BaseModel):
+    url: AnyUrl = Field(
+        description="""Required. The URL for the target documentation. Value MUST be in the format of a URL.""",
+    )
+
+
+class WithExternalDocsField(BaseModel):
+    externalDocs: t.Optional[ExternalDocumentationObject] = Field(
+        description="""Additional external documentation for this tag.""",
+    )
+
+
+class TagObject(WithDescriptionField, WithExternalDocsField, BaseModel):
+    """
+    Allows adding meta data to a single tag.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#tagObject
+    """
+    name: str = Field(
+        description="""Required. The name of the tag.""",
+    )
+
+
+class TagsObject(BaseModel):
+    """
+    A Tags object is a list of Tag Objects.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#tagsObject
+    """
+
+    __root__: t.Sequence[TagObject]
+
+
+class WithTagsField(BaseModel):
+    tags: t.Optional[TagsObject] = Field(
+        description="""A list of tags for API documentation control. Tags can be used for logical grouping of 
+        operations.""",
+    )
 
 
 class SpecificationExtension(BaseModel):
@@ -104,8 +146,8 @@ class SpecificationExtension(BaseModel):
     """
 
     # TODO: add validator
-    class Config:
-        extra = Extra.allow
+    # class Config:
+    #     extra = Extra.allow
 
 
 class ReferenceObject(BaseModel):
@@ -170,7 +212,7 @@ class LicenseObject(SpecificationExtension, BaseModel):
     )
 
 
-class InfoObject(SpecificationExtension, BaseModel):
+class InfoObject(SpecificationExtension, WithDescriptionField, BaseModel):
     """
     The object provides metadata about the API. The metadata can be used by the clients if needed.
 
@@ -184,7 +226,6 @@ class InfoObject(SpecificationExtension, BaseModel):
         description="""Required. Provides the version of the application API (not to be confused with the 
         specification version).""",
     )
-    description: t.Optional[str] = Traits.Field.DESCRIPTION
     termsOfService: t.Optional[HttpUrl] = Field(
         description="""A URL to the Terms of Service for the API. MUST be in the format of a URL.""",
     )
@@ -204,6 +245,8 @@ class SchemaObject(BaseModel):
     allows no instance to validate MAY be represented by the boolean value false. Further information about the
     properties can be found in JSON Schema Core and JSON Schema Validation. Unless stated otherwise, the property
     definitions follow the JSON Schema specification as referenced here.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#schemaObject
     """
 
     # TODO: make a correct type (look at properties)
@@ -212,38 +255,174 @@ class SchemaObject(BaseModel):
     __root__ = bool
 
 
-class HTTPServerBinding(BaseModel):
-    """
-    This document defines how to describe HTTP-specific information on AsyncAPI.
-
-    https://github.com/asyncapi/bindings/tree/master/http#server
-    """
-    type_: t.Literal["request", "response"] = Field(
-        title="type",
-        description="""Required. Type of operation. Its value MUST be either request or response.""",
-    )
-    method: t.Optional[t.Literal["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE"]] = \
-        Field(
-            description="""When type is request, this is the HTTP method, otherwise it MUST be ignored. Its value 
-            MUST be one of GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, CONNECT, and TRACE.""",
-        )
-    query: SchemaObject = Field(
-        description="""A Schema object containing the definitions for each query parameter. This schema MUST be of 
-        type object and have a properties key.""",
-    )
+class WithBindingVersion(BaseModel):
     bindingVersion: t.Optional[str] = Field(
         description="""The version of this binding. If omitted, "latest" MUST be assumed.""",
     )
 
 
-class WebSocketsServerBinding(BaseModel):
-    # TODO: define fields
-    pass
+class HTTPBindingTrait:
+    """
+    https://github.com/asyncapi/bindings/blob/master/http/README.md
+    """
+
+    class HTTPServerBindingObject(BaseModel):
+        """This object MUST NOT contain any properties. Its name is reserved for future use."""
+        __root__: None
+
+    class HTTPChannelBindingObject(BaseModel):
+        """This object MUST NOT contain any properties. Its name is reserved for future use."""
+        __root__: None
+
+    class HTTPOperationBindingObject(WithBindingVersion, BaseModel):
+        type_: t.Literal["request", "response"] = Field(
+            title="type",
+            description="""Required. Type of operation. Its value MUST be either request or response.""",
+        )
+        method: t.Optional[
+            t.Literal["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE"]
+        ] = Field(
+            description="""When type is request, this is the HTTP method, otherwise it MUST be ignored. Its value 
+            MUST be one of GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, CONNECT, and TRACE.""",
+        )
+        query: t.Union[SchemaObject, ReferenceObject] = Field(
+            description="""A Schema object containing the definitions for each query parameter. This schema MUST be of 
+            type object and have a properties key.""",
+        )
+
+    class HTTPMessageBindingObject(WithBindingVersion, BaseModel):
+        headers: t.Union[SchemaObject, ReferenceObject] = Field(
+            description="""A Schema object containing the definitions for HTTP-specific headers. This schema MUST be 
+            of type object and have a properties key.""",
+        )
 
 
-class AMQPServerBinding(BaseModel):
-    # TODO: define fields
-    pass
+class AMQPBindingTrait(BaseModel):
+    """
+    This document defines how to describe AMQP-specific information on AsyncAPI.
+
+    https://github.com/asyncapi/bindings/tree/master/amqp/README.md
+    """
+
+    class AMQPServerBindingObject(BaseModel):
+        """This object MUST NOT contain any properties. Its name is reserved for future use."""
+        __root__: None
+
+    class AMQPChannelBindingObject(WithBindingVersion, BaseModel):
+        """
+        This object contains information about the channel representation in AMQP.
+        """
+
+        class Config:
+            schema_extra: t.ClassVar[t.Mapping[str, t.Any]] = {
+                "examples": [
+                    {
+                        "is": "routingKey",
+                        "queue": {
+                            "name": "my-queue-name",
+                            "durable": True,
+                            "exclusive": True,
+                            "autoDelete": False,
+                            "vhost": "/",
+                        },
+                        "exchange": {
+                            "name": "my-exchange",
+                            "type": "topic",
+                            "durable": True,
+                            "autoDelete": False,
+                            "vhost": "/",
+                        },
+                        "bindingVersion": "0.2.0",
+                    },
+                ],
+            }
+
+        class Exchange(BaseModel):
+            name: str = Field(
+                max_length=255,
+                description="""The name of the exchange. It MUST NOT exceed 255 characters long.""",
+            )
+            type_: t.Literal["topic", "direct", "fanout", "default", "headers"] = Field(
+                alias="type",
+                description="""The type of the exchange. Can be either topic, direct, fanout, default or headers.""",
+            )
+            durable: t.Optional[bool] = Field(
+                description="""Whether the exchange should survive broker restarts or not.""",
+            )
+            autoDelete: t.Optional[bool] = Field(
+                description="""Whether the exchange should be deleted when the last queue is unbound from it.""",
+            )
+            vhost: str = Field(
+                default="/",
+                description="""The virtual host of the exchange. Defaults to /.""",
+            )
+
+        class Queue(BaseModel):
+            name: str = Field(
+                max_length=255,
+                description="""The name of the queue. It MUST NOT exceed 255 characters long.""",
+            )
+            exclusive: t.Optional[bool] = Field(
+                description="""Whether the queue should be used only by one connection or not.""",
+            )
+            durable: t.Optional[bool] = Field(
+                description="""Whether the queue should survive broker restarts or not.""",
+            )
+            autoDelete: t.Optional[bool] = Field(
+                description="""Whether the queue should be deleted when the last consumer unsubscribes.""",
+            )
+            vhost: str = Field(
+                default="/",
+                description="""The virtual host of the queue. Defaults to /.""",
+            )
+
+        is_: t.Literal["queue", "routingKey"] = Field(
+            default="routingKey",
+            alias="is",
+            description="""Defines what type of channel is it. Can be either queue or routingKey (default).""",
+        )
+        exchange: t.Optional[Exchange] = Field(
+            description="""When is=routingKey, this object defines the exchange properties.""",
+        )
+        queue: t.Optional[Exchange] = Field(
+            description="""When is=queue, this object defines the queue properties.""",
+        )
+
+    class AMQPOperationBindingObject(WithBindingVersion, BaseModel):
+        """This object contains information about the operation representation in AMQP."""
+
+        # TODO: add applies to notes
+        expiration: t.Optional[int] = Field(
+            ge=0,
+            description="""TTL (Time-To-Live) for the message. It MUST be greater than or equal to zero.""",
+        )
+        userId: t.Optional[str] = Field(
+            description="""Identifies the user who has sent the message.""",
+        )
+        cc: t.Optional[t.Sequence[str]] = Field(
+            description="""The routing keys the message should be routed to at the time of publishing.""",
+        )
+        priority: t.Optional[int] = Field(
+            description="""A priority for the message.""",
+        )
+        deliveryMode: t.Optional[t.Literal[1, 2]] = Field(
+            description="""Delivery mode of the message. Its value MUST be either 1 (transient) or 2 (persistent).""",
+        )
+        mandatory: t.Optional[bool] = Field(
+            description="""Whether the message is mandatory or not.""",
+        )
+        bcc: t.Optional[t.Sequence[str]] = Field(
+            description="""Like cc but consumers will not receive this information.""",
+        )
+        replyTo: t.Optional[str] = Field(
+            description="""Name of the queue where the consumer should send the response.""",
+        )
+        timestamp: t.Optional[bool] = Field(
+            description="""Whether the message should include a timestamp or not.""",
+        )
+        ack: t.Optional[bool] = Field(
+            description="""Whether the consumer should ack the message or not.""",
+        )
 
 
 class ServerBindingsObject(SpecificationExtension, BaseModel):
@@ -252,19 +431,17 @@ class ServerBindingsObject(SpecificationExtension, BaseModel):
 
     https://www.asyncapi.com/docs/specifications/v2.2.0#serverBindingsObject
     """
-    # TODO: define all fields
-    http: HTTPServerBinding = Field(
+
+    # TODO: define fields for all supported protocols
+    http: HTTPBindingTrait.HTTPServerBindingObject = Field(
         description="""Protocol-specific information for an HTTP server.""",
     )
-    ws: WebSocketsServerBinding = Field(
-        description="""Protocol-specific information for a WebSockets server.""",
-    )
-    amqp: AMQPServerBinding = Field(
+    amqp: AMQPBindingTrait.AMQPServerBindingObject = Field(
         description="""Protocol-specific information for an AMQP 0-9-1 server.""",
     )
 
 
-class ServerVariableObject(SpecificationExtension, BaseModel):
+class ServerVariableObject(SpecificationExtension, WithDescriptionField, BaseModel):
     """
     An object representing a Server Variable for server URL template substitution.
 
@@ -279,7 +456,6 @@ class ServerVariableObject(SpecificationExtension, BaseModel):
         description="""The default value to use for substitution, and to send, if an alternate value is not 
         supplied.""",
     )
-    description: t.Optional[str] = Traits.Field.DESCRIPTION
     examples: t.Sequence[str] = Field(
         description="""An array of examples of the server variable.""",
     )
@@ -303,7 +479,7 @@ class SecurityRequirementObject(BaseModel):
     __root__: t.Mapping[str, t.Sequence[str]]
 
 
-class ServerObject(SpecificationExtension, BaseModel):
+class ServerObject(SpecificationExtension, WithDescriptionField, BaseModel):
     """
     An object representing a message broker, a server or any other kind of computer program capable of sending and/or
     receiving data. This object is used to capture details such as URIs, protocols and security configuration.
@@ -324,7 +500,6 @@ class ServerObject(SpecificationExtension, BaseModel):
         description="""The version of the protocol used for connection. For instance: AMQP 0.9.1, HTTP 2.0, 
         Kafka 1.0.0, etc.""",
     )
-    description: t.Optional[str] = Traits.Field.DESCRIPTION
     variables: t.Optional[t.Mapping[str, ServerVariableObject]] = Field(
         description="""A map between a variable name and its value. The value is used for substitution in the 
         server's URL template.""",
@@ -340,7 +515,77 @@ class ServerObject(SpecificationExtension, BaseModel):
     )
 
 
-class AsyncAPIObject(SpecificationExtension, BaseModel):
+class OperationBindingsObject(BaseModel):
+    """
+    Map describing protocol-specific definitions for an operation.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#operationBindingsObject
+    """
+    http: HTTPBindingTrait.HTTPOperationBindingObject = Field(
+        description="""Protocol-specific information for an HTTP operation.""",
+    )
+    amqp: AMQPBindingTrait.AMQPOperationBindingObject = Field(
+        description="""Protocol-specific information for an AMQP 0-9-1 operation.""",
+    )
+
+
+class OperationObject(WithDescriptionField, WithTagsField, WithExternalDocsField, BaseModel):
+    """
+    Describes a publish or a subscribe operation. This provides a place to document how and why messages are sent and
+    received. For example, an operation might describe a chat application use case where a user sends a text message
+    to a group. A publish operation describes messages that are received by the chat application, whereas a subscribe
+    operation describes messages that are sent by the chat application.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#operationObject
+    """
+    operationId: t.Optional[str] = Field(
+        description="""Unique string used to identify the operation. The id MUST be unique among all operations 
+        described in the API. The operationId value is case-sensitive. Tools and libraries MAY use the operationId to 
+        uniquely identify an operation, therefore, it is RECOMMENDED to follow common programming naming 
+        conventions.""",
+    )
+    summary: t.Optional[str] = Field(
+        description="""A short summary of what the operation is about.""",
+    )
+    bindings: t.Optional[t.Union[..., ReferenceObject]] = Field(
+        description="""A map where the keys describe the name of the protocol and the values describe 
+        protocol-specific definitions for the operation.""",
+    )
+
+
+class ChannelItemObject(WithDescriptionField, BaseModel):
+    """
+    Describes the operations available on a single channel.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#channelItemObject
+    """
+    servers: t.Optional[t.Sequence[str]] = Field(
+        description="""The servers on which this channel is available, specified as an optional unordered list of 
+        names (string keys) of Server Objects defined in the Servers Object (a map). If servers is absent or empty 
+        then this channel must be available on all servers defined in the Servers Object. """,
+    )
+    subscribe: OperationObject = Field(
+        description="""A definition of the SUBSCRIBE operation, which defines the messages produced by the 
+        application and sent to the channel.""",
+    )
+    publish: OperationObject = Field(
+        description="""A definition of the PUBLISH operation, which defines the messages consumed by the application 
+        from the channel.""",
+    )
+
+
+class ChannelsObject(BaseModel):
+    """
+    Holds the relative paths to the individual channel and their operations. Channel paths are relative to servers.
+    Channels are also known as "topics", "routing keys", "event types" or "paths".
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#channelsObject
+    """
+
+    __root__: t.Mapping[str, t.Union[ChannelItemObject, ReferenceObject]]
+
+
+class AsyncAPIObject(SpecificationExtension, WithExternalDocsField, WithTagsField, BaseModel):
     """
     This is the root document object for the API specification. It combines resource listing and API declaration
     together into one document.
@@ -356,34 +601,30 @@ class AsyncAPIObject(SpecificationExtension, BaseModel):
         corresponding major.minor (1.0.*). Patch versions will correspond to patches of this document.""",
     )
 
-    id: Identifier = Field(
+    id: t.Optional[Identifier] = Field(
         description="""Identifier of the application the AsyncAPI document is defining.""",
     )
     info: InfoObject = Field(
         description="""Required. Provides metadata about the API. The metadata can be used by the clients if needed.""",
     )
-    servers: t.Mapping[ServerName, ServerObject] = Field(
+    servers: t.Optional[t.Mapping[ServerName, ServerObject]] = Field(
         description="""Provides connection details of servers.""",
     )
-    defaultContentType: t.Any = Field(
+    defaultContentType: t.Optional[str] = Field(
         description="""Default content type to use when encoding/decoding a message's payload.""",
     )
-    channels: t.Any = Field(
+    channels: ChannelsObject = Field(
         description="""Required The available channels and messages for the API.""",
     )
     components: t.Any = Field(
         description="""An element to hold various schemas for the specification.""",
     )
-    tags: t.Any = Field(
-        description="""A list of tags used by the specification with additional metadata. Each tag name in the list 
-        MUST be unique.""",
-    )
-    externalDocs: t.Any = Field(
-        description="""Additional external documentation.""",
-    )
 
 
 if __name__ == "__main__":
-    import json
 
-    print(json.dumps(AsyncAPIObject.schema(), indent=2))
+    # print(json.dumps(AsyncAPIObject.schema(), indent=2))
+    with (Path(__file__).parent.parent / "temperature.yaml").open("r") as fd:
+        spec = AsyncAPIObject.parse_obj(yaml.safe_load(fd))
+
+    pprint(spec.dict())
