@@ -249,10 +249,50 @@ class SchemaObject(BaseModel):
     https://www.asyncapi.com/docs/specifications/v2.2.0#schemaObject
     """
 
-    # TODO: make a correct type (look at properties)
-    # FIXME: TypeError: Object of type '_GenericAlias' is not JSON serializable
-    # __root__ = t.Union[bool, int, float, str, t.Sequence[t.Any], t.Mapping[str, t.Any]]
-    __root__ = bool
+    __root__: t.Mapping[str, t.Any]
+
+    # TODO: read and define fields according to json schema spec
+    #  http://json-schema.org/draft/2020-12/json-schema-core.html
+    """
+    title: t.Optional[str]
+    type: t.Optional[str]
+    required: t.Optional[str]
+    multipleOf: t.Optional[str]
+    maximum: t.Optional[str]
+    exclusiveMaximum: t.Optional[str]
+    minimum: t.Optional[str]
+    exclusiveMinimum: t.Optional[str]
+    maxLength: t.Optional[str]
+    minLength: t.Optional[str]
+    pattern: t.Optional[str] = Field(
+        description="This string SHOULD be a valid regular expression, according to the ECMA 262 regular expression "
+                    "dialect.",
+    )
+    maxItems: t.Optional[str]
+    minItems: t.Optional[str]
+    uniqueItems: t.Optional[str]
+    maxProperties: t.Optional[str]
+    minProperties: t.Optional[str]
+    enum: t.Optional[str]
+    const: t.Optional[str]
+    examples: t.Optional[str]
+    if_: t.Optional[str]
+    then: t.Optional[str]
+    else_: t.Optional[str]
+    readOnly: t.Optional[str]
+    writeOnly: t.Optional[str]
+    properties: t.Optional[str]
+    patternProperties: t.Optional[str]
+    additionalProperties: t.Optional[str]
+    additionalItems: t.Optional[str]
+    items: t.Optional[str]
+    propertyNames: t.Optional[str]
+    contains: t.Optional[str]
+    allOf: t.Optional[str]
+    oneOf: t.Optional[str]
+    anyOf: t.Optional[str]
+    not_: t.Optional[str]
+    """
 
 
 class WithBindingVersion(BaseModel):
@@ -391,37 +431,80 @@ class AMQPBindingTrait(BaseModel):
     class AMQPOperationBindingObject(WithBindingVersion, BaseModel):
         """This object contains information about the operation representation in AMQP."""
 
-        # TODO: add applies to notes
+        class Config:
+            schema_extra: t.ClassVar[t.Mapping[str, t.Any]] = {
+                "examples": [
+                    {
+                        "expiration": 100000,
+                        "userId": "guest",
+                        "cc": ["user.logs"],
+                        "priority": 10,
+                        "deliveryMode": 2,
+                        "mandatory": False,
+                        "bcc": ["external.audit"],
+                        "replyTo": "user.signedup",
+                        "timestamp": True,
+                        "ack": False,
+                        "bindingVersion": "0.2.0",
+                    },
+                ],
+            }
+
         expiration: t.Optional[int] = Field(
             ge=0,
-            description="""TTL (Time-To-Live) for the message. It MUST be greater than or equal to zero.""",
+            description="""Applies to: publish, subscribe; TTL (Time-To-Live) for the message. It MUST be greater 
+            than or equal to zero.""",
         )
         userId: t.Optional[str] = Field(
-            description="""Identifies the user who has sent the message.""",
+            description="""Applies to: publish, subscribe; Identifies the user who has sent the message.""",
         )
         cc: t.Optional[t.Sequence[str]] = Field(
-            description="""The routing keys the message should be routed to at the time of publishing.""",
+            description="""Applies to: publish, subscribe; The routing keys the message should be routed to at the 
+            time of publishing.""",
         )
         priority: t.Optional[int] = Field(
-            description="""A priority for the message.""",
+            description="""Applies to: publish, subscribe; A priority for the message.""",
         )
         deliveryMode: t.Optional[t.Literal[1, 2]] = Field(
-            description="""Delivery mode of the message. Its value MUST be either 1 (transient) or 2 (persistent).""",
+            description="""Applies to: publish, subscribe; Delivery mode of the message. Its value MUST be either 1 (
+            transient) or 2 (persistent).""",
         )
         mandatory: t.Optional[bool] = Field(
-            description="""Whether the message is mandatory or not.""",
+            description="""Applies to: publish; Whether the message is mandatory or not.""",
         )
         bcc: t.Optional[t.Sequence[str]] = Field(
-            description="""Like cc but consumers will not receive this information.""",
+            description="""Applies to: publish; Like cc but consumers will not receive this information.""",
         )
         replyTo: t.Optional[str] = Field(
-            description="""Name of the queue where the consumer should send the response.""",
+            description="""Applies to: publish, subscribe; Name of the queue where the consumer should send the 
+            response.""",
         )
         timestamp: t.Optional[bool] = Field(
-            description="""Whether the message should include a timestamp or not.""",
+            description="""Applies to: publish, subscribe; Whether the message should include a timestamp or not.""",
         )
         ack: t.Optional[bool] = Field(
-            description="""Whether the consumer should ack the message or not.""",
+            description="""Applies to: subscribe; Whether the consumer should ack the message or not.""",
+        )
+
+    class AMQPMessageBindingObject(WithBindingVersion, BaseModel):
+        """This object contains information about the message representation in AMQP."""
+
+        class Config:
+            schema_extra: t.ClassVar[t.Mapping[str, t.Any]] = {
+                "examples": [
+                    {
+                        "contentEncoding": "gzip",
+                        "messageType": "user.signup",
+                        "bindingVersion": "0.2.0",
+                    },
+                ],
+            }
+
+        contentEncoding: t.Optional[str] = Field(
+            description="""A MIME encoding for the message content.""",
+        )
+        messageType: t.Optional[str] = Field(
+            description="""Application-specific message type.""",
         )
 
 
@@ -529,15 +612,15 @@ class OperationBindingsObject(BaseModel):
     )
 
 
-class OperationObject(WithDescriptionField, WithTagsField, WithExternalDocsField, BaseModel):
+class OperationTraitObject(WithDescriptionField, WithTagsField, WithExternalDocsField, BaseModel):
     """
-    Describes a publish or a subscribe operation. This provides a place to document how and why messages are sent and
-    received. For example, an operation might describe a chat application use case where a user sends a text message
-    to a group. A publish operation describes messages that are received by the chat application, whereas a subscribe
-    operation describes messages that are sent by the chat application.
+    Describes a trait that MAY be applied to an Operation Object. This object MAY contain any property from the
+    Operation Object, except message and traits. If you're looking to apply traits to a message, see the Message
+    Trait Object.
 
-    https://www.asyncapi.com/docs/specifications/v2.2.0#operationObject
+    https://www.asyncapi.com/docs/specifications/v2.2.0#operationTraitObject
     """
+
     operationId: t.Optional[str] = Field(
         description="""Unique string used to identify the operation. The id MUST be unique among all operations 
         described in the API. The operationId value is case-sensitive. Tools and libraries MAY use the operationId to 
@@ -547,9 +630,34 @@ class OperationObject(WithDescriptionField, WithTagsField, WithExternalDocsField
     summary: t.Optional[str] = Field(
         description="""A short summary of what the operation is about.""",
     )
-    bindings: t.Optional[t.Union[..., ReferenceObject]] = Field(
+    bindings: t.Optional[t.Union[OperationBindingsObject, ReferenceObject]] = Field(
         description="""A map where the keys describe the name of the protocol and the values describe 
         protocol-specific definitions for the operation.""",
+    )
+
+
+class MessageObject(BaseModel):
+    pass
+
+
+class OperationObject(OperationTraitObject, BaseModel):
+    """
+    Describes a publish or a subscribe operation. This provides a place to document how and why messages are sent and
+    received. For example, an operation might describe a chat application use case where a user sends a text message
+    to a group. A publish operation describes messages that are received by the chat application, whereas a subscribe
+    operation describes messages that are sent by the chat application.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#operationObject
+    """
+
+    traits: t.Optional[t.Sequence[t.Union[OperationTraitObject, ReferenceObject]]] = Field(
+        description="""A list of traits to apply to the operation object. Traits MUST be merged into the operation 
+        object using the JSON Merge Patch algorithm in the same order they are defined here.""",
+    )
+    message: t.Optional[t.Sequence[t.Union[MessageObject, ReferenceObject]]] = Field(
+        description="""A definition of the message that will be published or received on this channel. oneOf is 
+        allowed here to specify multiple messages, however, a message MUST be valid only against one of the 
+        referenced message objects.""",
     )
 
 
