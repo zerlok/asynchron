@@ -8,7 +8,7 @@ import yaml
 from pydantic import AnyUrl, BaseModel, Field, HttpUrl
 
 T = t.TypeVar("T")
-
+# FIXME:  NameError: Field name "schema" shadows a BaseModel attribute; use a different field name with "alias='schema'".
 
 class Validator(metaclass=abc.ABCMeta):
 
@@ -81,7 +81,33 @@ class Identifier(StringRegexValidator):
     _PATTERN: t.ClassVar[t.Pattern[str]] = re.compile(r"^urn:[a-z0-9][a-z0-9-]{0,31}:[a-z0-9()+,\-.:=@;$_!*'%/?#]+$")
 
 
+class RuntimeExpression(str):
+    """A runtime expression allows values to be defined based on information that will be available within the
+    message. This mechanism is used by Correlation ID Object.
+
+    The runtime expression is defined by the following [ABNF](https://tools.ietf.org/html/rfc5234) syntax:
+    ```
+    expression = ( "$message" "." source )
+    source = ( header-reference | payload-reference )
+    header-reference = "header" ["#" fragment]
+    payload-reference = "payload" ["#" fragment]
+    fragment = a JSON Pointer [RFC 6901](https://tools.ietf.org/html/rfc6901)
+    ```
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#runtimeExpression
+    """
+    pass
+
+
 class ServerName(StringRegexValidator, pattern=re.compile(r"^[A-Za-z0-9_\-]+$")):
+    pass
+
+
+class ParameterName(StringRegexValidator, pattern=re.compile(r"^[A-Za-z0-9_\-]+$")):
+    pass
+
+
+class ComponentName(StringRegexValidator, pattern=re.compile(r"^[a-zA-Z0-9\.\-_]+$")):
     pass
 
 
@@ -93,61 +119,13 @@ class Protocol(BaseModel):
                         "secure-mqtt", "stomp", "stomps", "ws", "wss", "mercure"]
 
 
-class WithDescriptionField(BaseModel):
-    description: t.Optional[str] = Field(
-        description="""A short description of the application. <a href="https://spec.commonmark.org/">CommonMark 
-        syntax</a> can be used for rich text representation.""",
-    )
-
-
-class ExternalDocumentationObject(WithDescriptionField, BaseModel):
-    url: AnyUrl = Field(
-        description="""Required. The URL for the target documentation. Value MUST be in the format of a URL.""",
-    )
-
-
-class WithExternalDocsField(BaseModel):
-    externalDocs: t.Optional[ExternalDocumentationObject] = Field(
-        description="""Additional external documentation for this tag.""",
-    )
-
-
-class TagObject(WithDescriptionField, WithExternalDocsField, BaseModel):
+class SecuritySchemeType(BaseModel):
     """
-    Allows adding meta data to a single tag.
-
-    https://www.asyncapi.com/docs/specifications/v2.2.0#tagObject
-    """
-    name: str = Field(
-        description="""Required. The name of the tag.""",
-    )
-
-
-class TagsObject(BaseModel):
-    """
-    A Tags object is a list of Tag Objects.
-
-    https://www.asyncapi.com/docs/specifications/v2.2.0#tagsObject
+    The supported security scheme type.
     """
 
-    __root__: t.Sequence[TagObject]
-
-
-class WithTagsField(BaseModel):
-    tags: t.Optional[TagsObject] = Field(
-        description="""A list of tags for API documentation control. Tags can be used for logical grouping of 
-        operations.""",
-    )
-
-
-class SpecificationExtension(BaseModel):
-    """
-    https://www.asyncapi.com/docs/specifications/v2.2.0#specificationExtensions
-    """
-
-    # TODO: add validator
-    # class Config:
-    #     extra = Extra.allow
+    __root__: t.Literal["userPassword", "apiKey", "X509", "symmetricEncryption", "asymmetricEncryption", "httpApiKey",
+                        "http", "oauth2", "openIdConnect", "plain", "scramSha256", "scramSha512", "gssapi"]
 
 
 class ReferenceObject(BaseModel):
@@ -175,65 +153,6 @@ class ReferenceObject(BaseModel):
     ref: AnyUrl = Field(
         alias="$ref",
         description="""Required. The reference string.""",
-    )
-
-
-class ContactObject(SpecificationExtension, BaseModel):
-    """
-    Contact information for the exposed API.
-
-    https://www.asyncapi.com/docs/specifications/v2.2.0#contactObject
-    """
-
-    name: t.Optional[str] = Field(
-        description="""The identifying name of the contact person/organization.""",
-    )
-    url: t.Optional[HttpUrl] = Field(
-        description="""The URL pointing to the contact information. MUST be in the format of a URL.""",
-    )
-    email: t.Optional[Email] = Field(
-        description="""The email address of the contact person/organization. MUST be in the format of an email 
-        address.""",
-    )
-
-
-class LicenseObject(SpecificationExtension, BaseModel):
-    """
-    License information for the exposed API.
-
-    https://www.asyncapi.com/docs/specifications/v2.2.0#licenseObject
-    """
-
-    name: str = Field(
-        description="""Required. The license name used for the API.""",
-    )
-    url: t.Optional[HttpUrl] = Field(
-        description="""A URL to the license used for the API. MUST be in the format of a URL.""",
-    )
-
-
-class InfoObject(SpecificationExtension, WithDescriptionField, BaseModel):
-    """
-    The object provides metadata about the API. The metadata can be used by the clients if needed.
-
-    https://www.asyncapi.com/docs/specifications/v2.2.0#infoObject
-    """
-
-    title: str = Field(
-        description="""Required. The title of the application.""",
-    )
-    version: str = Field(
-        description="""Required. Provides the version of the application API (not to be confused with the 
-        specification version).""",
-    )
-    termsOfService: t.Optional[HttpUrl] = Field(
-        description="""A URL to the Terms of Service for the API. MUST be in the format of a URL.""",
-    )
-    contact: t.Optional[ContactObject] = Field(
-        description="""The contact information for the exposed API.""",
-    )
-    license: t.Optional[LicenseObject] = Field(
-        description="""The license information for the exposed API.""",
     )
 
 
@@ -337,7 +256,7 @@ class HTTPBindingTrait:
         )
 
 
-class AMQPBindingTrait(BaseModel):
+class AMQPBindingTrait:
     """
     This document defines how to describe AMQP-specific information on AsyncAPI.
 
@@ -508,7 +427,123 @@ class AMQPBindingTrait(BaseModel):
         )
 
 
-class ServerBindingsObject(SpecificationExtension, BaseModel):
+class WithDescriptionField(BaseModel):
+    description: t.Optional[str] = Field(
+        description="""A short description of the application. <a href="https://spec.commonmark.org/">CommonMark 
+        syntax</a> can be used for rich text representation.""",
+    )
+
+
+class ExternalDocumentationObject(WithDescriptionField, BaseModel):
+    url: AnyUrl = Field(
+        description="""Required. The URL for the target documentation. Value MUST be in the format of a URL.""",
+    )
+
+
+class WithExternalDocsField(BaseModel):
+    externalDocs: t.Optional[ExternalDocumentationObject] = Field(
+        description="""Additional external documentation for this tag.""",
+    )
+
+
+class TagObject(WithDescriptionField, WithExternalDocsField, BaseModel):
+    """
+    Allows adding meta data to a single tag.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#tagObject
+    """
+    name: str = Field(
+        description="""Required. The name of the tag.""",
+    )
+
+
+class TagsObject(BaseModel):
+    """
+    A Tags object is a list of Tag Objects.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#tagsObject
+    """
+
+    __root__: t.Sequence[TagObject]
+
+
+class WithTagsField(BaseModel):
+    tags: t.Optional[TagsObject] = Field(
+        description="""A list of tags for API documentation control. Tags can be used for logical grouping of 
+        operations.""",
+    )
+
+
+class WithSpecificationExtension(BaseModel):
+    """
+    https://www.asyncapi.com/docs/specifications/v2.2.0#specificationExtensions
+    """
+
+    # TODO: add validator
+    # class Config:
+    #     extra = Extra.allow
+
+
+class ContactObject(WithSpecificationExtension, BaseModel):
+    """
+    Contact information for the exposed API.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#contactObject
+    """
+
+    name: t.Optional[str] = Field(
+        description="""The identifying name of the contact person/organization.""",
+    )
+    url: t.Optional[HttpUrl] = Field(
+        description="""The URL pointing to the contact information. MUST be in the format of a URL.""",
+    )
+    email: t.Optional[Email] = Field(
+        description="""The email address of the contact person/organization. MUST be in the format of an email 
+        address.""",
+    )
+
+
+class LicenseObject(WithSpecificationExtension, BaseModel):
+    """
+    License information for the exposed API.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#licenseObject
+    """
+
+    name: str = Field(
+        description="""Required. The license name used for the API.""",
+    )
+    url: t.Optional[HttpUrl] = Field(
+        description="""A URL to the license used for the API. MUST be in the format of a URL.""",
+    )
+
+
+class InfoObject(WithSpecificationExtension, WithDescriptionField, BaseModel):
+    """
+    The object provides metadata about the API. The metadata can be used by the clients if needed.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#infoObject
+    """
+
+    title: str = Field(
+        description="""Required. The title of the application.""",
+    )
+    version: str = Field(
+        description="""Required. Provides the version of the application API (not to be confused with the 
+        specification version).""",
+    )
+    termsOfService: t.Optional[HttpUrl] = Field(
+        description="""A URL to the Terms of Service for the API. MUST be in the format of a URL.""",
+    )
+    contact: t.Optional[ContactObject] = Field(
+        description="""The contact information for the exposed API.""",
+    )
+    license: t.Optional[LicenseObject] = Field(
+        description="""The license information for the exposed API.""",
+    )
+
+
+class ServerBindingsObject(WithSpecificationExtension, BaseModel):
     """
     Map describing protocol-specific definitions for a server.
 
@@ -516,15 +551,15 @@ class ServerBindingsObject(SpecificationExtension, BaseModel):
     """
 
     # TODO: define fields for all supported protocols
-    http: HTTPBindingTrait.HTTPServerBindingObject = Field(
+    http: t.Optional[HTTPBindingTrait.HTTPServerBindingObject] = Field(
         description="""Protocol-specific information for an HTTP server.""",
     )
-    amqp: AMQPBindingTrait.AMQPServerBindingObject = Field(
+    amqp: t.Optional[AMQPBindingTrait.AMQPServerBindingObject] = Field(
         description="""Protocol-specific information for an AMQP 0-9-1 server.""",
     )
 
 
-class ServerVariableObject(SpecificationExtension, WithDescriptionField, BaseModel):
+class ServerVariableObject(WithSpecificationExtension, WithDescriptionField, BaseModel):
     """
     An object representing a Server Variable for server URL template substitution.
 
@@ -562,7 +597,7 @@ class SecurityRequirementObject(BaseModel):
     __root__: t.Mapping[str, t.Sequence[str]]
 
 
-class ServerObject(SpecificationExtension, WithDescriptionField, BaseModel):
+class ServerObject(WithSpecificationExtension, WithDescriptionField, BaseModel):
     """
     An object representing a message broker, a server or any other kind of computer program capable of sending and/or
     receiving data. This object is used to capture details such as URIs, protocols and security configuration.
@@ -598,16 +633,139 @@ class ServerObject(SpecificationExtension, WithDescriptionField, BaseModel):
     )
 
 
-class OperationBindingsObject(BaseModel):
+class ServersObject(BaseModel):
+    """
+    The Servers Object is a map of Server Objects.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#serversObject
+    """
+
+    __root__: t.Mapping[ServerName, ServerObject]
+
+
+class DefaultContentType(str):
+    """
+    A string representing the default content type to use when encoding/decoding a message's payload. The value MUST
+    be a specific media type (e.g. application/json). This value MUST be used by schema parsers when the contentType
+    property is omitted. In case a message can't be encoded/decoded using this value, schema parsers MUST use their
+    default content type.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#defaultContentTypeString
+    """
+    pass
+
+
+class CorrelationIdObject(WithDescriptionField, WithSpecificationExtension, BaseModel):
+    """
+    An object that specifies an identifier at design time that can used for message tracing and correlation. For
+    specifying and computing the location of a Correlation ID, a runtime expression is used.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#correlationIdObject
+    """
+
+    location: RuntimeExpression = Field(
+        description="""REQUIRED. A runtime expression that specifies the location of the correlation ID.""",
+    )
+
+
+class MessageBindingsObject(WithSpecificationExtension, BaseModel):
+    """
+    Map describing protocol-specific definitions for a message.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#messageBindingsObject
+    """
+    http: t.Optional[HTTPBindingTrait.HTTPMessageBindingObject] = Field(
+        description="""Protocol-specific information for an HTTP message, i.e., a request or a response.""",
+    )
+    amqp: t.Optional[AMQPBindingTrait.AMQPMessageBindingObject] = Field(
+        description="""Protocol-specific information for an AMQP 0-9-1 message.""",
+    )
+
+
+class MessageExampleObject(WithSpecificationExtension, BaseModel):
+    """
+    Message Example Object represents an example of a Message Object and MUST contain either headers and/or payload
+    fields.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#messageExampleObject
+    """
+    headers: t.Optional[t.Mapping[str, t.Any]] = Field(
+        description="""The value of this field MUST validate against the Message Object's headers field.""",
+    )
+    payload: t.Optional[t.Any] = Field(
+        description="""The value of this field MUST validate against the Message Object's payload field.""",
+    )
+    name: t.Optional[str] = Field(
+        description="""A machine-friendly name.""",
+    )
+    summary: t.Optional[str] = Field(
+        description="""A short summary of what the example is about.""",
+    )
+
+
+class MessageTraitObject(WithDescriptionField, WithTagsField, WithExternalDocsField, WithSpecificationExtension,
+                         BaseModel):
+    """
+    Describes a trait that MAY be applied to a Message Object. This object MAY contain any property from the Message
+    Object, except payload and traits. If you're looking to apply traits to an operation, see the Operation Trait
+    Object.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#messageTraitObject
+    """
+    headers: t.Optional[t.Union[SchemaObject, ReferenceObject]] = Field(
+        description="""Schema definition of the application headers. Schema MUST be of type "object". It MUST NOT 
+        define the protocol headers.""",
+    )
+    correlationId: t.Optional[t.Union[CorrelationIdObject, ReferenceObject]] = Field(
+        description="""Definition of the correlation ID used for message tracing or matching.""",
+    )
+    schemaFormat: t.Optional[str] = Field(
+        description="""A string containing the name of the schema format/language used to define the message payload. 
+        If omitted, implementations should parse the payload as a Schema object.""",
+    )
+    contentType: t.Optional[str] = Field(
+        description="""The content type to use when encoding/decoding a message's payload. The value MUST be a 
+        specific media type (e.g. application/json). When omitted, the value MUST be the one specified on the 
+        defaultContentType field. """,
+    )
+    name: t.Optional[str] = Field(
+        description="""A machine-friendly name for the message.""",
+    )
+    title: t.Optional[str] = Field(
+        description="""A human-friendly title for the message.""",
+    )
+    summary: t.Optional[str] = Field(
+        description="""A short summary of what the message is about.""",
+    )
+    bindings: t.Optional[t.Union[MessageBindingsObject, ReferenceObject]] = Field(
+        description="""A map where the keys describe the name of the protocol and the values describe 
+        protocol-specific definitions for the message. """,
+    )
+    examples: t.Optional[t.Sequence[MessageExampleObject]] = Field(
+        description="""List of examples.""",
+    )
+
+
+class MessageObject(MessageTraitObject, BaseModel):
+    """
+    Describes a message received on a given channel and operation.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#messageObject
+    """
+    payload: t.Any
+    traits: t.Optional[t.Sequence[MessageTraitObject]]
+
+
+class OperationBindingsObject(WithSpecificationExtension, BaseModel):
     """
     Map describing protocol-specific definitions for an operation.
 
     https://www.asyncapi.com/docs/specifications/v2.2.0#operationBindingsObject
     """
-    http: HTTPBindingTrait.HTTPOperationBindingObject = Field(
+    http: t.Optional[HTTPBindingTrait.HTTPOperationBindingObject] = Field(
         description="""Protocol-specific information for an HTTP operation.""",
     )
-    amqp: AMQPBindingTrait.AMQPOperationBindingObject = Field(
+    amqp: t.Optional[AMQPBindingTrait.AMQPOperationBindingObject] = Field(
         description="""Protocol-specific information for an AMQP 0-9-1 operation.""",
     )
 
@@ -636,11 +794,7 @@ class OperationTraitObject(WithDescriptionField, WithTagsField, WithExternalDocs
     )
 
 
-class MessageObject(BaseModel):
-    pass
-
-
-class OperationObject(OperationTraitObject, BaseModel):
+class OperationObject(OperationTraitObject, WithSpecificationExtension, BaseModel):
     """
     Describes a publish or a subscribe operation. This provides a place to document how and why messages are sent and
     received. For example, an operation might describe a chat application use case where a user sends a text message
@@ -661,24 +815,76 @@ class OperationObject(OperationTraitObject, BaseModel):
     )
 
 
-class ChannelItemObject(WithDescriptionField, BaseModel):
+class ParameterObject(WithDescriptionField, WithSpecificationExtension, BaseModel):
+    """
+    Describes a parameter included in a channel name.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#parameterObject
+    """
+
+    schema: t.Optional[t.Union[SchemaObject, ReferenceObject]] = Field(
+        description="""Definition of the parameter.""",
+    )
+    location: t.Optional[RuntimeExpression] = Field(
+        description="""A runtime expression that specifies the location of the parameter value. Even when a 
+        definition for the target field exists, it MUST NOT be used to validate this parameter but, instead, 
+        the schema property MUST be used.""",
+    )
+
+
+class ParametersObject(BaseModel):
+    """
+    Describes a map of parameters included in a channel name. This map MUST contain all the parameters used in the
+    parent channel name. The key represents the name of the parameter. It MUST match the parameter name used in the
+    parent channel name.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#parametersObject
+    """
+
+    __root__: t.Mapping[ParameterName, t.Union[ParameterObject, ReferenceObject]]
+
+
+class ChannelBindingsObject(BaseModel):
+    """
+    Map describing protocol-specific definitions for a channel.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#channelBindingsObject
+    """
+
+    # TODO: declare fields for all supported protocols
+    http: t.Optional[HTTPBindingTrait.HTTPChannelBindingObject]
+    amqp: t.Optional[AMQPBindingTrait.AMQPChannelBindingObject]
+
+
+class ChannelItemObject(WithDescriptionField, WithSpecificationExtension, BaseModel):
     """
     Describes the operations available on a single channel.
 
     https://www.asyncapi.com/docs/specifications/v2.2.0#channelItemObject
     """
+
+    # TODO: check if `$ref` field should be defined here, or it just allowed to use `t.Union[ChannelItemObject,
+    #  ReferenceObject]`
     servers: t.Optional[t.Sequence[str]] = Field(
         description="""The servers on which this channel is available, specified as an optional unordered list of 
         names (string keys) of Server Objects defined in the Servers Object (a map). If servers is absent or empty 
         then this channel must be available on all servers defined in the Servers Object. """,
     )
-    subscribe: OperationObject = Field(
+    subscribe: t.Optional[OperationObject] = Field(
         description="""A definition of the SUBSCRIBE operation, which defines the messages produced by the 
         application and sent to the channel.""",
     )
-    publish: OperationObject = Field(
+    publish: t.Optional[OperationObject] = Field(
         description="""A definition of the PUBLISH operation, which defines the messages consumed by the application 
         from the channel.""",
+    )
+    parameters: t.Optional[ParametersObject] = Field(
+        description="""A map of the parameters included in the channel name. It SHOULD be present only when using 
+        channels with expressions (as defined by RFC 6570 section 2.2).""",
+    )
+    bindings: t.Optional[t.Union[ChannelBindingsObject, ReferenceObject]] = Field(
+        description="""A map where the keys describe the name of the protocol and the values describe 
+        protocol-specific definitions for the channel.""",
     )
 
 
@@ -693,7 +899,142 @@ class ChannelsObject(BaseModel):
     __root__: t.Mapping[str, t.Union[ChannelItemObject, ReferenceObject]]
 
 
-class AsyncAPIObject(SpecificationExtension, WithExternalDocsField, WithTagsField, BaseModel):
+class OAuthFlowObject(BaseModel):
+    """
+    Configuration details for a supported OAuth Flow
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#oauthFlowObject
+    """
+
+    # TODO: add applies to
+    authorizationUrl: AnyUrl = Field(
+        description="""REQUIRED. The authorization URL to be used for this flow. This MUST be in the form of a URL.""",
+    )
+    tokenUrl: AnyUrl = Field(
+        description="""REQUIRED. The token URL to be used for this flow. This MUST be in the form of a URL.""",
+    )
+    refreshUrl: t.Optional[AnyUrl] = Field(
+        description="""The URL to be used for obtaining refresh tokens. This MUST be in the form of a URL.""",
+    )
+    scopes: t.Mapping[str, str] = Field(
+        description="""REQUIRED. The available scopes for the OAuth2 security scheme. A map between the scope name 
+        and a short description for it. """,
+    )
+
+
+class OAuthFlowsObject(WithSpecificationExtension, BaseModel):
+    """
+    Allows configuration of the supported OAuth Flows.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#oauthFlowsObject
+    """
+
+    implicit: t.Optional[OAuthFlowObject] = Field(
+        description="""Configuration for the OAuth Implicit flow""",
+    )
+    password: t.Optional[OAuthFlowObject] = Field(
+        description="""Configuration for the OAuth Resource Owner Protected Credentials flow""",
+    )
+    clientCredentials: t.Optional[OAuthFlowObject] = Field(
+        description="""Configuration for the OAuth Client Credentials flow.""",
+    )
+    authorizationCode: t.Optional[OAuthFlowObject] = Field(
+        description="""Configuration for the OAuth Authorization Code flow.""",
+    )
+
+
+class SecuritySchemeObject(WithDescriptionField, WithSpecificationExtension, BaseModel):
+    """
+    Defines a security scheme that can be used by the operations. Supported schemes are:
+        * User/Password.
+        * API key (either as user or as password).
+        * X.509 certificate.
+        * End-to-end encryption (either symmetric or asymmetric).
+        * HTTP authentication.
+        * HTTP API key.
+        * OAuth2's common flows (Implicit, Resource Owner Protected Credentials, Client Credentials and Authorization
+          Code) as defined in RFC6749.
+        * OpenID Connect Discovery.
+        * SASL (Simple Authentication and Security Layer) as defined in RFC4422.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#securitySchemeObject
+    """
+    # TODO: add applies to
+    type_: SecuritySchemeType = Field(
+        alias="type",
+        description="""REQUIRED. The type of the security scheme. Valid values are "userPassword", "apiKey", "X509", 
+        "symmetricEncryption", "asymmetricEncryption", "httpApiKey", "http", "oauth2", "openIdConnect", "plain", 
+        "scramSha256", "scramSha512", and "gssapi".""",
+    )
+    name: str = Field(
+        description="""REQUIRED. The name of the header, query or cookie parameter to be used.""",
+    )
+    in_: str = Field(
+        alias="in",
+        description="""REQUIRED. The location of the API key. Valid values are "user" and "password" for apiKey and 
+        "query", "header" or "cookie" for httpApiKey. """,
+    )
+    scheme: str = Field(
+        description="""REQUIRED. The name of the HTTP Authorization scheme to be used in the Authorization header as 
+        defined in RFC7235. """,
+    )
+    bearerFormat: t.Optional[str] = Field(
+        description="""A hint to the client to identify how the bearer token is formatted. Bearer tokens are usually 
+        generated by an authorization server, so this information is primarily for documentation purposes. """,
+    )
+    flows: OAuthFlowsObject = Field(
+        description="""REQUIRED. An object containing configuration information for the flow types supported.""",
+    )
+    openIdConnectUrl: str = Field(
+        description="""REQUIRED. OpenId Connect URL to discover OAuth2 configuration values. This MUST be in the form 
+        of a URL.""",
+    )
+
+
+class ComponentsObject:
+    """
+    Holds a set of reusable objects for different aspects of the AsyncAPI specification. All objects defined within
+    the components object will have no effect on the API unless they are explicitly referenced from properties
+    outside the components object.
+
+    https://www.asyncapi.com/docs/specifications/v2.2.0#componentsObject
+    """
+    schemas: t.Optional[t.Mapping[str, t.Union[SchemaObject, ReferenceObject]]] = Field(
+        description="""An object to hold reusable Schema Objects.""",
+    )
+    messages: t.Optional[t.Mapping[str, t.Union[MessageObject, ReferenceObject]]] = Field(
+        description="""An object to hold reusable Message Objects.""",
+    )
+    securitySchemes: t.Optional[t.Mapping[str, t.Union[SecuritySchemeObject, ReferenceObject]]] = Field(
+        description="""An object to hold reusable Security Scheme Objects.""",
+    )
+    parameters: t.Optional[t.Mapping[str, t.Union[ParameterObject, ReferenceObject]]] = Field(
+        description="""An object to hold reusable Parameter Objects.""",
+    )
+    correlationIds: t.Optional[t.Mapping[str, t.Union[CorrelationIdObject, ReferenceObject]]] = Field(
+        description="""An object to hold reusable Correlation ID Objects.""",
+    )
+    operationTraits: t.Optional[t.Mapping[str, t.Union[OperationTraitObject, ReferenceObject]]] = Field(
+        description="""An object to hold reusable Operation Trait Objects.""",
+    )
+    messageTraits: t.Optional[t.Mapping[str, t.Union[MessageTraitObject, ReferenceObject]]] = Field(
+        description="""An object to hold reusable Message Trait Objects.""",
+    )
+    serverBindings: t.Optional[t.Mapping[str, t.Union[ServerBindingsObject, ReferenceObject]]] = Field(
+        description="""An object to hold reusable Server Bindings Objects.""",
+    )
+    channelBindings: t.Optional[t.Mapping[str, t.Union[ChannelBindingsObject, ReferenceObject]]] = Field(
+        description="""An object to hold reusable Channel Bindings Objects.""",
+    )
+    operationBindings: t.Optional[t.Mapping[str, t.Union[OperationBindingsObject, ReferenceObject]]] = Field(
+        description="""An object to hold reusable Operation Bindings Objects.""",
+    )
+    messageBindings: t.Optional[t.Mapping[str, t.Union[MessageBindingsObject, ReferenceObject]]] = Field(
+        description="""An object to hold reusable Message Bindings Objects.""",
+    )
+
+
+class AsyncAPIObject(WithTagsField, WithExternalDocsField, WithSpecificationExtension, BaseModel):
     """
     This is the root document object for the API specification. It combines resource listing and API declaration
     together into one document.
@@ -715,16 +1056,16 @@ class AsyncAPIObject(SpecificationExtension, WithExternalDocsField, WithTagsFiel
     info: InfoObject = Field(
         description="""Required. Provides metadata about the API. The metadata can be used by the clients if needed.""",
     )
-    servers: t.Optional[t.Mapping[ServerName, ServerObject]] = Field(
+    servers: t.Optional[ServersObject] = Field(
         description="""Provides connection details of servers.""",
     )
-    defaultContentType: t.Optional[str] = Field(
+    defaultContentType: t.Optional[DefaultContentType] = Field(
         description="""Default content type to use when encoding/decoding a message's payload.""",
     )
     channels: ChannelsObject = Field(
         description="""Required The available channels and messages for the API.""",
     )
-    components: t.Any = Field(
+    components: ComponentsObject = Field(
         description="""An element to hold various schemas for the specification.""",
     )
 
