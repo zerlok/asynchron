@@ -1,14 +1,59 @@
+__all__ = (
+    "Validator",
+    "StringRegexValidator",
+    "Email",
+    "SemanticVersion",
+    "Identifier",
+    "RuntimeExpression",
+    "ServerName",
+    "ParameterName",
+    "ComponentName",
+    "Protocol",
+    "SecuritySchemeType",
+    "ReferenceObject",
+    "SchemaObject",
+    "HTTPBindingTrait",
+    "AMQPBindingTrait",
+    "ExternalDocumentationObject",
+    "TagObject",
+    "TagsObject",
+    "ContactObject",
+    "LicenseObject",
+    "InfoObject",
+    "ServerBindingsObject",
+    "ServerVariableObject",
+    "SecurityRequirementObject",
+    "ServerObject",
+    "ServersObject",
+    "DefaultContentType",
+    "CorrelationIdObject",
+    "MessageBindingsObject",
+    "MessageExampleObject",
+    "MessageTraitObject",
+    "MessageObject",
+    "OperationBindingsObject",
+    "OperationTraitObject",
+    "OperationObject",
+    "ParameterObject",
+    "ParametersObject",
+    "ChannelBindingsObject",
+    "ChannelItemObject",
+    "ChannelsObject",
+    "OAuthFlowObject",
+    "OAuthFlowsObject",
+    "SecuritySchemeObject",
+    "ComponentsObject",
+    "AsyncAPIObject",
+)
+
 import abc
 import re
 import typing as t
-from pathlib import Path
-from pprint import pprint
 
-import yaml
 from pydantic import AnyUrl, BaseModel, Field, HttpUrl
 
 T = t.TypeVar("T")
-# FIXME:  NameError: Field name "schema" shadows a BaseModel attribute; use a different field name with "alias='schema'".
+
 
 class Validator(metaclass=abc.ABCMeta):
 
@@ -156,7 +201,17 @@ class ReferenceObject(BaseModel):
     )
 
 
-class SchemaObject(BaseModel):
+class _WithSpecificationExtension(BaseModel):
+    """
+    https://www.asyncapi.com/docs/specifications/v2.2.0#specificationExtensions
+    """
+
+    # TODO: add validator
+    # class Config:
+    #     extra = Extra.allow
+
+
+class SchemaObject(_WithSpecificationExtension, BaseModel):
     """
     The Schema Object allows the definition of input and output data types. These types can be objects,
     but also primitives and arrays. This object is a superset of the JSON Schema Specification Draft 07. The empty
@@ -214,7 +269,7 @@ class SchemaObject(BaseModel):
     """
 
 
-class WithBindingVersion(BaseModel):
+class _WithBindingVersion(BaseModel):
     bindingVersion: t.Optional[str] = Field(
         description="""The version of this binding. If omitted, "latest" MUST be assumed.""",
     )
@@ -233,7 +288,7 @@ class HTTPBindingTrait:
         """This object MUST NOT contain any properties. Its name is reserved for future use."""
         __root__: None
 
-    class HTTPOperationBindingObject(WithBindingVersion, BaseModel):
+    class HTTPOperationBindingObject(_WithBindingVersion, BaseModel):
         type_: t.Literal["request", "response"] = Field(
             title="type",
             description="""Required. Type of operation. Its value MUST be either request or response.""",
@@ -249,7 +304,7 @@ class HTTPBindingTrait:
             type object and have a properties key.""",
         )
 
-    class HTTPMessageBindingObject(WithBindingVersion, BaseModel):
+    class HTTPMessageBindingObject(_WithBindingVersion, BaseModel):
         headers: t.Union[SchemaObject, ReferenceObject] = Field(
             description="""A Schema object containing the definitions for HTTP-specific headers. This schema MUST be 
             of type object and have a properties key.""",
@@ -267,7 +322,7 @@ class AMQPBindingTrait:
         """This object MUST NOT contain any properties. Its name is reserved for future use."""
         __root__: None
 
-    class AMQPChannelBindingObject(WithBindingVersion, BaseModel):
+    class AMQPChannelBindingObject(_WithBindingVersion, BaseModel):
         """
         This object contains information about the channel representation in AMQP.
         """
@@ -347,7 +402,7 @@ class AMQPBindingTrait:
             description="""When is=queue, this object defines the queue properties.""",
         )
 
-    class AMQPOperationBindingObject(WithBindingVersion, BaseModel):
+    class AMQPOperationBindingObject(_WithBindingVersion, BaseModel):
         """This object contains information about the operation representation in AMQP."""
 
         class Config:
@@ -405,7 +460,7 @@ class AMQPBindingTrait:
             description="""Applies to: subscribe; Whether the consumer should ack the message or not.""",
         )
 
-    class AMQPMessageBindingObject(WithBindingVersion, BaseModel):
+    class AMQPMessageBindingObject(_WithBindingVersion, BaseModel):
         """This object contains information about the message representation in AMQP."""
 
         class Config:
@@ -427,26 +482,26 @@ class AMQPBindingTrait:
         )
 
 
-class WithDescriptionField(BaseModel):
+class _WithDescriptionField(BaseModel):
     description: t.Optional[str] = Field(
         description="""A short description of the application. <a href="https://spec.commonmark.org/">CommonMark 
         syntax</a> can be used for rich text representation.""",
     )
 
 
-class ExternalDocumentationObject(WithDescriptionField, BaseModel):
+class ExternalDocumentationObject(_WithDescriptionField, _WithSpecificationExtension, BaseModel):
     url: AnyUrl = Field(
         description="""Required. The URL for the target documentation. Value MUST be in the format of a URL.""",
     )
 
 
-class WithExternalDocsField(BaseModel):
+class _WithExternalDocsField(BaseModel):
     externalDocs: t.Optional[ExternalDocumentationObject] = Field(
         description="""Additional external documentation for this tag.""",
     )
 
 
-class TagObject(WithDescriptionField, WithExternalDocsField, BaseModel):
+class TagObject(_WithDescriptionField, _WithExternalDocsField, _WithSpecificationExtension, BaseModel):
     """
     Allows adding meta data to a single tag.
 
@@ -467,24 +522,14 @@ class TagsObject(BaseModel):
     __root__: t.Sequence[TagObject]
 
 
-class WithTagsField(BaseModel):
+class _WithTagsField(BaseModel):
     tags: t.Optional[TagsObject] = Field(
         description="""A list of tags for API documentation control. Tags can be used for logical grouping of 
         operations.""",
     )
 
 
-class WithSpecificationExtension(BaseModel):
-    """
-    https://www.asyncapi.com/docs/specifications/v2.2.0#specificationExtensions
-    """
-
-    # TODO: add validator
-    # class Config:
-    #     extra = Extra.allow
-
-
-class ContactObject(WithSpecificationExtension, BaseModel):
+class ContactObject(_WithSpecificationExtension, BaseModel):
     """
     Contact information for the exposed API.
 
@@ -503,7 +548,7 @@ class ContactObject(WithSpecificationExtension, BaseModel):
     )
 
 
-class LicenseObject(WithSpecificationExtension, BaseModel):
+class LicenseObject(_WithSpecificationExtension, BaseModel):
     """
     License information for the exposed API.
 
@@ -518,7 +563,7 @@ class LicenseObject(WithSpecificationExtension, BaseModel):
     )
 
 
-class InfoObject(WithSpecificationExtension, WithDescriptionField, BaseModel):
+class InfoObject(_WithDescriptionField, _WithSpecificationExtension, BaseModel):
     """
     The object provides metadata about the API. The metadata can be used by the clients if needed.
 
@@ -543,7 +588,7 @@ class InfoObject(WithSpecificationExtension, WithDescriptionField, BaseModel):
     )
 
 
-class ServerBindingsObject(WithSpecificationExtension, BaseModel):
+class ServerBindingsObject(_WithSpecificationExtension, BaseModel):
     """
     Map describing protocol-specific definitions for a server.
 
@@ -559,7 +604,7 @@ class ServerBindingsObject(WithSpecificationExtension, BaseModel):
     )
 
 
-class ServerVariableObject(WithSpecificationExtension, WithDescriptionField, BaseModel):
+class ServerVariableObject(_WithSpecificationExtension, _WithDescriptionField, BaseModel):
     """
     An object representing a Server Variable for server URL template substitution.
 
@@ -597,7 +642,7 @@ class SecurityRequirementObject(BaseModel):
     __root__: t.Mapping[str, t.Sequence[str]]
 
 
-class ServerObject(WithSpecificationExtension, WithDescriptionField, BaseModel):
+class ServerObject(_WithSpecificationExtension, _WithDescriptionField, BaseModel):
     """
     An object representing a message broker, a server or any other kind of computer program capable of sending and/or
     receiving data. This object is used to capture details such as URIs, protocols and security configuration.
@@ -655,7 +700,7 @@ class DefaultContentType(str):
     pass
 
 
-class CorrelationIdObject(WithDescriptionField, WithSpecificationExtension, BaseModel):
+class CorrelationIdObject(_WithDescriptionField, _WithSpecificationExtension, BaseModel):
     """
     An object that specifies an identifier at design time that can used for message tracing and correlation. For
     specifying and computing the location of a Correlation ID, a runtime expression is used.
@@ -668,7 +713,7 @@ class CorrelationIdObject(WithDescriptionField, WithSpecificationExtension, Base
     )
 
 
-class MessageBindingsObject(WithSpecificationExtension, BaseModel):
+class MessageBindingsObject(_WithSpecificationExtension, BaseModel):
     """
     Map describing protocol-specific definitions for a message.
 
@@ -682,7 +727,7 @@ class MessageBindingsObject(WithSpecificationExtension, BaseModel):
     )
 
 
-class MessageExampleObject(WithSpecificationExtension, BaseModel):
+class MessageExampleObject(_WithSpecificationExtension, BaseModel):
     """
     Message Example Object represents an example of a Message Object and MUST contain either headers and/or payload
     fields.
@@ -703,7 +748,7 @@ class MessageExampleObject(WithSpecificationExtension, BaseModel):
     )
 
 
-class MessageTraitObject(WithDescriptionField, WithTagsField, WithExternalDocsField, WithSpecificationExtension,
+class MessageTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDocsField, _WithSpecificationExtension,
                          BaseModel):
     """
     Describes a trait that MAY be applied to a Message Object. This object MAY contain any property from the Message
@@ -746,7 +791,7 @@ class MessageTraitObject(WithDescriptionField, WithTagsField, WithExternalDocsFi
     )
 
 
-class MessageObject(MessageTraitObject, BaseModel):
+class MessageObject(MessageTraitObject, _WithSpecificationExtension, BaseModel):
     """
     Describes a message received on a given channel and operation.
 
@@ -756,7 +801,7 @@ class MessageObject(MessageTraitObject, BaseModel):
     traits: t.Optional[t.Sequence[MessageTraitObject]]
 
 
-class OperationBindingsObject(WithSpecificationExtension, BaseModel):
+class OperationBindingsObject(_WithSpecificationExtension, BaseModel):
     """
     Map describing protocol-specific definitions for an operation.
 
@@ -770,7 +815,8 @@ class OperationBindingsObject(WithSpecificationExtension, BaseModel):
     )
 
 
-class OperationTraitObject(WithDescriptionField, WithTagsField, WithExternalDocsField, BaseModel):
+class OperationTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDocsField, _WithSpecificationExtension,
+                           BaseModel):
     """
     Describes a trait that MAY be applied to an Operation Object. This object MAY contain any property from the
     Operation Object, except message and traits. If you're looking to apply traits to a message, see the Message
@@ -794,7 +840,7 @@ class OperationTraitObject(WithDescriptionField, WithTagsField, WithExternalDocs
     )
 
 
-class OperationObject(OperationTraitObject, WithSpecificationExtension, BaseModel):
+class OperationObject(OperationTraitObject, _WithSpecificationExtension, BaseModel):
     """
     Describes a publish or a subscribe operation. This provides a place to document how and why messages are sent and
     received. For example, an operation might describe a chat application use case where a user sends a text message
@@ -808,21 +854,23 @@ class OperationObject(OperationTraitObject, WithSpecificationExtension, BaseMode
         description="""A list of traits to apply to the operation object. Traits MUST be merged into the operation 
         object using the JSON Merge Patch algorithm in the same order they are defined here.""",
     )
-    message: t.Optional[t.Sequence[t.Union[MessageObject, ReferenceObject]]] = Field(
+    message: t.Optional[t.Union[t.Union[MessageObject, ReferenceObject],
+                                t.Sequence[t.Union[MessageObject, ReferenceObject]]]] = Field(
         description="""A definition of the message that will be published or received on this channel. oneOf is 
         allowed here to specify multiple messages, however, a message MUST be valid only against one of the 
         referenced message objects.""",
     )
 
 
-class ParameterObject(WithDescriptionField, WithSpecificationExtension, BaseModel):
+class ParameterObject(_WithDescriptionField, _WithSpecificationExtension, BaseModel):
     """
     Describes a parameter included in a channel name.
 
     https://www.asyncapi.com/docs/specifications/v2.2.0#parameterObject
     """
 
-    schema: t.Optional[t.Union[SchemaObject, ReferenceObject]] = Field(
+    schema_: t.Optional[t.Union[SchemaObject, ReferenceObject]] = Field(
+        alias="schema",
         description="""Definition of the parameter.""",
     )
     location: t.Optional[RuntimeExpression] = Field(
@@ -844,7 +892,7 @@ class ParametersObject(BaseModel):
     __root__: t.Mapping[ParameterName, t.Union[ParameterObject, ReferenceObject]]
 
 
-class ChannelBindingsObject(BaseModel):
+class ChannelBindingsObject(_WithSpecificationExtension, BaseModel):
     """
     Map describing protocol-specific definitions for a channel.
 
@@ -856,7 +904,7 @@ class ChannelBindingsObject(BaseModel):
     amqp: t.Optional[AMQPBindingTrait.AMQPChannelBindingObject]
 
 
-class ChannelItemObject(WithDescriptionField, WithSpecificationExtension, BaseModel):
+class ChannelItemObject(_WithDescriptionField, _WithSpecificationExtension, BaseModel):
     """
     Describes the operations available on a single channel.
 
@@ -922,7 +970,7 @@ class OAuthFlowObject(BaseModel):
     )
 
 
-class OAuthFlowsObject(WithSpecificationExtension, BaseModel):
+class OAuthFlowsObject(_WithSpecificationExtension, BaseModel):
     """
     Allows configuration of the supported OAuth Flows.
 
@@ -943,7 +991,7 @@ class OAuthFlowsObject(WithSpecificationExtension, BaseModel):
     )
 
 
-class SecuritySchemeObject(WithDescriptionField, WithSpecificationExtension, BaseModel):
+class SecuritySchemeObject(_WithDescriptionField, _WithSpecificationExtension, BaseModel):
     """
     Defines a security scheme that can be used by the operations. Supported schemes are:
         * User/Password.
@@ -991,7 +1039,7 @@ class SecuritySchemeObject(WithDescriptionField, WithSpecificationExtension, Bas
     )
 
 
-class ComponentsObject:
+class ComponentsObject(_WithSpecificationExtension, BaseModel):
     """
     Holds a set of reusable objects for different aspects of the AsyncAPI specification. All objects defined within
     the components object will have no effect on the API unless they are explicitly referenced from properties
@@ -1034,7 +1082,7 @@ class ComponentsObject:
     )
 
 
-class AsyncAPIObject(WithTagsField, WithExternalDocsField, WithSpecificationExtension, BaseModel):
+class AsyncAPIObject(_WithTagsField, _WithExternalDocsField, _WithSpecificationExtension, BaseModel):
     """
     This is the root document object for the API specification. It combines resource listing and API declaration
     together into one document.
@@ -1068,12 +1116,3 @@ class AsyncAPIObject(WithTagsField, WithExternalDocsField, WithSpecificationExte
     components: ComponentsObject = Field(
         description="""An element to hold various schemas for the specification.""",
     )
-
-
-if __name__ == "__main__":
-
-    # print(json.dumps(AsyncAPIObject.schema(), indent=2))
-    with (Path(__file__).parent.parent / "temperature.yaml").open("r") as fd:
-        spec = AsyncAPIObject.parse_obj(yaml.safe_load(fd))
-
-    pprint(spec.dict())
