@@ -58,6 +58,12 @@ T = t.TypeVar("T")
 T_co = t.TypeVar("T_co", covariant=True)
 
 
+class SpecObject(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        raise NotImplementedError
+
+
 class Validator(metaclass=abc.ABCMeta):
 
     @classmethod
@@ -91,16 +97,18 @@ class StringRegexValidator(str, Validator):
         return t.cast(T, cls_(value))
 
 
-class Email(StringRegexValidator, pattern=re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")):
+class Email(StringRegexValidator, SpecObject, pattern=re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")):
     """
     An email string.
 
     https://emailregex.com/
     """
-    pass
+
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_email(self)
 
 
-class SemanticVersion(StringRegexValidator):
+class SemanticVersion(StringRegexValidator, SpecObject):
     """
     A valid semantic version type.
 
@@ -109,18 +117,20 @@ class SemanticVersion(StringRegexValidator):
     Regex was taken from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
     """
 
-    _PATTERN: t.ClassVar[t.Pattern[str]] = re.compile(
-        r"^"
-        r"(?P<major>0|[1-9]\d*)"
-        r"\.(?P<minor>0|[1-9]\d*)"
-        r"\.(?P<patch>0|[1-9]\d*)"
-        r"(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)"
-        r"(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"
-        r"(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?"
-        r"$""")
+    _PATTERN: t.ClassVar[t.Pattern[str]] = re.compile(r"^"
+                                                      r"(?P<major>0|[1-9]\d*)"
+                                                      r"\.(?P<minor>0|[1-9]\d*)"
+                                                      r"\.(?P<patch>0|[1-9]\d*)"
+                                                      r"(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)"
+                                                      r"(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"
+                                                      r"(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?"
+                                                      r"$""")
+
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_semantic_version(self)
 
 
-class Identifier(StringRegexValidator):
+class Identifier(StringRegexValidator, SpecObject):
     """
     This field represents a unique universal identifier of the application the AsyncAPI document is defining. It must
     conform to the URI format, according to RFC3986. It is RECOMMENDED to use a URN to globally and uniquely identify
@@ -131,8 +141,11 @@ class Identifier(StringRegexValidator):
 
     _PATTERN: t.ClassVar[t.Pattern[str]] = re.compile(r"^urn:[a-z0-9][a-z0-9-]{0,31}:[a-z0-9()+,\-.:=@;$_!*'%/?#]+$")
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_identifier(self)
 
-class RuntimeExpression(str):
+
+class RuntimeExpression(str, SpecObject):
     """A runtime expression allows values to be defined based on information that will be available within the
     message. This mechanism is used by Correlation ID Object.
 
@@ -147,30 +160,41 @@ class RuntimeExpression(str):
 
     https://www.asyncapi.com/docs/specifications/v2.2.0#runtimeExpression
     """
-    pass
+
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_runtime_expression(self)
 
 
-class ServerName(StringRegexValidator, pattern=re.compile(r"^[A-Za-z0-9_\-]+$")):
-    pass
+class ServerName(StringRegexValidator, SpecObject, pattern=re.compile(r"^[A-Za-z0-9_\-]+$")):
+
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_server_name(self)
 
 
-class ParameterName(StringRegexValidator, pattern=re.compile(r"^[A-Za-z0-9_\-]+$")):
-    pass
+class ParameterName(StringRegexValidator, SpecObject, pattern=re.compile(r"^[A-Za-z0-9_\-]+$")):
+
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_parameter_name(self)
 
 
-class ComponentName(StringRegexValidator, pattern=re.compile(r"^[a-zA-Z0-9\.\-_]+$")):
-    pass
+class ComponentName(StringRegexValidator, SpecObject, pattern=re.compile(r"^[a-zA-Z0-9.\-_]+$")):
+
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_component_name(self)
 
 
-class Protocol(BaseModel):
+class Protocol(SpecObject, BaseModel):
     """
     The supported protocol.
     """
     __root__: t.Literal["amqp", "amqps", "http", "https", "ibmmq", "jms", "kafka", "kafka-secure", "anypointmq", "mqtt",
                         "secure-mqtt", "stomp", "stomps", "ws", "wss", "mercure"]
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_protocol(self)
 
-class SecuritySchemeType(BaseModel):
+
+class SecuritySchemeType(SpecObject, BaseModel):
     """
     The supported security scheme type.
     """
@@ -178,11 +202,8 @@ class SecuritySchemeType(BaseModel):
     __root__: t.Literal["userPassword", "apiKey", "X509", "symmetricEncryption", "asymmetricEncryption", "httpApiKey",
                         "http", "oauth2", "openIdConnect", "plain", "scramSha256", "scramSha512", "gssapi"]
 
-
-class SpecObject(metaclass=abc.ABCMeta):
-    @abc.abstractmethod
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
-        raise NotImplementedError
+        return visitor.visit_security_scheme_type(self)
 
 
 class ReferenceObject(SpecObject, BaseModel):
@@ -739,7 +760,7 @@ class ServersObject(SpecObject, BaseModel):
         return visitor.visit_servers_object(self)
 
 
-class DefaultContentType(str):
+class DefaultContentType(str, SpecObject):
     """
     A string representing the default content type to use when encoding/decoding a message's payload. The value MUST
     be a specific media type (e.g. application/json). This value MUST be used by schema parsers when the contentType
@@ -748,7 +769,9 @@ class DefaultContentType(str):
 
     https://www.asyncapi.com/docs/specifications/v2.2.0#defaultContentTypeString
     """
-    pass
+
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_default_content_type(self)
 
 
 class CorrelationIdObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, BaseModel):
@@ -1227,6 +1250,42 @@ class AsyncAPIObject(_WithTagsField, _WithExternalDocsField, _WithSpecificationE
 
 class SpecObjectVisitor(t.Generic[T_co], metaclass=abc.ABCMeta):
     @abc.abstractmethod
+    def visit_email(self, obj: Email) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_semantic_version(self, obj: SemanticVersion) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_identifier(self, obj: Identifier) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_runtime_expression(self, obj: RuntimeExpression) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_server_name(self, obj: ServerName) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_parameter_name(self, obj: ParameterName) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_component_name(self, obj: ComponentName) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_protocol(self, obj: Protocol) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_security_scheme_type(self, obj: SecuritySchemeType) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def visit_reference_object(self, obj: ReferenceObject) -> T_co:
         raise NotImplementedError
 
@@ -1276,6 +1335,10 @@ class SpecObjectVisitor(t.Generic[T_co], metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def visit_servers_object(self, obj: ServersObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_default_content_type(self, obj: DefaultContentType) -> T_co:
         raise NotImplementedError
 
     @abc.abstractmethod
