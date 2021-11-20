@@ -10,6 +10,7 @@ __all__ = (
     "ComponentName",
     "Protocol",
     "SecuritySchemeType",
+    "SpecObject",
     "ReferenceObject",
     "SchemaObject",
     "HTTPBindingTrait",
@@ -44,6 +45,7 @@ __all__ = (
     "SecuritySchemeObject",
     "ComponentsObject",
     "AsyncAPIObject",
+    "SpecObjectVisitor",
 )
 
 import abc
@@ -53,13 +55,14 @@ import typing as t
 from pydantic import AnyUrl, BaseModel, Field, HttpUrl
 
 T = t.TypeVar("T")
+T_co = t.TypeVar("T_co", covariant=True)
 
 
 class Validator(metaclass=abc.ABCMeta):
 
     @classmethod
     def __get_validators__(cls: t.Type[T]) -> t.Iterable[t.Callable[[t.Any], T]]:
-        yield cls.validate
+        yield t.cast(t.Callable[[t.Any], T], t.cast(Validator, cls).validate)
 
     @classmethod
     @abc.abstractmethod
@@ -76,13 +79,16 @@ class StringRegexValidator(str, Validator):
 
     @classmethod
     def validate(cls: t.Type[T], value: t.Any) -> T:
+        cls_ = t.cast(t.Type[StringRegexValidator], cls)
+
         if not isinstance(value, str):
             raise TypeError("Unexpected type", value)
 
-        if not cls._PATTERN.match(value):
+        # noinspection PyProtectedMember
+        if not cls_._PATTERN.match(value):
             raise ValueError(f"Invalid {cls.__name__} value", value)
 
-        return cls(value)
+        return t.cast(T, cls_(value))
 
 
 class Email(StringRegexValidator, pattern=re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")):
@@ -173,7 +179,13 @@ class SecuritySchemeType(BaseModel):
                         "http", "oauth2", "openIdConnect", "plain", "scramSha256", "scramSha512", "gssapi"]
 
 
-class ReferenceObject(BaseModel):
+class SpecObject(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        raise NotImplementedError
+
+
+class ReferenceObject(SpecObject, BaseModel):
     """
     A simple object to allow referencing other components in the specification, internally and externally. The
     Reference Object is defined by <a href="https://tools.ietf.org/html/draft-pbryan-zyp-json-ref-03">JSON
@@ -200,6 +212,9 @@ class ReferenceObject(BaseModel):
         description="""Required. The reference string.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_reference_object(self)
+
 
 class _WithSpecificationExtension(BaseModel):
     """
@@ -211,7 +226,7 @@ class _WithSpecificationExtension(BaseModel):
     #     extra = Extra.allow
 
 
-class SchemaObject(_WithSpecificationExtension, BaseModel):
+class SchemaObject(_WithSpecificationExtension, SpecObject, BaseModel):
     """
     The Schema Object allows the definition of input and output data types. These types can be objects,
     but also primitives and arrays. This object is a superset of the JSON Schema Specification Draft 07. The empty
@@ -267,6 +282,9 @@ class SchemaObject(_WithSpecificationExtension, BaseModel):
     anyOf: t.Optional[str]
     not_: t.Optional[str]
     """
+
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_schema_object(self)
 
 
 class _WithBindingVersion(BaseModel):
@@ -489,10 +507,13 @@ class _WithDescriptionField(BaseModel):
     )
 
 
-class ExternalDocumentationObject(_WithDescriptionField, _WithSpecificationExtension, BaseModel):
+class ExternalDocumentationObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, BaseModel):
     url: AnyUrl = Field(
         description="""Required. The URL for the target documentation. Value MUST be in the format of a URL.""",
     )
+
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_external_documentation_object(self)
 
 
 class _WithExternalDocsField(BaseModel):
@@ -501,7 +522,7 @@ class _WithExternalDocsField(BaseModel):
     )
 
 
-class TagObject(_WithDescriptionField, _WithExternalDocsField, _WithSpecificationExtension, BaseModel):
+class TagObject(_WithDescriptionField, _WithExternalDocsField, _WithSpecificationExtension, SpecObject, BaseModel):
     """
     Allows adding meta data to a single tag.
 
@@ -511,8 +532,11 @@ class TagObject(_WithDescriptionField, _WithExternalDocsField, _WithSpecificatio
         description="""Required. The name of the tag.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_tag_object(self)
 
-class TagsObject(BaseModel):
+
+class TagsObject(SpecObject, BaseModel):
     """
     A Tags object is a list of Tag Objects.
 
@@ -520,6 +544,9 @@ class TagsObject(BaseModel):
     """
 
     __root__: t.Sequence[TagObject]
+
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_tags_object(self)
 
 
 class _WithTagsField(BaseModel):
@@ -529,7 +556,7 @@ class _WithTagsField(BaseModel):
     )
 
 
-class ContactObject(_WithSpecificationExtension, BaseModel):
+class ContactObject(_WithSpecificationExtension, SpecObject, BaseModel):
     """
     Contact information for the exposed API.
 
@@ -547,8 +574,11 @@ class ContactObject(_WithSpecificationExtension, BaseModel):
         address.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_contact_object(self)
 
-class LicenseObject(_WithSpecificationExtension, BaseModel):
+
+class LicenseObject(_WithSpecificationExtension, SpecObject, BaseModel):
     """
     License information for the exposed API.
 
@@ -562,8 +592,11 @@ class LicenseObject(_WithSpecificationExtension, BaseModel):
         description="""A URL to the license used for the API. MUST be in the format of a URL.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_license_object(self)
 
-class InfoObject(_WithDescriptionField, _WithSpecificationExtension, BaseModel):
+
+class InfoObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, BaseModel):
     """
     The object provides metadata about the API. The metadata can be used by the clients if needed.
 
@@ -587,8 +620,11 @@ class InfoObject(_WithDescriptionField, _WithSpecificationExtension, BaseModel):
         description="""The license information for the exposed API.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_info_object(self)
 
-class ServerBindingsObject(_WithSpecificationExtension, BaseModel):
+
+class ServerBindingsObject(_WithSpecificationExtension, SpecObject, BaseModel):
     """
     Map describing protocol-specific definitions for a server.
 
@@ -603,8 +639,11 @@ class ServerBindingsObject(_WithSpecificationExtension, BaseModel):
         description="""Protocol-specific information for an AMQP 0-9-1 server.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_server_bindings_object(self)
 
-class ServerVariableObject(_WithSpecificationExtension, _WithDescriptionField, BaseModel):
+
+class ServerVariableObject(_WithSpecificationExtension, _WithDescriptionField, SpecObject, BaseModel):
     """
     An object representing a Server Variable for server URL template substitution.
 
@@ -623,8 +662,11 @@ class ServerVariableObject(_WithSpecificationExtension, _WithDescriptionField, B
         description="""An array of examples of the server variable.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_server_variable_object(self)
 
-class SecurityRequirementObject(BaseModel):
+
+class SecurityRequirementObject(SpecObject, BaseModel):
     """
     Lists the required security schemes to execute this operation. The name used for each property MUST correspond to
     a security scheme declared in the Security Schemes under the Components Object. When a list of Security
@@ -641,8 +683,11 @@ class SecurityRequirementObject(BaseModel):
 
     __root__: t.Mapping[str, t.Sequence[str]]
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_security_requirement_object(self)
 
-class ServerObject(_WithSpecificationExtension, _WithDescriptionField, BaseModel):
+
+class ServerObject(_WithSpecificationExtension, _WithDescriptionField, SpecObject, BaseModel):
     """
     An object representing a message broker, a server or any other kind of computer program capable of sending and/or
     receiving data. This object is used to capture details such as URIs, protocols and security configuration.
@@ -677,8 +722,11 @@ class ServerObject(_WithSpecificationExtension, _WithDescriptionField, BaseModel
         protocol-specific definitions for the server.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_server_object(self)
 
-class ServersObject(BaseModel):
+
+class ServersObject(SpecObject, BaseModel):
     """
     The Servers Object is a map of Server Objects.
 
@@ -686,6 +734,9 @@ class ServersObject(BaseModel):
     """
 
     __root__: t.Mapping[ServerName, ServerObject]
+
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_servers_object(self)
 
 
 class DefaultContentType(str):
@@ -700,7 +751,7 @@ class DefaultContentType(str):
     pass
 
 
-class CorrelationIdObject(_WithDescriptionField, _WithSpecificationExtension, BaseModel):
+class CorrelationIdObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, BaseModel):
     """
     An object that specifies an identifier at design time that can used for message tracing and correlation. For
     specifying and computing the location of a Correlation ID, a runtime expression is used.
@@ -712,8 +763,11 @@ class CorrelationIdObject(_WithDescriptionField, _WithSpecificationExtension, Ba
         description="""REQUIRED. A runtime expression that specifies the location of the correlation ID.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_correlation_id_object(self)
 
-class MessageBindingsObject(_WithSpecificationExtension, BaseModel):
+
+class MessageBindingsObject(_WithSpecificationExtension, SpecObject, BaseModel):
     """
     Map describing protocol-specific definitions for a message.
 
@@ -726,8 +780,11 @@ class MessageBindingsObject(_WithSpecificationExtension, BaseModel):
         description="""Protocol-specific information for an AMQP 0-9-1 message.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_message_bindings_object(self)
 
-class MessageExampleObject(_WithSpecificationExtension, BaseModel):
+
+class MessageExampleObject(_WithSpecificationExtension, SpecObject, BaseModel):
     """
     Message Example Object represents an example of a Message Object and MUST contain either headers and/or payload
     fields.
@@ -747,8 +804,12 @@ class MessageExampleObject(_WithSpecificationExtension, BaseModel):
         description="""A short summary of what the example is about.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_message_example_object(self)
 
-class MessageTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDocsField, _WithSpecificationExtension,
+
+class MessageTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDocsField, SpecObject,
+                         _WithSpecificationExtension,
                          BaseModel):
     """
     Describes a trait that MAY be applied to a Message Object. This object MAY contain any property from the Message
@@ -790,8 +851,11 @@ class MessageTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDoc
         description="""List of examples.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_message_trait_object(self)
 
-class MessageObject(MessageTraitObject, _WithSpecificationExtension, BaseModel):
+
+class MessageObject(MessageTraitObject, SpecObject, BaseModel):
     """
     Describes a message received on a given channel and operation.
 
@@ -800,8 +864,11 @@ class MessageObject(MessageTraitObject, _WithSpecificationExtension, BaseModel):
     payload: t.Any
     traits: t.Optional[t.Sequence[MessageTraitObject]]
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_message_object(self)
 
-class OperationBindingsObject(_WithSpecificationExtension, BaseModel):
+
+class OperationBindingsObject(_WithSpecificationExtension, SpecObject, BaseModel):
     """
     Map describing protocol-specific definitions for an operation.
 
@@ -814,8 +881,12 @@ class OperationBindingsObject(_WithSpecificationExtension, BaseModel):
         description="""Protocol-specific information for an AMQP 0-9-1 operation.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_operation_bindings_object(self)
 
-class OperationTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDocsField, _WithSpecificationExtension,
+
+class OperationTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDocsField, SpecObject,
+                           _WithSpecificationExtension,
                            BaseModel):
     """
     Describes a trait that MAY be applied to an Operation Object. This object MAY contain any property from the
@@ -839,8 +910,11 @@ class OperationTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalD
         protocol-specific definitions for the operation.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_operation_trait_object(self)
 
-class OperationObject(OperationTraitObject, _WithSpecificationExtension, BaseModel):
+
+class OperationObject(OperationTraitObject, SpecObject, BaseModel):
     """
     Describes a publish or a subscribe operation. This provides a place to document how and why messages are sent and
     received. For example, an operation might describe a chat application use case where a user sends a text message
@@ -861,8 +935,11 @@ class OperationObject(OperationTraitObject, _WithSpecificationExtension, BaseMod
         referenced message objects.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_operation_object(self)
 
-class ParameterObject(_WithDescriptionField, _WithSpecificationExtension, BaseModel):
+
+class ParameterObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, BaseModel):
     """
     Describes a parameter included in a channel name.
 
@@ -879,8 +956,11 @@ class ParameterObject(_WithDescriptionField, _WithSpecificationExtension, BaseMo
         the schema property MUST be used.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_parameter_object(self)
 
-class ParametersObject(BaseModel):
+
+class ParametersObject(SpecObject, BaseModel):
     """
     Describes a map of parameters included in a channel name. This map MUST contain all the parameters used in the
     parent channel name. The key represents the name of the parameter. It MUST match the parameter name used in the
@@ -891,8 +971,11 @@ class ParametersObject(BaseModel):
 
     __root__: t.Mapping[ParameterName, t.Union[ParameterObject, ReferenceObject]]
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_parameters_object(self)
 
-class ChannelBindingsObject(_WithSpecificationExtension, BaseModel):
+
+class ChannelBindingsObject(_WithSpecificationExtension, SpecObject, BaseModel):
     """
     Map describing protocol-specific definitions for a channel.
 
@@ -903,8 +986,11 @@ class ChannelBindingsObject(_WithSpecificationExtension, BaseModel):
     http: t.Optional[HTTPBindingTrait.HTTPChannelBindingObject]
     amqp: t.Optional[AMQPBindingTrait.AMQPChannelBindingObject]
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_channel_bindings_object(self)
 
-class ChannelItemObject(_WithDescriptionField, _WithSpecificationExtension, BaseModel):
+
+class ChannelItemObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, BaseModel):
     """
     Describes the operations available on a single channel.
 
@@ -935,8 +1021,11 @@ class ChannelItemObject(_WithDescriptionField, _WithSpecificationExtension, Base
         protocol-specific definitions for the channel.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_channel_item_object(self)
 
-class ChannelsObject(BaseModel):
+
+class ChannelsObject(SpecObject, BaseModel):
     """
     Holds the relative paths to the individual channel and their operations. Channel paths are relative to servers.
     Channels are also known as "topics", "routing keys", "event types" or "paths".
@@ -946,8 +1035,11 @@ class ChannelsObject(BaseModel):
 
     __root__: t.Mapping[str, t.Union[ChannelItemObject, ReferenceObject]]
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_channels_object(self)
 
-class OAuthFlowObject(BaseModel):
+
+class OAuthFlowObject(SpecObject, BaseModel):
     """
     Configuration details for a supported OAuth Flow
 
@@ -969,8 +1061,11 @@ class OAuthFlowObject(BaseModel):
         and a short description for it. """,
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_oauth_flow_object(self)
 
-class OAuthFlowsObject(_WithSpecificationExtension, BaseModel):
+
+class OAuthFlowsObject(_WithSpecificationExtension, SpecObject, BaseModel):
     """
     Allows configuration of the supported OAuth Flows.
 
@@ -990,8 +1085,11 @@ class OAuthFlowsObject(_WithSpecificationExtension, BaseModel):
         description="""Configuration for the OAuth Authorization Code flow.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_oauth_flows_object(self)
 
-class SecuritySchemeObject(_WithDescriptionField, _WithSpecificationExtension, BaseModel):
+
+class SecuritySchemeObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, BaseModel):
     """
     Defines a security scheme that can be used by the operations. Supported schemes are:
         * User/Password.
@@ -1038,8 +1136,11 @@ class SecuritySchemeObject(_WithDescriptionField, _WithSpecificationExtension, B
         of a URL.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_security_scheme_object(self)
 
-class ComponentsObject(_WithSpecificationExtension, BaseModel):
+
+class ComponentsObject(_WithSpecificationExtension, SpecObject, BaseModel):
     """
     Holds a set of reusable objects for different aspects of the AsyncAPI specification. All objects defined within
     the components object will have no effect on the API unless they are explicitly referenced from properties
@@ -1081,8 +1182,11 @@ class ComponentsObject(_WithSpecificationExtension, BaseModel):
         description="""An object to hold reusable Message Bindings Objects.""",
     )
 
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_components_object(self)
 
-class AsyncAPIObject(_WithTagsField, _WithExternalDocsField, _WithSpecificationExtension, BaseModel):
+
+class AsyncAPIObject(_WithTagsField, _WithExternalDocsField, _WithSpecificationExtension, SpecObject, BaseModel):
     """
     This is the root document object for the API specification. It combines resource listing and API declaration
     together into one document.
@@ -1116,3 +1220,132 @@ class AsyncAPIObject(_WithTagsField, _WithExternalDocsField, _WithSpecificationE
     components: ComponentsObject = Field(
         description="""An element to hold various schemas for the specification.""",
     )
+
+    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+        return visitor.visit_async_api_object(self)
+
+
+class SpecObjectVisitor(t.Generic[T_co], metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def visit_reference_object(self, obj: ReferenceObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_schema_object(self, obj: SchemaObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_external_documentation_object(self, obj: ExternalDocumentationObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_tag_object(self, obj: TagObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_tags_object(self, obj: TagsObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_contact_object(self, obj: ContactObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_license_object(self, obj: LicenseObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_info_object(self, obj: InfoObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_server_bindings_object(self, obj: ServerBindingsObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_server_variable_object(self, obj: ServerVariableObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_security_requirement_object(self, obj: SecurityRequirementObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_server_object(self, obj: ServerObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_servers_object(self, obj: ServersObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_correlation_id_object(self, obj: CorrelationIdObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_message_bindings_object(self, obj: MessageBindingsObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_message_example_object(self, obj: MessageExampleObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_message_trait_object(self, obj: MessageTraitObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_message_object(self, obj: MessageObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_operation_bindings_object(self, obj: OperationBindingsObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_operation_trait_object(self, obj: OperationTraitObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_operation_object(self, obj: OperationObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_parameter_object(self, obj: ParameterObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_parameters_object(self, obj: ParametersObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_channel_bindings_object(self, obj: ChannelBindingsObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_channel_item_object(self, obj: ChannelItemObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_channels_object(self, obj: ChannelsObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_oauth_flow_object(self, obj: OAuthFlowObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_oauth_flows_object(self, obj: OAuthFlowsObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_security_scheme_object(self, obj: SecuritySchemeObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_components_object(self, obj: ComponentsObject) -> T_co:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def visit_async_api_object(self, obj: AsyncAPIObject) -> T_co:
+        raise NotImplementedError
