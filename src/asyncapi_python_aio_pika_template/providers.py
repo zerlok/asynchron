@@ -23,7 +23,7 @@ class KeySelector(Provider, t.Generic[T]):
 
     def __init__(self, providers_by_key: t.Mapping[str, Provider[T]], *args: t.Any, **kwargs: t.Any) -> None:
         self.__providers_by_key = providers_by_key
-        self.__inner = Callable(self.__providers_by_key.get, *args, **kwargs)
+        self.__inner: Provider[T] = Callable(self.__providers_by_key.get, *args, **kwargs)
         super().__init__()
 
     def __deepcopy__(self, memo: t.Dict[int, t.Any]) -> "KeySelector":

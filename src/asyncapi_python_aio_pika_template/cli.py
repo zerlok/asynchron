@@ -9,17 +9,20 @@ import click
 from dependency_injector.containers import DeclarativeContainer
 from dependency_injector.providers import Callable, Provider, Singleton
 
+from asyncapi_python_aio_pika_template.app import AsyncApiConfigReader
 from asyncapi_python_aio_pika_template.generator.jinja.python_aio_pika import JinjaBasedPythonAioPikaCodeGenerator
 from asyncapi_python_aio_pika_template.providers import KeySelector
 from asyncapi_python_aio_pika_template.reader.json import JsonAsyncApiConfigReader
 from asyncapi_python_aio_pika_template.reader.yaml import YamlAsyncApiConfigReader
 from asyncapi_python_aio_pika_template.spec import AsyncAPIObject
+from asyncapi_python_aio_pika_template.visitor.descendants import Descendant, DescendantsSpecObjectVisitor
+from asyncapi_python_aio_pika_template.walker.bfs import BFSSpecObjectWalker
 
 
 class CLIContainer(DeclarativeContainer):
     config = Provider[AsyncAPIObject]()
 
-    reader = KeySelector({
+    reader: KeySelector[AsyncApiConfigReader] = KeySelector({
         ".yml": Singleton(YamlAsyncApiConfigReader),
         ".yaml": Singleton(YamlAsyncApiConfigReader),
         ".json": Singleton(JsonAsyncApiConfigReader),
@@ -61,11 +64,14 @@ def get_config(container: CLIContainer, pretty: bool, show_null: bool) -> None:
 @click.pass_obj
 def generate_code(container: CLIContainer, format: str) -> None:
     config = container.config()
-    generator = container.generator(format)
+    # generator = container.generator(format)
+    #
+    # for destination_path, content in generator.generate(config):
+    #     click.echo(destination_path)
+    #     click.echo(content)
 
-    for destination_path, content in generator.generate(config):
-        click.echo(destination_path)
-        click.echo(content)
+    for obj in BFSSpecObjectWalker(Descendant(0, config, None), DescendantsSpecObjectVisitor(), lambda d: d.value):
+        print(obj)
 
 
 if __name__ == "__main__":
