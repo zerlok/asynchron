@@ -8,6 +8,8 @@ from dependency_injector.providers import Callable, Provider, deepcopy
 
 T = t.TypeVar("T")
 
+_MISSED = object()
+
 
 class KeySelector(Provider, t.Generic[T]):
     """
@@ -21,9 +23,13 @@ class KeySelector(Provider, t.Generic[T]):
         "__inner",
     )
 
-    def __init__(self, providers_by_key: t.Mapping[str, Provider[T]], *args: t.Any, **kwargs: t.Any) -> None:
+    def __init__(self, providers_by_key: t.Mapping[str, Provider[T]], key: t.Union[str, object] = _MISSED) -> None:
         self.__providers_by_key = providers_by_key
-        self.__inner: Provider[T] = Callable(self.__providers_by_key.get, *args, **kwargs)
+        self.__inner: Provider[T] = (
+            Callable(self.__provide_by_key, key)
+            if key is not _MISSED
+            else Callable(self.__provide_by_key)
+        )
         super().__init__()
 
     def __deepcopy__(self, memo: t.Dict[int, t.Any]) -> "KeySelector":
@@ -47,8 +53,10 @@ class KeySelector(Provider, t.Generic[T]):
         yield from super().related
 
     def _provide(self, args: t.Sequence[t.Any], kwargs: t.Mapping[str, t.Any]) -> T:
-        key, *args = args
-        return self.__inner(key)(*args, **kwargs)
+        return self.__inner(*args, **kwargs)
+
+    def __provide_by_key(self, __key: str, *args: t.Any, **kwargs: t.Any) -> T:
+        return self.__providers_by_key[__key](*args, **kwargs)
 
     @property
     def keys(self) -> t.Collection[str]:
