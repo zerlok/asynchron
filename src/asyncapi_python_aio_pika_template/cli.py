@@ -2,51 +2,65 @@ __all__ = (
     "cli",
 )
 
+import typing as t
 from contextlib import closing
 from pathlib import Path
 
 import click
 from dependency_injector.containers import DeclarativeContainer
-from dependency_injector.providers import Callable, Provider, Singleton
+from dependency_injector.providers import Callable, Object, Provider, Singleton
 
-from asyncapi_python_aio_pika_template.app import AsyncApiConfigReader
+from asyncapi_python_aio_pika_template.app import (
+    AsyncApiCodeGenerator,
+    AsyncApiConfigReader,
+    read_config,
+)
 from asyncapi_python_aio_pika_template.generator.jinja.python_aio_pika import JinjaBasedPythonAioPikaCodeGenerator
 from asyncapi_python_aio_pika_template.providers import KeySelector
 from asyncapi_python_aio_pika_template.reader.json import JsonAsyncApiConfigReader
 from asyncapi_python_aio_pika_template.reader.yaml import YamlAsyncApiConfigReader
-from asyncapi_python_aio_pika_template.spec import AsyncAPIObject
-from asyncapi_python_aio_pika_template.visitor.descendants import Descendant, DescendantsSpecObjectVisitor
-from asyncapi_python_aio_pika_template.walker.bfs import BFSSpecObjectWalker
+from asyncapi_python_aio_pika_template.transform.reference_resolver import ReferenceResolvingAsyncAPIObjectTransformer
 
 
 class CLIContainer(DeclarativeContainer):
-    config = Provider[AsyncAPIObject]()
+    config_path = Provider[Path]()
+    config_source = Provider[t.TextIO]()
+    config_transformers = Callable(
+        lambda path: (ReferenceResolvingAsyncAPIObjectTransformer(""),),
+        config_path.provided,
+    )
 
-    reader: KeySelector[AsyncApiConfigReader] = KeySelector({
-        ".yml": Singleton(YamlAsyncApiConfigReader),
-        ".yaml": Singleton(YamlAsyncApiConfigReader),
-        ".json": Singleton(JsonAsyncApiConfigReader),
-    })
-    generator = KeySelector({
+    reader: KeySelector[AsyncApiConfigReader] = KeySelector(
+        {
+            ".yml": Singleton(YamlAsyncApiConfigReader),
+            ".yaml": Singleton(YamlAsyncApiConfigReader),
+            ".json": Singleton(JsonAsyncApiConfigReader),
+        },
+        config_path.provided.suffix,
+    )
+    config = Callable(
+        read_config,
+        source=config_source,
+        reader=reader,
+        transformers=config_transformers,
+    )
+    generator: KeySelector[AsyncApiCodeGenerator] = KeySelector({
         "python-aio-pika": Singleton(JinjaBasedPythonAioPikaCodeGenerator),
     })
 
 
 @click.group("cli")
 @click.option(
-    "-c", "--config",
+    "-f", "--file",
     type=click.Path(exists=True, path_type=Path),
     default=Path.cwd() / "asyncapi.yaml",
 )
 @click.pass_context
-def cli(context: click.Context, config: Path) -> None:
+def cli(context: click.Context, file: Path) -> None:
     container = context.obj = CLIContainer()
 
-    def read_config(path: Path) -> AsyncAPIObject:
-        reader = container.reader(path.suffix)
-        return reader.read(context.with_resource(closing(path.open("r"))))
-
-    container.config.override(Callable(read_config, config))
+    container.config_path.override(Object(file))
+    container.config_source.override(Callable(lambda: context.with_resource(closing(file.open("r")))))
 
 
 @cli.command("get")
@@ -70,8 +84,13 @@ def generate_code(container: CLIContainer, format: str) -> None:
     #     click.echo(destination_path)
     #     click.echo(content)
 
-    for obj in BFSSpecObjectWalker(Descendant(0, config, None), DescendantsSpecObjectVisitor(), lambda d: d.value):
-        print(obj)
+    # for obj in BFSDescendantSpecObjectWalker(config):
+    #     if obj.key == "publish":
+    #         resolver = RefResolver("", config)
+    #         print(resolver)
+    #         print(obj)
+    #         # print(resolver.resolve(obj.value.message.ref))
+    #
 
 
 if __name__ == "__main__":

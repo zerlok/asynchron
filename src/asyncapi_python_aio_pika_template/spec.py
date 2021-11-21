@@ -58,7 +58,8 @@ import abc
 import re
 import typing as t
 
-from pydantic import AnyUrl, BaseModel, Field, HttpUrl
+from jsonschema.validators import validator_for
+from pydantic import AnyUrl, BaseModel, Field, HttpUrl, root_validator
 
 T = t.TypeVar("T")
 T_co = t.TypeVar("T_co", covariant=True)
@@ -235,13 +236,18 @@ class ReferenceObject(SpecObject, BaseModel):
             ],
         }
 
-    ref: AnyUrl = Field(
+    ref: str = Field(
         alias="$ref",
         description="""Required. The reference string.""",
+        regex=r"^#\S+$",
     )
 
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
         return visitor.visit_reference_object(self)
+
+
+class SpecificationExtensionKey(StringRegexValidator, pattern=re.compile(r"^x-[A-Za-z0-9._-]")):
+    pass
 
 
 class _WithSpecificationExtension(BaseModel):
@@ -249,7 +255,9 @@ class _WithSpecificationExtension(BaseModel):
     https://www.asyncapi.com/docs/specifications/v2.2.0#specificationExtensions
     """
 
-    # TODO: add validator
+    # TODO: add validator __root__: t.Mapping[SpecificationExtensionKey, t.Any] # -- raises ValueError: __root__
+    #  cannot be mixed with other fields
+
     # class Config:
     #     extra = Extra.allow
 
@@ -268,8 +276,18 @@ class SchemaObject(_WithSpecificationExtension, SpecObject, BaseModel):
 
     __root__: t.Mapping[str, t.Any]
 
+    @root_validator(pre=True)
+    def check_json_schema(cls, values: t.Any) -> t.Mapping[str, t.Any]:
+        format = validator_for(values)
+        try:
+            format.check_schema(values)
+        except Exception as err:
+            print(err)
+            raise
+        return values
+
     # TODO: read and define fields according to json schema spec
-    #  http://json-schema.org/draft/2020-12/json-schema-core.html
+    #  http://json-schema.org/draft/2020-12/json-schema-core.html or simply use `jsonschema` lib.
     """
     title: t.Optional[str]
     type: t.Optional[str]
@@ -345,13 +363,13 @@ class HTTPBindingTrait:
             description="""When type is request, this is the HTTP method, otherwise it MUST be ignored. Its value 
             MUST be one of GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, CONNECT, and TRACE.""",
         )
-        query: t.Union[SchemaObject, ReferenceObject] = Field(
+        query: t.Union[ReferenceObject, SchemaObject] = Field(
             description="""A Schema object containing the definitions for each query parameter. This schema MUST be of 
             type object and have a properties key.""",
         )
 
     class HTTPMessageBindingObject(_WithBindingVersion, BaseModel):
-        headers: t.Union[SchemaObject, ReferenceObject] = Field(
+        headers: t.Union[ReferenceObject, SchemaObject] = Field(
             description="""A Schema object containing the definitions for HTTP-specific headers. This schema MUST be 
             of type object and have a properties key.""",
         )
@@ -759,7 +777,7 @@ class ServerObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
         includes alternative security requirement objects that can be used. Only one of the security requirement 
         objects need to be satisfied to authorize a connection or operation. """,
     )
-    bindings: t.Union[ServerBindingsObject, ReferenceObject] = Field(
+    bindings: t.Union[ReferenceObject, ServerBindingsObject] = Field(
         description="""A map where the keys describe the name of the protocol and the values describe 
         protocol-specific definitions for the server.""",
     )
@@ -775,7 +793,7 @@ class ServersObject(SpecObject, BaseModel):
     https://www.asyncapi.com/docs/specifications/v2.2.0#serversObject
     """
 
-    __root__: t.Mapping[ServerName, ServerObject]
+    __root__: t.Mapping[str, ServerObject]
 
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
         return visitor.visit_servers_object(self)
@@ -838,7 +856,7 @@ class MessageExampleObject(_WithSpecificationExtension, SpecObject, BaseModel):
     headers: t.Optional[t.Mapping[str, t.Any]] = Field(
         description="""The value of this field MUST validate against the Message Object's headers field.""",
     )
-    payload: t.Optional[t.Any] = Field(
+    payload: t.Optional[t.Union[ReferenceObject, t.Any]] = Field(
         description="""The value of this field MUST validate against the Message Object's payload field.""",
     )
     name: t.Optional[str] = Field(
@@ -869,11 +887,11 @@ class MessageTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDoc
 
     https://www.asyncapi.com/docs/specifications/v2.2.0#messageTraitObject
     """
-    headers: t.Optional[t.Union[SchemaObject, ReferenceObject]] = Field(
+    headers: t.Optional[t.Union[ReferenceObject, SchemaObject]] = Field(
         description="""Schema definition of the application headers. Schema MUST be of type "object". It MUST NOT 
         define the protocol headers.""",
     )
-    correlationId: t.Optional[t.Union[CorrelationIdObject, ReferenceObject]] = Field(
+    correlationId: t.Optional[t.Union[ReferenceObject, CorrelationIdObject]] = Field(
         description="""Definition of the correlation ID used for message tracing or matching.""",
     )
     schemaFormat: t.Optional[str] = Field(
@@ -894,7 +912,7 @@ class MessageTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDoc
     summary: t.Optional[str] = Field(
         description="""A short summary of what the message is about.""",
     )
-    bindings: t.Optional[t.Union[MessageBindingsObject, ReferenceObject]] = Field(
+    bindings: t.Optional[t.Union[ReferenceObject, MessageBindingsObject]] = Field(
         description="""A map where the keys describe the name of the protocol and the values describe 
         protocol-specific definitions for the message. """,
     )
@@ -919,7 +937,7 @@ class MessageObject(MessageTraitObject, SpecObject, BaseModel):
 
     https://www.asyncapi.com/docs/specifications/v2.2.0#messageObject
     """
-    payload: t.Any
+    payload: t.Union[ReferenceObject, t.Any]
     traits: t.Optional[MessageTraitsObject]
 
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
@@ -927,7 +945,7 @@ class MessageObject(MessageTraitObject, SpecObject, BaseModel):
 
 
 class MessagesObject(SpecObject, BaseModel):
-    __root__: t.Sequence[t.Union[MessageObject, ReferenceObject]]
+    __root__: t.Sequence[t.Union[ReferenceObject, MessageObject]]
 
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
         return visitor.visit_messages_object(self)
@@ -970,7 +988,7 @@ class OperationTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalD
     summary: t.Optional[str] = Field(
         description="""A short summary of what the operation is about.""",
     )
-    bindings: t.Optional[t.Union[OperationBindingsObject, ReferenceObject]] = Field(
+    bindings: t.Optional[t.Union[ReferenceObject, OperationBindingsObject]] = Field(
         description="""A map where the keys describe the name of the protocol and the values describe 
         protocol-specific definitions for the operation.""",
     )
@@ -980,7 +998,7 @@ class OperationTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalD
 
 
 class OperationTraitsObject(SpecObject, BaseModel):
-    __root__: t.Sequence[t.Union[OperationTraitObject, ReferenceObject]]
+    __root__: t.Sequence[t.Union[ReferenceObject, OperationTraitObject]]
 
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
         return visitor.visit_operation_traits_object(self)
@@ -1000,7 +1018,7 @@ class OperationObject(OperationTraitObject, SpecObject, BaseModel):
         description="""A list of traits to apply to the operation object. Traits MUST be merged into the operation 
         object using the JSON Merge Patch algorithm in the same order they are defined here.""",
     )
-    message: t.Optional[t.Union[t.Union[MessageObject, ReferenceObject], MessagesObject]] = Field(
+    message: t.Optional[t.Union[ReferenceObject, MessageObject, MessagesObject]] = Field(
         description="""A definition of the message that will be published or received on this channel. oneOf is 
         allowed here to specify multiple messages, however, a message MUST be valid only against one of the 
         referenced message objects.""",
@@ -1017,7 +1035,7 @@ class ParameterObject(_WithDescriptionField, _WithSpecificationExtension, SpecOb
     https://www.asyncapi.com/docs/specifications/v2.2.0#parameterObject
     """
 
-    schema_: t.Optional[t.Union[SchemaObject, ReferenceObject]] = Field(
+    schema_: t.Optional[t.Union[ReferenceObject, SchemaObject]] = Field(
         alias="schema",
         description="""Definition of the parameter.""",
     )
@@ -1040,7 +1058,7 @@ class ParametersObject(SpecObject, BaseModel):
     https://www.asyncapi.com/docs/specifications/v2.2.0#parametersObject
     """
 
-    __root__: t.Mapping[ParameterName, t.Union[ParameterObject, ReferenceObject]]
+    __root__: t.Mapping[ParameterName, t.Union[ReferenceObject, ParameterObject]]
 
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
         return visitor.visit_parameters_object(self)
@@ -1087,7 +1105,7 @@ class ChannelItemObject(_WithDescriptionField, _WithSpecificationExtension, Spec
         description="""A map of the parameters included in the channel name. It SHOULD be present only when using 
         channels with expressions (as defined by RFC 6570 section 2.2).""",
     )
-    bindings: t.Optional[t.Union[ChannelBindingsObject, ReferenceObject]] = Field(
+    bindings: t.Optional[t.Union[ReferenceObject, ChannelBindingsObject]] = Field(
         description="""A map where the keys describe the name of the protocol and the values describe 
         protocol-specific definitions for the channel.""",
     )
@@ -1104,7 +1122,7 @@ class ChannelsObject(SpecObject, BaseModel):
     https://www.asyncapi.com/docs/specifications/v2.2.0#channelsObject
     """
 
-    __root__: t.Mapping[str, t.Union[ChannelItemObject, ReferenceObject]]
+    __root__: t.Mapping[str, t.Union[ReferenceObject, ChannelItemObject]]
 
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
         return visitor.visit_channels_object(self)
@@ -1219,37 +1237,37 @@ class ComponentsObject(_WithSpecificationExtension, SpecObject, BaseModel):
 
     https://www.asyncapi.com/docs/specifications/v2.2.0#componentsObject
     """
-    schemas: t.Optional[t.Mapping[str, t.Union[SchemaObject, ReferenceObject]]] = Field(
+    schemas: t.Optional[t.Mapping[str, t.Union[ReferenceObject, SchemaObject]]] = Field(
         description="""An object to hold reusable Schema Objects.""",
     )
-    messages: t.Optional[t.Mapping[str, t.Union[MessageObject, ReferenceObject]]] = Field(
+    messages: t.Optional[t.Mapping[str, t.Union[ReferenceObject, MessageObject]]] = Field(
         description="""An object to hold reusable Message Objects.""",
     )
-    securitySchemes: t.Optional[t.Mapping[str, t.Union[SecuritySchemeObject, ReferenceObject]]] = Field(
+    securitySchemes: t.Optional[t.Mapping[str, t.Union[ReferenceObject, SecuritySchemeObject]]] = Field(
         description="""An object to hold reusable Security Scheme Objects.""",
     )
-    parameters: t.Optional[t.Mapping[str, t.Union[ParameterObject, ReferenceObject]]] = Field(
+    parameters: t.Optional[t.Mapping[str, t.Union[ReferenceObject, ParameterObject]]] = Field(
         description="""An object to hold reusable Parameter Objects.""",
     )
-    correlationIds: t.Optional[t.Mapping[str, t.Union[CorrelationIdObject, ReferenceObject]]] = Field(
+    correlationIds: t.Optional[t.Mapping[str, t.Union[ReferenceObject, CorrelationIdObject]]] = Field(
         description="""An object to hold reusable Correlation ID Objects.""",
     )
-    operationTraits: t.Optional[t.Mapping[str, t.Union[OperationTraitObject, ReferenceObject]]] = Field(
+    operationTraits: t.Optional[t.Mapping[str, t.Union[ReferenceObject, OperationTraitObject]]] = Field(
         description="""An object to hold reusable Operation Trait Objects.""",
     )
-    messageTraits: t.Optional[t.Mapping[str, t.Union[MessageTraitObject, ReferenceObject]]] = Field(
+    messageTraits: t.Optional[t.Mapping[str, t.Union[ReferenceObject, MessageTraitObject]]] = Field(
         description="""An object to hold reusable Message Trait Objects.""",
     )
-    serverBindings: t.Optional[t.Mapping[str, t.Union[ServerBindingsObject, ReferenceObject]]] = Field(
+    serverBindings: t.Optional[t.Mapping[str, t.Union[ReferenceObject, ServerBindingsObject]]] = Field(
         description="""An object to hold reusable Server Bindings Objects.""",
     )
-    channelBindings: t.Optional[t.Mapping[str, t.Union[ChannelBindingsObject, ReferenceObject]]] = Field(
+    channelBindings: t.Optional[t.Mapping[str, t.Union[ReferenceObject, ChannelBindingsObject]]] = Field(
         description="""An object to hold reusable Channel Bindings Objects.""",
     )
-    operationBindings: t.Optional[t.Mapping[str, t.Union[OperationBindingsObject, ReferenceObject]]] = Field(
+    operationBindings: t.Optional[t.Mapping[str, t.Union[ReferenceObject, OperationBindingsObject]]] = Field(
         description="""An object to hold reusable Operation Bindings Objects.""",
     )
-    messageBindings: t.Optional[t.Mapping[str, t.Union[MessageBindingsObject, ReferenceObject]]] = Field(
+    messageBindings: t.Optional[t.Mapping[str, t.Union[ReferenceObject, MessageBindingsObject]]] = Field(
         description="""An object to hold reusable Message Bindings Objects.""",
     )
 
@@ -1296,6 +1314,7 @@ class AsyncAPIObject(_WithTagsField, _WithExternalDocsField, _WithSpecificationE
         return visitor.visit_async_api_object(self)
 
 
+# TODO: add string type and visit it
 class SpecObjectVisitor(t.Generic[T_co], metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def visit_email(self, obj: Email) -> T_co:
