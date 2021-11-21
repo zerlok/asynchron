@@ -10,6 +10,12 @@ T = t.TypeVar("T")
 
 
 class KeySelector(Provider, t.Generic[T]):
+    """
+    Returns an instance from a provider, that was registered with specified key.
+
+    See suggestion: https://github.com/ets-labs/python-dependency-injector/issues/530
+    """
+
     __slots__ = (
         "__providers_by_key",
         "__inner",
@@ -44,5 +50,10 @@ class KeySelector(Provider, t.Generic[T]):
         key, *args = args
         return self.__inner(key)(*args, **kwargs)
 
+    @property
     def keys(self) -> t.Collection[str]:
         return self.__providers_by_key.keys()
+
+    @property
+    def providers(self) -> t.Mapping[str, Provider[T]]:
+        return self.__providers_by_key

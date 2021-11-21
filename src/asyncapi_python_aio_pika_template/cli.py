@@ -25,7 +25,7 @@ class CLIContainer(DeclarativeContainer):
         ".json": Singleton(JsonAsyncApiConfigReader),
     })
     generator = KeySelector({
-        # "python-aio-pika": Singleton(JinjaBasedPythonAioPikaCodeGenerator),
+        "python-aio-pika": Singleton(JinjaBasedPythonAioPikaCodeGenerator),
     })
 
 
@@ -57,7 +57,7 @@ def get_config(container: CLIContainer, pretty: bool, show_null: bool) -> None:
 
 
 @cli.command("generate")
-@click.argument("format", type=click.Choice(sorted(CLIContainer.generator.keys())))
+@click.argument("format", type=click.Choice(sorted(CLIContainer.generator.keys)))
 @click.pass_obj
 def generate_code(container: CLIContainer, format: str) -> None:
     config = container.config()
