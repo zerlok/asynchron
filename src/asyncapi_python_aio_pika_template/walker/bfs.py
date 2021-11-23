@@ -1,31 +1,29 @@
 __all__ = (
-    "BFSDescendantSpecObjectWalker",
+    "BFSWalker",
 )
 
 import typing as t
 
-from asyncapi_python_aio_pika_template.spec import SpecObject
-from asyncapi_python_aio_pika_template.visitor.descendants import DescendantSpecObject, DescendantsSpecObjectVisitor
+T = t.TypeVar("T")
 
 
-class BFSDescendantSpecObjectWalker(t.Iterable[DescendantSpecObject]):
+class BFSWalker(t.Iterable[T]):
 
     def __init__(
             self,
-            root: SpecObject,
+            root: T,
+            descendants_getter: t.Callable[[T], t.Sequence[T]],
     ) -> None:
-        self.__root = DescendantSpecObject(0, root, None)
-        self.__descendants_visitor = DescendantsSpecObjectVisitor()
+        self.__root = root
+        self.__descendants_getter = descendants_getter
 
-    def __iter__(self) -> t.Iterator[DescendantSpecObject]:
+    def __iter__(self) -> t.Iterator[T]:
         yield self.__root
 
-        queue: t.List[DescendantSpecObject] = [self.__root]
+        queue: t.List[T] = [*self.__descendants_getter(self.__root)]
 
         while queue:
-            obj = queue.pop(0)
+            item = queue.pop(0)
+            yield item
 
-            for descendant in obj.value.accept_visitor(self.__descendants_visitor):
-                yield descendant
-
-                queue.append(descendant)
+            queue.extend(self.__descendants_getter(item))
