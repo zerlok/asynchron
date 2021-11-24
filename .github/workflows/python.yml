@@ -7,12 +7,15 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.8", "3.9", "3.10" ]
+        # TODO: enable for all supported versions
+        python-version: [ "3.8" ] # [ "3.8", "3.9", "3.10" ]
+    env:
+      PYTHONPATH: src
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
