@@ -23,23 +23,24 @@ __all__ = (
     "InfoObject",
     "ServerBindingsObject",
     "ServerVariableObject",
-    "ServerVariablesObject",
+    # "ServerVariablesObject",
     "SecurityRequirementObject",
-    "SecurityRequirementsObject",
+    # "SecurityRequirementsObject",
     "ServerObject",
     "ServersObject",
     "DefaultContentType",
     "CorrelationIdObject",
     "MessageBindingsObject",
     "MessageExampleObject",
-    "MessageExamplesObject",
+    # "MessageExamplesObject",
     "MessageTraitObject",
-    "MessageTraitsObject",
+    # "MessageTraitsObject",
+    "MessagePayloadObject",
     "MessageObject",
-    "MessagesObject",
+    # "MessagesObject",
     "OperationBindingsObject",
     "OperationTraitObject",
-    "OperationTraitsObject",
+    # "OperationTraitsObject",
     "OperationObject",
     "ParameterObject",
     "ParametersObject",
@@ -278,13 +279,13 @@ class SchemaObject(_WithSpecificationExtension, SpecObject, BaseModel):
 
     @root_validator(pre=True)
     def check_json_schema(cls, values: t.Any) -> t.Mapping[str, t.Any]:
-        format = validator_for(values)
         try:
-            format.check_schema(values)
+            validator_for(values).check_schema(values)
+
         except Exception as err:
-            print(err)
-            raise
-        return values
+            raise ValueError("Invalid json schema", values)
+
+        return t.cast(t.Mapping[str, t.Any], values)
 
     # TODO: read and define fields according to json schema spec
     #  http://json-schema.org/draft/2020-12/json-schema-core.html or simply use `jsonschema` lib.
@@ -710,11 +711,12 @@ class SecurityRequirementObject(SpecObject, BaseModel):
         return visitor.visit_security_requirement_object(self)
 
 
-class SecurityRequirementsObject(SpecObject, BaseModel):
-    __root__: t.Sequence[SecurityRequirementObject]
-
-    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
-        return visitor.visit_security_requirements_object(self)
+# TODO: remove
+# class SecurityRequirementsObject(SpecObject, BaseModel):
+#     __root__: t.Sequence[SecurityRequirementObject]
+#
+#     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+#         return visitor.visit_security_requirements_object(self)
 
 
 class ServerVariableObject(_WithSpecificationExtension, _WithDescriptionField, SpecObject, BaseModel):
@@ -740,11 +742,12 @@ class ServerVariableObject(_WithSpecificationExtension, _WithDescriptionField, S
         return visitor.visit_server_variable_object(self)
 
 
-class ServerVariablesObject(SpecObject, BaseModel):
-    __root__: t.Mapping[str, ServerVariableObject]
-
-    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
-        return visitor.visit_server_variables_object(self)
+# TODO: remove
+# class ServerVariablesObject(SpecObject, BaseModel):
+#     __root__: t.Mapping[str, ServerVariableObject]
+#
+#     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+#         return visitor.visit_server_variables_object(self)
 
 
 class ServerObject(_WithSpecificationExtension, _WithDescriptionField, SpecObject, BaseModel):
@@ -761,23 +764,23 @@ class ServerObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
         to indicate that the host location is relative to the location where the AsyncAPI document is being served. 
         Variable substitutions will be made when a variable is named in {brackets}.""",
     )
-    protocol: Protocol = Field(
+    protocol: t.Optional[Protocol] = Field(
         description="""The protocol this URL supports for connection.""",
     )
     protocolVersion: t.Optional[str] = Field(
         description="""The version of the protocol used for connection. For instance: AMQP 0.9.1, HTTP 2.0, 
         Kafka 1.0.0, etc.""",
     )
-    variables: t.Optional[ServerVariablesObject] = Field(
+    variables: t.Optional[t.Mapping[str, ServerVariableObject]] = Field(
         description="""A map between a variable name and its value. The value is used for substitution in the 
         server's URL template.""",
     )
-    security: SecurityRequirementsObject = Field(
+    security: t.Optional[t.Sequence[SecurityRequirementObject]] = Field(
         description="""A declaration of which security mechanisms can be used with this server. The list of values 
         includes alternative security requirement objects that can be used. Only one of the security requirement 
         objects need to be satisfied to authorize a connection or operation. """,
     )
-    bindings: t.Union[ReferenceObject, ServerBindingsObject] = Field(
+    bindings: t.Optional[t.Union[ReferenceObject, ServerBindingsObject]] = Field(
         description="""A map where the keys describe the name of the protocol and the values describe 
         protocol-specific definitions for the server.""",
     )
@@ -870,11 +873,11 @@ class MessageExampleObject(_WithSpecificationExtension, SpecObject, BaseModel):
         return visitor.visit_message_example_object(self)
 
 
-class MessageExamplesObject(SpecObject, BaseModel):
-    __root__: t.Sequence[MessageExampleObject]
-
-    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
-        return visitor.visit_message_examples_object(self)
+# class MessageExamplesObject(SpecObject, BaseModel):
+#     __root__: t.Sequence[MessageExampleObject]
+#
+#     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+#         return visitor.visit_message_examples_object(self)
 
 
 class MessageTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDocsField, SpecObject,
@@ -916,7 +919,7 @@ class MessageTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDoc
         description="""A map where the keys describe the name of the protocol and the values describe 
         protocol-specific definitions for the message. """,
     )
-    examples: t.Optional[MessageExamplesObject] = Field(
+    examples: t.Optional[t.Sequence[MessageExampleObject]] = Field(
         description="""List of examples.""",
     )
 
@@ -924,11 +927,16 @@ class MessageTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDoc
         return visitor.visit_message_trait_object(self)
 
 
-class MessageTraitsObject(SpecObject, BaseModel):
-    __root__: t.Sequence[MessageTraitObject]
+# class MessageTraitsObject(SpecObject, BaseModel):
+#     __root__: t.Sequence[MessageTraitObject]
+#
+#     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+#         return visitor.visit_message_traits_object(self)
 
+
+class MessagePayloadObject(SpecObject, BaseModel):
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
-        return visitor.visit_message_traits_object(self)
+        return visitor.visit_message_payload_object(self)
 
 
 class MessageObject(MessageTraitObject, SpecObject, BaseModel):
@@ -937,18 +945,18 @@ class MessageObject(MessageTraitObject, SpecObject, BaseModel):
 
     https://www.asyncapi.com/docs/specifications/v2.2.0#messageObject
     """
-    payload: t.Union[ReferenceObject, t.Any]
-    traits: t.Optional[MessageTraitsObject]
+    payload: t.Union[ReferenceObject, SchemaObject, MessagePayloadObject]
+    traits: t.Optional[t.Sequence[MessageTraitObject]]
 
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
         return visitor.visit_message_object(self)
 
 
-class MessagesObject(SpecObject, BaseModel):
-    __root__: t.Sequence[t.Union[ReferenceObject, MessageObject]]
-
-    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
-        return visitor.visit_messages_object(self)
+# class MessagesObject(SpecObject, BaseModel):
+#     __root__: t.Sequence[t.Union[ReferenceObject, MessageObject]]
+#
+#     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+#         return visitor.visit_messages_object(self)
 
 
 class OperationBindingsObject(_WithSpecificationExtension, SpecObject, BaseModel):
@@ -997,11 +1005,11 @@ class OperationTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalD
         return visitor.visit_operation_trait_object(self)
 
 
-class OperationTraitsObject(SpecObject, BaseModel):
-    __root__: t.Sequence[t.Union[ReferenceObject, OperationTraitObject]]
-
-    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
-        return visitor.visit_operation_traits_object(self)
+# class OperationTraitsObject(SpecObject, BaseModel):
+#     __root__: t.Sequence[t.Union[ReferenceObject, OperationTraitObject]]
+#
+#     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
+#         return visitor.visit_operation_traits_object(self)
 
 
 class OperationObject(OperationTraitObject, SpecObject, BaseModel):
@@ -1014,11 +1022,12 @@ class OperationObject(OperationTraitObject, SpecObject, BaseModel):
     https://www.asyncapi.com/docs/specifications/v2.2.0#operationObject
     """
 
-    traits: t.Optional[OperationTraitsObject] = Field(
+    traits: t.Optional[t.Sequence[t.Union[ReferenceObject, OperationTraitObject]]] = Field(
         description="""A list of traits to apply to the operation object. Traits MUST be merged into the operation 
         object using the JSON Merge Patch algorithm in the same order they are defined here.""",
     )
-    message: t.Optional[t.Union[ReferenceObject, MessageObject, MessagesObject]] = Field(
+    message: t.Optional[t.Union[ReferenceObject, MessageObject, t.Sequence[t.Union[ReferenceObject, MessageObject]]]] \
+        = Field(
         description="""A definition of the message that will be published or received on this channel. oneOf is 
         allowed here to specify multiple messages, however, a message MUST be valid only against one of the 
         referenced message objects.""",
@@ -1306,7 +1315,7 @@ class AsyncAPIObject(_WithTagsField, _WithExternalDocsField, _WithSpecificationE
     channels: ChannelsObject = Field(
         description="""Required The available channels and messages for the API.""",
     )
-    components: ComponentsObject = Field(
+    components: t.Optional[ComponentsObject] = Field(
         description="""An element to hold various schemas for the specification.""",
     )
 
@@ -1392,17 +1401,17 @@ class SpecObjectVisitor(t.Generic[T_co], metaclass=abc.ABCMeta):
     def visit_security_requirement_object(self, obj: SecurityRequirementObject) -> T_co:
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def visit_security_requirements_object(self, obj: SecurityRequirementsObject) -> T_co:
-        raise NotImplementedError
+    # @abc.abstractmethod
+    # def visit_security_requirements_object(self, obj: SecurityRequirementsObject) -> T_co:
+    #     raise NotImplementedError
 
     @abc.abstractmethod
     def visit_server_variable_object(self, obj: ServerVariableObject) -> T_co:
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def visit_server_variables_object(self, obj: ServerVariablesObject) -> T_co:
-        raise NotImplementedError
+    # @abc.abstractmethod
+    # def visit_server_variables_object(self, obj: ServerVariablesObject) -> T_co:
+    #     raise NotImplementedError
 
     @abc.abstractmethod
     def visit_server_object(self, obj: ServerObject) -> T_co:
@@ -1428,25 +1437,29 @@ class SpecObjectVisitor(t.Generic[T_co], metaclass=abc.ABCMeta):
     def visit_message_example_object(self, obj: MessageExampleObject) -> T_co:
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def visit_message_examples_object(self, obj: MessageExamplesObject) -> T_co:
-        raise NotImplementedError
+    # @abc.abstractmethod
+    # def visit_message_examples_object(self, obj: MessageExamplesObject) -> T_co:
+    #     raise NotImplementedError
 
     @abc.abstractmethod
     def visit_message_trait_object(self, obj: MessageTraitObject) -> T_co:
         raise NotImplementedError
 
+    # @abc.abstractmethod
+    # def visit_message_traits_object(self, obj: MessageTraitsObject) -> T_co:
+    #     raise NotImplementedError
+
     @abc.abstractmethod
-    def visit_message_traits_object(self, obj: MessageTraitsObject) -> T_co:
+    def visit_message_payload_object(self, obj: MessagePayloadObject) -> T_co:
         raise NotImplementedError
 
     @abc.abstractmethod
     def visit_message_object(self, obj: MessageObject) -> T_co:
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def visit_messages_object(self, obj: MessagesObject) -> T_co:
-        raise NotImplementedError
+    # @abc.abstractmethod
+    # def visit_messages_object(self, obj: MessagesObject) -> T_co:
+    #     raise NotImplementedError
 
     @abc.abstractmethod
     def visit_operation_bindings_object(self, obj: OperationBindingsObject) -> T_co:
@@ -1456,9 +1469,9 @@ class SpecObjectVisitor(t.Generic[T_co], metaclass=abc.ABCMeta):
     def visit_operation_trait_object(self, obj: OperationTraitObject) -> T_co:
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def visit_operation_traits_object(self, obj: OperationTraitsObject) -> T_co:
-        raise NotImplementedError
+    # @abc.abstractmethod
+    # def visit_operation_traits_object(self, obj: OperationTraitsObject) -> T_co:
+    #     raise NotImplementedError
 
     @abc.abstractmethod
     def visit_operation_object(self, obj: OperationObject) -> T_co:

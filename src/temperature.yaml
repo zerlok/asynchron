@@ -4,6 +4,23 @@ info:
   description: Temperature Readings
   version: "1.0.0"
 channels:
+#  sensor/temp/fa:
+  #    publish:
+  #      message:
+  #        name: sensorReadingMessage
+  #        payload:
+  #          title: SensorReading
+  #          type: object
+  #          properties:
+  #            sensorId:
+  #              type: string
+  #            temperature:
+  #              type: number
+  #            baseUnit:
+  #              enum: [
+  #                  CELSIUS,
+  #                  FAHRENHEIT
+  #              ]
   sensor/temperature/fahrenheit:
     subscribe:
       message:

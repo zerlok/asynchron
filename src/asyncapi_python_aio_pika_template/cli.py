@@ -84,7 +84,7 @@ def generate_code(container: CLIContainer, format: str) -> None:
     #     click.echo(destination_path)
     #     click.echo(content)
 
-    # for obj in BFSDescendantSpecObjectWalker(config):
+    # for obj in BFSWalker(config):
     #     if obj.key == "publish":
     #         resolver = RefResolver("", config)
     #         print(resolver)
