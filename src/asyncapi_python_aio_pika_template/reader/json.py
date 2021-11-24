@@ -13,4 +13,4 @@ from asyncapi_python_aio_pika_template.spec import AsyncAPIObject
 class JsonAsyncApiConfigReader(AsyncApiConfigReader):
 
     def read(self, source: t.TextIO) -> AsyncAPIObject:
-        return AsyncAPIObject.parse_obj(json.load(source))
+        return AsyncAPIObject.parse_obj(json.load(source))  # type: ignore[misc]

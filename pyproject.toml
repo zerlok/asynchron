@@ -17,6 +17,7 @@ jsonschema = "^4.2.1"
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
 mypy = "^0.910"
+types-PyYAML = "^6.0.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -63,6 +64,12 @@ disallow_any_explicit = false
 
 [[tool.mypy.overrides]]
 module = ["asyncapi_python_aio_pika_template.spec"]
+disallow_any_expr = false
+disallow_any_explicit = false
+disallow_any_decorated = false
+
+[[tool.mypy.overrides]]
+module = ["asyncapi_python_aio_pika_template.providers"]
 disallow_any_expr = false
 disallow_any_explicit = false
 disallow_any_decorated = false

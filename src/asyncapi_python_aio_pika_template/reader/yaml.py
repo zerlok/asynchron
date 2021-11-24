@@ -14,4 +14,4 @@ from asyncapi_python_aio_pika_template.spec import AsyncAPIObject
 class YamlAsyncApiConfigReader(AsyncApiConfigReader):
 
     def read(self, source: t.TextIO) -> AsyncAPIObject:
-        return AsyncAPIObject.parse_obj(yaml.safe_load(source))
+        return AsyncAPIObject.parse_obj(yaml.safe_load(source))  # type: ignore[misc]
