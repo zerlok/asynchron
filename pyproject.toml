@@ -108,6 +108,7 @@ disallow_any_expr = false
 disallow_any_explicit = false
 disallow_any_decorated = false
 disallow_any_unimported = false
+disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
 module = ["jsonschema.*"]

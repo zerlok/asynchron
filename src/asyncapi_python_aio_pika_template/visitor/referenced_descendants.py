@@ -22,7 +22,7 @@ from asyncapi_python_aio_pika_template.spec import (
     MessageBindingsObject,
     MessageExampleObject,
     MessageObject,
-    MessagePayloadObject, MessageTraitObject,
+    MessageTraitObject,
     OAuthFlowObject,
     OAuthFlowsObject,
     OperationBindingsObject,
@@ -123,18 +123,11 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
     def visit_security_requirement_object(self, obj: SecurityRequirementObject) -> t.Sequence[ReferencedSpecObject]:
         return self.__EMPTY
 
-    # def visit_security_requirements_object(self, obj: SecurityRequirementsObject) -> t.Sequence[ReferencedSpecObject]:
-    #     return self.__create_object_list().expand(obj.__root__)
-
     def visit_server_variable_object(self, obj: ServerVariableObject) -> t.Sequence[ReferencedSpecObject]:
         return self.__EMPTY
 
-    # def visit_server_variables_object(self, obj: ServerVariablesObject) -> t.Sequence[ReferencedSpecObject]:
-    #     return self.__create_object_list().expand(obj.__root__)
-
     def visit_server_object(self, obj: ServerObject) -> t.Sequence[ReferencedSpecObject]:
         return self.__create_object_list() \
-            .add(("protocol",), obj.protocol) \
             .expand(("variables",), obj.variables) \
             .expand(("security",), obj.security) \
             .add(("bindings",), obj.bindings)
@@ -158,21 +151,12 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
     def visit_message_example_object(self, obj: MessageExampleObject) -> t.Sequence[ReferencedSpecObject]:
         return self.__EMPTY
 
-    # def visit_message_examples_object(self, obj: MessageExamplesObject) -> t.Sequence[ReferencedSpecObject]:
-    #     return self.__create_object_list().expand(obj.__root__)
-
     def visit_message_trait_object(self, obj: MessageTraitObject) -> t.Sequence[ReferencedSpecObject]:
         return self.__create_object_list() \
             .add(("headers",), obj.headers) \
             .add(("correlationId",), obj.correlationId) \
             .add(("bindings",), obj.bindings) \
             .expand(("examples",), obj.examples)
-
-    # def visit_message_traits_object(self, obj: MessageTraitsObject) -> t.Sequence[ReferencedSpecObject]:
-    #     return self.__create_object_list().expand(obj.__root__)
-
-    def visit_message_payload_object(self, obj: MessagePayloadObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__EMPTY
 
     def visit_message_object(self, obj: MessageObject) -> t.Sequence[ReferencedSpecObject]:
         return self.__create_object_list() \
@@ -183,9 +167,6 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
             .add(("payload",), obj.payload) \
             .expand(("traits",), obj.traits)
 
-    # def visit_messages_object(self, obj: MessagesObject) -> t.Sequence[ReferencedSpecObject]:
-    #     return self.__create_object_list().expand(obj.__root__)
-
     def visit_operation_bindings_object(self, obj: OperationBindingsObject) -> t.Sequence[ReferencedSpecObject]:
         # TODO: maybe object of each protocol to the list
         return self.__EMPTY
@@ -193,9 +174,6 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
     def visit_operation_trait_object(self, obj: OperationTraitObject) -> t.Sequence[ReferencedSpecObject]:
         return self.__create_object_list() \
             .add(("bindings",), obj.bindings)
-
-    # def visit_operation_traits_object(self, obj: OperationTraitsObject) -> t.Sequence[ReferencedSpecObject]:
-    #     return self.__create_object_list().expand(obj.__root__)
 
     def visit_operation_object(self, obj: OperationObject) -> t.Sequence[ReferencedSpecObject]:
         result = self.__create_object_list() \
