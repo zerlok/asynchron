@@ -77,7 +77,7 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
 
     def visit_tag_object(self, obj: TagObject) -> t.Sequence[ReferencedSpecObject]:
         return _ReferencedSpecObjectListBuilder() \
-            .add("externalDocs", obj.externalDocs)
+            .add("externalDocs", obj.external_docs)
 
     def visit_tags_object(self, obj: TagsObject) -> t.Sequence[ReferencedSpecObject]:
         return _ReferencedSpecObjectListBuilder().expand((), obj.__root__)
@@ -134,22 +134,22 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
     def visit_message_trait_object(self, obj: MessageTraitObject) -> t.Sequence[ReferencedSpecObject]:
         return _ReferencedSpecObjectListBuilder() \
             .add(("headers",), obj.headers) \
-            .add(("correlationId",), obj.correlationId) \
+            .add(("correlationId",), obj.correlation_id) \
             .add(("bindings",), obj.bindings) \
             .expand(("examples",), obj.examples) \
             .add(("tags",), obj.tags) \
-            .add(("externalDocs",), obj.externalDocs)
+            .add(("externalDocs",), obj.external_docs)
 
     def visit_message_object(self, obj: MessageObject) -> t.Sequence[ReferencedSpecObject]:
         return _ReferencedSpecObjectListBuilder() \
             .add(("headers",), obj.headers) \
-            .add(("correlationId",), obj.correlationId) \
+            .add(("correlationId",), obj.correlation_id) \
             .add(("bindings",), obj.bindings) \
             .expand(("examples",), obj.examples) \
             .add(("payload",), obj.payload) \
             .expand(("traits",), obj.traits) \
             .add(("tags",), obj.tags) \
-            .add(("externalDocs",), obj.externalDocs)
+            .add(("externalDocs",), obj.external_docs)
 
     def visit_operation_bindings_object(self, obj: OperationBindingsObject) -> t.Sequence[ReferencedSpecObject]:
         # TODO: maybe object of each protocol to the list
@@ -159,14 +159,14 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
         return _ReferencedSpecObjectListBuilder() \
             .add(("bindings",), obj.bindings) \
             .add(("tags",), obj.tags) \
-            .add(("externalDocs",), obj.externalDocs)
+            .add(("externalDocs",), obj.external_docs)
 
     def visit_operation_object(self, obj: OperationObject) -> t.Sequence[ReferencedSpecObject]:
         result = _ReferencedSpecObjectListBuilder() \
             .add(("bindings",), obj.bindings) \
             .expand(("traits",), obj.traits) \
             .add(("tags",), obj.tags) \
-            .add(("externalDocs",), obj.externalDocs)
+            .add(("externalDocs",), obj.external_docs)
 
         if isinstance(obj.message, (t.Sequence, t.Mapping)):
             result.expand(("message",), obj.message)
@@ -208,8 +208,8 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
         return _ReferencedSpecObjectListBuilder() \
             .add(("implicit",), obj.implicit) \
             .add(("password",), obj.password) \
-            .add(("clientCredentials",), obj.clientCredentials) \
-            .add(("authorizationCode",), obj.authorizationCode)
+            .add(("clientCredentials",), obj.client_credentials) \
+            .add(("authorizationCode",), obj.authorization_code)
 
     def visit_security_scheme_object(self, obj: SecuritySchemeObject) -> t.Sequence[ReferencedSpecObject]:
         return _ReferencedSpecObjectListBuilder() \
@@ -219,15 +219,15 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
         return _ReferencedSpecObjectListBuilder() \
             .expand(("schemas",), obj.schemas) \
             .expand(("messages",), obj.messages) \
-            .expand(("securitySchemes",), obj.securitySchemes) \
+            .expand(("securitySchemes",), obj.security_schemes) \
             .expand(("parameters",), obj.parameters) \
-            .expand(("correlationIds",), obj.correlationIds) \
-            .expand(("operationTraits",), obj.operationTraits) \
-            .expand(("messageTraits",), obj.messageTraits) \
-            .expand(("serverBindings",), obj.serverBindings) \
-            .expand(("channelBindings",), obj.channelBindings) \
-            .expand(("operationBindings",), obj.operationBindings) \
-            .expand(("messageBindings",), obj.messageBindings)
+            .expand(("correlationIds",), obj.correlation_ids) \
+            .expand(("operationTraits",), obj.operation_traits) \
+            .expand(("messageTraits",), obj.message_traits) \
+            .expand(("serverBindings",), obj.server_bindings) \
+            .expand(("channelBindings",), obj.channel_bindings) \
+            .expand(("operationBindings",), obj.operation_bindings) \
+            .expand(("messageBindings",), obj.message_bindings)
 
     def visit_async_api_object(self, obj: AsyncAPIObject) -> t.Sequence[ReferencedSpecObject]:
         return _ReferencedSpecObjectListBuilder() \
@@ -236,7 +236,7 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
             .add(("channels",), obj.channels) \
             .add(("components",), obj.components) \
             .add(("tags",), obj.tags) \
-            .add(("externalDocs",), obj.externalDocs)
+            .add(("externalDocs",), obj.external_docs)
 
 
 class _ReferencedSpecObjectListBuilder(t.Sequence[ReferencedSpecObject]):

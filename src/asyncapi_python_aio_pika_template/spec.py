@@ -301,7 +301,8 @@ class SchemaObject(_WithSpecificationExtension, SpecObject, BaseModel):
 
 
 class _WithBindingVersion(BaseModel):
-    bindingVersion: t.Optional[str] = Field(
+    binding_version: t.Optional[str] = Field(
+        alias="bindingVersion",
         description="""The version of this binding. If omitted, "latest" MUST be assumed.""",
     )
 
@@ -394,7 +395,8 @@ class AMQPBindingTrait:
             durable: t.Optional[bool] = Field(
                 description="""Whether the exchange should survive broker restarts or not.""",
             )
-            autoDelete: t.Optional[bool] = Field(
+            auto_delete: t.Optional[bool] = Field(
+                alias="autoDelete",
                 description="""Whether the exchange should be deleted when the last queue is unbound from it.""",
             )
             vhost: str = Field(
@@ -413,7 +415,8 @@ class AMQPBindingTrait:
             durable: t.Optional[bool] = Field(
                 description="""Whether the queue should survive broker restarts or not.""",
             )
-            autoDelete: t.Optional[bool] = Field(
+            auto_delete: t.Optional[bool] = Field(
+                alias="autoDelete",
                 description="""Whether the queue should be deleted when the last consumer unsubscribes.""",
             )
             vhost: str = Field(
@@ -460,7 +463,8 @@ class AMQPBindingTrait:
             description="""Applies to: publish, subscribe; TTL (Time-To-Live) for the message. It MUST be greater 
             than or equal to zero.""",
         )
-        userId: t.Optional[str] = Field(
+        user_id: t.Optional[str] = Field(
+            alias="userId",
             description="""Applies to: publish, subscribe; Identifies the user who has sent the message.""",
         )
         cc: t.Optional[t.Sequence[str]] = Field(
@@ -470,7 +474,8 @@ class AMQPBindingTrait:
         priority: t.Optional[int] = Field(
             description="""Applies to: publish, subscribe; A priority for the message.""",
         )
-        deliveryMode: t.Optional[t.Literal[1, 2]] = Field(
+        delivery_mode: t.Optional[t.Literal[1, 2]] = Field(
+            alias="deliveryMode",
             description="""Applies to: publish, subscribe; Delivery mode of the message. Its value MUST be either 1 (
             transient) or 2 (persistent).""",
         )
@@ -480,7 +485,8 @@ class AMQPBindingTrait:
         bcc: t.Optional[t.Sequence[str]] = Field(
             description="""Applies to: publish; Like cc but consumers will not receive this information.""",
         )
-        replyTo: t.Optional[str] = Field(
+        reply_to: t.Optional[str] = Field(
+            alias="replyTo",
             description="""Applies to: publish, subscribe; Name of the queue where the consumer should send the 
             response.""",
         )
@@ -505,10 +511,12 @@ class AMQPBindingTrait:
                 ],
             }
 
-        contentEncoding: t.Optional[str] = Field(
+        content_encoding: t.Optional[str] = Field(
+            alias="contentEncoding",
             description="""A MIME encoding for the message content.""",
         )
-        messageType: t.Optional[str] = Field(
+        message_type: t.Optional[str] = Field(
+            alias="messageType",
             description="""Application-specific message type.""",
         )
 
@@ -530,7 +538,8 @@ class ExternalDocumentationObject(_WithDescriptionField, _WithSpecificationExten
 
 
 class _WithExternalDocsField(BaseModel):
-    externalDocs: t.Optional[ExternalDocumentationObject] = Field(
+    external_docs: t.Optional[ExternalDocumentationObject] = Field(
+        alias="externalDocs",
         description="""Additional external documentation for this tag.""",
     )
 
@@ -541,6 +550,7 @@ class TagObject(_WithDescriptionField, _WithExternalDocsField, _WithSpecificatio
 
     https://www.asyncapi.com/docs/specifications/v2.2.0#tagObject
     """
+
     name: str = Field(
         description="""Required. The name of the tag.""",
     )
@@ -623,7 +633,8 @@ class InfoObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject,
         description="""Required. Provides the version of the application API (not to be confused with the 
         specification version).""",
     )
-    termsOfService: t.Optional[HttpUrl] = Field(
+    terms_of_service: t.Optional[HttpUrl] = Field(
+        alias="termsOfService",
         description="""A URL to the Terms of Service for the API. MUST be in the format of a URL.""",
     )
     contact: t.Optional[ContactObject] = Field(
@@ -717,7 +728,8 @@ class ServerObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
     protocol: t.Optional[Protocol] = Field(
         description="""The protocol this URL supports for connection.""",
     )
-    protocolVersion: t.Optional[str] = Field(
+    protocol_version: t.Optional[str] = Field(
+        alias="protocolVersion",
         description="""The version of the protocol used for connection. For instance: AMQP 0.9.1, HTTP 2.0, 
         Kafka 1.0.0, etc.""",
     )
@@ -837,14 +849,17 @@ class MessageTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDoc
         description="""Schema definition of the application headers. Schema MUST be of type "object". It MUST NOT 
         define the protocol headers.""",
     )
-    correlationId: t.Optional[t.Union[ReferenceObject, CorrelationIdObject]] = Field(
+    correlation_id: t.Optional[t.Union[ReferenceObject, CorrelationIdObject]] = Field(
+        alias="correlationId",
         description="""Definition of the correlation ID used for message tracing or matching.""",
     )
-    schemaFormat: t.Optional[str] = Field(
+    schema_format: t.Optional[str] = Field(
+        alias="schemaFormat",
         description="""A string containing the name of the schema format/language used to define the message payload. 
         If omitted, implementations should parse the payload as a Schema object.""",
     )
-    contentType: t.Optional[str] = Field(
+    content_type: t.Optional[str] = Field(
+        alias="contentType",
         description="""The content type to use when encoding/decoding a message's payload. The value MUST be a 
         specific media type (e.g. application/json). When omitted, the value MUST be the one specified on the 
         defaultContentType field. """,
@@ -911,7 +926,8 @@ class OperationTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalD
     https://www.asyncapi.com/docs/specifications/v2.2.0#operationTraitObject
     """
 
-    operationId: t.Optional[str] = Field(
+    operation_id: t.Optional[str] = Field(
+        alias="operationId",
         description="""Unique string used to identify the operation. The id MUST be unique among all operations 
         described in the API. The operationId value is case-sensitive. Tools and libraries MAY use the operationId to 
         uniquely identify an operation, therefore, it is RECOMMENDED to follow common programming naming 
@@ -1062,13 +1078,16 @@ class OAuthFlowObject(SpecObject, BaseModel):
     """
 
     # TODO: add applies to
-    authorizationUrl: AnyUrl = Field(
+    authorization_url: AnyUrl = Field(
+        alias="authorizationUrl",
         description="""REQUIRED. The authorization URL to be used for this flow. This MUST be in the form of a URL.""",
     )
-    tokenUrl: AnyUrl = Field(
+    token_url: AnyUrl = Field(
+        alias="tokenUrl",
         description="""REQUIRED. The token URL to be used for this flow. This MUST be in the form of a URL.""",
     )
-    refreshUrl: t.Optional[AnyUrl] = Field(
+    refresh_url: t.Optional[AnyUrl] = Field(
+        alias="refreshUrl",
         description="""The URL to be used for obtaining refresh tokens. This MUST be in the form of a URL.""",
     )
     scopes: t.Mapping[str, str] = Field(
@@ -1093,10 +1112,12 @@ class OAuthFlowsObject(_WithSpecificationExtension, SpecObject, BaseModel):
     password: t.Optional[OAuthFlowObject] = Field(
         description="""Configuration for the OAuth Resource Owner Protected Credentials flow""",
     )
-    clientCredentials: t.Optional[OAuthFlowObject] = Field(
+    client_credentials: t.Optional[OAuthFlowObject] = Field(
+        alias="clientCredentials",
         description="""Configuration for the OAuth Client Credentials flow.""",
     )
-    authorizationCode: t.Optional[OAuthFlowObject] = Field(
+    authorization_code: t.Optional[OAuthFlowObject] = Field(
+        alias="authorizationCode",
         description="""Configuration for the OAuth Authorization Code flow.""",
     )
 
@@ -1139,14 +1160,16 @@ class SecuritySchemeObject(_WithDescriptionField, _WithSpecificationExtension, S
         description="""REQUIRED. The name of the HTTP Authorization scheme to be used in the Authorization header as 
         defined in RFC7235. """,
     )
-    bearerFormat: t.Optional[str] = Field(
+    bearer_format: t.Optional[str] = Field(
+        alias="bearerFormat",
         description="""A hint to the client to identify how the bearer token is formatted. Bearer tokens are usually 
         generated by an authorization server, so this information is primarily for documentation purposes. """,
     )
     flows: OAuthFlowsObject = Field(
         description="""REQUIRED. An object containing configuration information for the flow types supported.""",
     )
-    openIdConnectUrl: AnyUrl = Field(
+    open_id_connect_url: AnyUrl = Field(
+        alias="openIdConnectUrl",
         description="""REQUIRED. OpenId Connect URL to discover OAuth2 configuration values. This MUST be in the form 
         of a URL.""",
     )
@@ -1169,31 +1192,39 @@ class ComponentsObject(_WithSpecificationExtension, SpecObject, BaseModel):
     messages: t.Optional[t.Mapping[str, t.Union[ReferenceObject, MessageObject]]] = Field(
         description="""An object to hold reusable Message Objects.""",
     )
-    securitySchemes: t.Optional[t.Mapping[str, t.Union[ReferenceObject, SecuritySchemeObject]]] = Field(
+    security_schemes: t.Optional[t.Mapping[str, t.Union[ReferenceObject, SecuritySchemeObject]]] = Field(
+        alias="securitySchemes",
         description="""An object to hold reusable Security Scheme Objects.""",
     )
     parameters: t.Optional[t.Mapping[str, t.Union[ReferenceObject, ParameterObject]]] = Field(
         description="""An object to hold reusable Parameter Objects.""",
     )
-    correlationIds: t.Optional[t.Mapping[str, t.Union[ReferenceObject, CorrelationIdObject]]] = Field(
+    correlation_ids: t.Optional[t.Mapping[str, t.Union[ReferenceObject, CorrelationIdObject]]] = Field(
+        alias="correlationIds",
         description="""An object to hold reusable Correlation ID Objects.""",
     )
-    operationTraits: t.Optional[t.Mapping[str, t.Union[ReferenceObject, OperationTraitObject]]] = Field(
+    operation_traits: t.Optional[t.Mapping[str, t.Union[ReferenceObject, OperationTraitObject]]] = Field(
+        alias="operationTraits",
         description="""An object to hold reusable Operation Trait Objects.""",
     )
-    messageTraits: t.Optional[t.Mapping[str, t.Union[ReferenceObject, MessageTraitObject]]] = Field(
+    message_traits: t.Optional[t.Mapping[str, t.Union[ReferenceObject, MessageTraitObject]]] = Field(
+        alias="messageTraits",
         description="""An object to hold reusable Message Trait Objects.""",
     )
-    serverBindings: t.Optional[t.Mapping[str, t.Union[ReferenceObject, ServerBindingsObject]]] = Field(
+    server_bindings: t.Optional[t.Mapping[str, t.Union[ReferenceObject, ServerBindingsObject]]] = Field(
+        alias="serverBindings",
         description="""An object to hold reusable Server Bindings Objects.""",
     )
-    channelBindings: t.Optional[t.Mapping[str, t.Union[ReferenceObject, ChannelBindingsObject]]] = Field(
+    channel_bindings: t.Optional[t.Mapping[str, t.Union[ReferenceObject, ChannelBindingsObject]]] = Field(
+        alias="channelBindings",
         description="""An object to hold reusable Channel Bindings Objects.""",
     )
-    operationBindings: t.Optional[t.Mapping[str, t.Union[ReferenceObject, OperationBindingsObject]]] = Field(
+    operation_bindings: t.Optional[t.Mapping[str, t.Union[ReferenceObject, OperationBindingsObject]]] = Field(
+        alias="operationBindings",
         description="""An object to hold reusable Operation Bindings Objects.""",
     )
-    messageBindings: t.Optional[t.Mapping[str, t.Union[ReferenceObject, MessageBindingsObject]]] = Field(
+    message_bindings: t.Optional[t.Mapping[str, t.Union[ReferenceObject, MessageBindingsObject]]] = Field(
+        alias="messageBindings",
         description="""An object to hold reusable Message Bindings Objects.""",
     )
 
@@ -1216,7 +1247,6 @@ class AsyncAPIObject(_WithTagsField, _WithExternalDocsField, _WithSpecificationE
         introduced to address errors in the documentation, and tooling should typically be compatible with the 
         corresponding major.minor (1.0.*). Patch versions will correspond to patches of this document.""",
     )
-
     id: t.Optional[Identifier] = Field(
         description="""Identifier of the application the AsyncAPI document is defining.""",
     )
@@ -1226,7 +1256,8 @@ class AsyncAPIObject(_WithTagsField, _WithExternalDocsField, _WithSpecificationE
     servers: t.Optional[ServersObject] = Field(
         description="""Provides connection details of servers.""",
     )
-    defaultContentType: t.Optional[DefaultContentType] = Field(
+    default_content_type: t.Optional[DefaultContentType] = Field(
+        alias="defaultContentType",
         description="""Default content type to use when encoding/decoding a message's payload.""",
     )
     channels: ChannelsObject = Field(
