@@ -12,11 +12,10 @@ from asyncapi_python_aio_pika_template.spec import (
     ChannelBindingsObject,
     ChannelItemObject,
     ChannelsObject,
-    ComponentName, ComponentsObject,
+    ComponentsObject,
     ContactObject,
     CorrelationIdObject,
-    DefaultContentType, Email,
-    ExternalDocumentationObject,
+    DefaultContentType, ExternalDocumentationObject,
     Identifier, InfoObject,
     LicenseObject,
     MessageBindingsObject,
@@ -28,15 +27,14 @@ from asyncapi_python_aio_pika_template.spec import (
     OperationBindingsObject,
     OperationObject,
     OperationTraitObject,
-    ParameterName, ParameterObject,
+    ParameterObject,
     ParametersObject,
-    Protocol, ReferenceObject,
+    ReferenceObject,
     RuntimeExpression, SchemaObject,
     SecurityRequirementObject,
     SecuritySchemeObject,
-    SecuritySchemeType, SemanticVersion,
     ServerBindingsObject,
-    ServerName, ServerObject,
+    ServerObject,
     ServerVariableObject,
     ServersObject,
     SpecObject,
@@ -58,31 +56,10 @@ class ReferencedSpecObject:
 class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[ReferencedSpecObject]]):
     __EMPTY: t.Final[t.Sequence[ReferencedSpecObject]] = ()
 
-    def visit_email(self, obj: Email) -> t.Sequence[ReferencedSpecObject]:
-        return self.__EMPTY
-
-    def visit_semantic_version(self, obj: SemanticVersion) -> t.Sequence[ReferencedSpecObject]:
-        return self.__EMPTY
-
     def visit_identifier(self, obj: Identifier) -> t.Sequence[ReferencedSpecObject]:
         return self.__EMPTY
 
     def visit_runtime_expression(self, obj: RuntimeExpression) -> t.Sequence[ReferencedSpecObject]:
-        return self.__EMPTY
-
-    def visit_server_name(self, obj: ServerName) -> t.Sequence[ReferencedSpecObject]:
-        return self.__EMPTY
-
-    def visit_parameter_name(self, obj: ParameterName) -> t.Sequence[ReferencedSpecObject]:
-        return self.__EMPTY
-
-    def visit_component_name(self, obj: ComponentName) -> t.Sequence[ReferencedSpecObject]:
-        return self.__EMPTY
-
-    def visit_protocol(self, obj: Protocol) -> t.Sequence[ReferencedSpecObject]:
-        return self.__EMPTY
-
-    def visit_security_scheme_type(self, obj: SecuritySchemeType) -> t.Sequence[ReferencedSpecObject]:
         return self.__EMPTY
 
     def visit_reference_object(self, obj: ReferenceObject) -> t.Sequence[ReferencedSpecObject]:
@@ -99,20 +76,20 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
         return self.__EMPTY
 
     def visit_tag_object(self, obj: TagObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__EMPTY
+        return _ReferencedSpecObjectListBuilder() \
+            .add("externalDocs", obj.externalDocs)
 
     def visit_tags_object(self, obj: TagsObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__create_object_list().expand((), obj.__root__)
+        return _ReferencedSpecObjectListBuilder().expand((), obj.__root__)
 
     def visit_contact_object(self, obj: ContactObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__create_object_list() \
-            .add(("email",), obj.email)
+        return self.__EMPTY
 
     def visit_license_object(self, obj: LicenseObject) -> t.Sequence[ReferencedSpecObject]:
         return self.__EMPTY
 
     def visit_info_object(self, obj: InfoObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__create_object_list() \
+        return _ReferencedSpecObjectListBuilder() \
             .add(("contact",), obj.contact) \
             .add(("license",), obj.license)
 
@@ -127,21 +104,21 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
         return self.__EMPTY
 
     def visit_server_object(self, obj: ServerObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__create_object_list() \
+        return _ReferencedSpecObjectListBuilder() \
             .expand(("variables",), obj.variables) \
             .expand(("security",), obj.security) \
             .add(("bindings",), obj.bindings)
 
     def visit_servers_object(self, obj: ServersObject) -> t.Sequence[ReferencedSpecObject]:
-        # FIXME: error: Argument 1 to "expand" of "_DescendantsListBuilder" has incompatible type "Mapping[
+        # FIXME: error: Argument 1 to "expand" of "_ReferencedSpecObjectListBuilder" has incompatible type "Mapping[
         #  ServerName, ServerObject]"; expected "Optional[Mapping[str, Optional[ReferencedSpecObject]]]"  [arg-type]
-        return self.__create_object_list().expand((), obj.__root__)
+        return _ReferencedSpecObjectListBuilder().expand((), obj.__root__)
 
     def visit_default_content_type(self, obj: DefaultContentType) -> t.Sequence[ReferencedSpecObject]:
         return self.__EMPTY
 
     def visit_correlation_id_object(self, obj: CorrelationIdObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__create_object_list() \
+        return _ReferencedSpecObjectListBuilder() \
             .add(("location",), obj.location)
 
     def visit_message_bindings_object(self, obj: MessageBindingsObject) -> t.Sequence[ReferencedSpecObject]:
@@ -149,36 +126,47 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
         return self.__EMPTY
 
     def visit_message_example_object(self, obj: MessageExampleObject) -> t.Sequence[ReferencedSpecObject]:
+        if isinstance(obj.payload, ReferenceObject):  # type: ignore[misc]
+            return _ReferencedSpecObjectListBuilder().add("payload", obj.payload)
+
         return self.__EMPTY
 
     def visit_message_trait_object(self, obj: MessageTraitObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__create_object_list() \
+        return _ReferencedSpecObjectListBuilder() \
             .add(("headers",), obj.headers) \
             .add(("correlationId",), obj.correlationId) \
             .add(("bindings",), obj.bindings) \
-            .expand(("examples",), obj.examples)
+            .expand(("examples",), obj.examples) \
+            .add(("tags",), obj.tags) \
+            .add(("externalDocs",), obj.externalDocs)
 
     def visit_message_object(self, obj: MessageObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__create_object_list() \
+        return _ReferencedSpecObjectListBuilder() \
             .add(("headers",), obj.headers) \
             .add(("correlationId",), obj.correlationId) \
             .add(("bindings",), obj.bindings) \
             .expand(("examples",), obj.examples) \
             .add(("payload",), obj.payload) \
-            .expand(("traits",), obj.traits)
+            .expand(("traits",), obj.traits) \
+            .add(("tags",), obj.tags) \
+            .add(("externalDocs",), obj.externalDocs)
 
     def visit_operation_bindings_object(self, obj: OperationBindingsObject) -> t.Sequence[ReferencedSpecObject]:
         # TODO: maybe object of each protocol to the list
         return self.__EMPTY
 
     def visit_operation_trait_object(self, obj: OperationTraitObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__create_object_list() \
-            .add(("bindings",), obj.bindings)
+        return _ReferencedSpecObjectListBuilder() \
+            .add(("bindings",), obj.bindings) \
+            .add(("tags",), obj.tags) \
+            .add(("externalDocs",), obj.externalDocs)
 
     def visit_operation_object(self, obj: OperationObject) -> t.Sequence[ReferencedSpecObject]:
-        result = self.__create_object_list() \
+        result = _ReferencedSpecObjectListBuilder() \
             .add(("bindings",), obj.bindings) \
-            .expand(("traits",), obj.traits)
+            .expand(("traits",), obj.traits) \
+            .add(("tags",), obj.tags) \
+            .add(("externalDocs",), obj.externalDocs)
 
         if isinstance(obj.message, (t.Sequence, t.Mapping)):
             result.expand(("message",), obj.message)
@@ -189,47 +177,46 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
         return result
 
     def visit_parameter_object(self, obj: ParameterObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__create_object_list() \
+        return _ReferencedSpecObjectListBuilder() \
             .add(("schema",), obj.schema_) \
             .add(("location",), obj.location)
 
     def visit_parameters_object(self, obj: ParametersObject) -> t.Sequence[ReferencedSpecObject]:
-        # FIXME: error: Argument 1 to "expand" of "_DescendantsListBuilder" has incompatible type "Mapping[
+        # FIXME: error: Argument 1 to "expand" of "_ReferencedSpecObjectListBuilder" has incompatible type "Mapping[
         #  ParameterName, Union[ParameterObject, ReferenceObject]]"; expected  "Optional[Mapping[str,
         #  Optional[ReferencedSpecObject]]]"  [arg-type]
-        return self.__create_object_list().expand((), t.cast(t.Mapping[str, SpecObject], obj.__root__))
+        return _ReferencedSpecObjectListBuilder().expand((), t.cast(t.Mapping[str, SpecObject], obj.__root__))
 
     def visit_channel_bindings_object(self, obj: ChannelBindingsObject) -> t.Sequence[ReferencedSpecObject]:
         # TODO: maybe object of each protocol to the list
         return self.__EMPTY
 
     def visit_channel_item_object(self, obj: ChannelItemObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__create_object_list() \
+        return _ReferencedSpecObjectListBuilder() \
             .add(("subscribe",), obj.subscribe) \
             .add(("publish",), obj.publish) \
             .add(("parameters",), obj.parameters) \
             .add(("bindings",), obj.bindings)
 
     def visit_channels_object(self, obj: ChannelsObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__create_object_list().expand((), obj.__root__)
+        return _ReferencedSpecObjectListBuilder().expand((), obj.__root__)
 
     def visit_oauth_flow_object(self, obj: OAuthFlowObject) -> t.Sequence[ReferencedSpecObject]:
         return self.__EMPTY
 
     def visit_oauth_flows_object(self, obj: OAuthFlowsObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__create_object_list() \
+        return _ReferencedSpecObjectListBuilder() \
             .add(("implicit",), obj.implicit) \
             .add(("password",), obj.password) \
             .add(("clientCredentials",), obj.clientCredentials) \
             .add(("authorizationCode",), obj.authorizationCode)
 
     def visit_security_scheme_object(self, obj: SecuritySchemeObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__create_object_list() \
-            .add(("type",), obj.type_) \
+        return _ReferencedSpecObjectListBuilder() \
             .add(("flows",), obj.flows)
 
     def visit_components_object(self, obj: ComponentsObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__create_object_list() \
+        return _ReferencedSpecObjectListBuilder() \
             .expand(("schemas",), obj.schemas) \
             .expand(("messages",), obj.messages) \
             .expand(("securitySchemes",), obj.securitySchemes) \
@@ -243,17 +230,16 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
             .expand(("messageBindings",), obj.messageBindings)
 
     def visit_async_api_object(self, obj: AsyncAPIObject) -> t.Sequence[ReferencedSpecObject]:
-        return self.__create_object_list() \
+        return _ReferencedSpecObjectListBuilder() \
             .add(("info",), obj.info) \
             .add(("servers",), obj.servers) \
             .add(("channels",), obj.channels) \
-            .add(("components",), obj.components)
+            .add(("components",), obj.components) \
+            .add(("tags",), obj.tags) \
+            .add(("externalDocs",), obj.externalDocs)
 
-    def __create_object_list(self) -> "_DescendantsListBuilder":
-        return _DescendantsListBuilder()
 
-
-class _DescendantsListBuilder(t.Sequence[ReferencedSpecObject]):
+class _ReferencedSpecObjectListBuilder(t.Sequence[ReferencedSpecObject]):
     __slots__ = (
         "__items",
     )
@@ -295,7 +281,7 @@ class _DescendantsListBuilder(t.Sequence[ReferencedSpecObject]):
             self,
             ref: Reference,
             obj: t.Optional[SpecObject],
-    ) -> "_DescendantsListBuilder":
+    ) -> "_ReferencedSpecObjectListBuilder":
         if obj is not None:
             self.__items.append(ReferencedSpecObject(ref, obj))
 
@@ -306,7 +292,7 @@ class _DescendantsListBuilder(t.Sequence[ReferencedSpecObject]):
             self,
             ref: Reference,
             objs: t.Optional[t.Sequence[t.Optional[SpecObject]]],
-    ) -> "_DescendantsListBuilder":
+    ) -> "_ReferencedSpecObjectListBuilder":
         ...
 
     @t.overload
@@ -314,14 +300,14 @@ class _DescendantsListBuilder(t.Sequence[ReferencedSpecObject]):
             self,
             ref: Reference,
             objs: t.Optional[t.Mapping[str, t.Optional[SpecObject]]],
-    ) -> "_DescendantsListBuilder":
+    ) -> "_ReferencedSpecObjectListBuilder":
         ...
 
     def expand(
             self,
             ref: Reference,
             objs: t.Optional[t.Union[t.Sequence[t.Optional[SpecObject]], t.Mapping[str, t.Optional[SpecObject]]]],
-    ) -> "_DescendantsListBuilder":
+    ) -> "_ReferencedSpecObjectListBuilder":
         if objs is not None:
             if isinstance(objs, t.Sequence):
                 for index, item in enumerate(objs):

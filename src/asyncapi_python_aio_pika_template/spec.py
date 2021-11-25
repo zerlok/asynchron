@@ -98,18 +98,15 @@ class StringRegexValidator(str, Validator):
         return t.cast(T, cls_(value))
 
 
-class Email(StringRegexValidator, SpecObject, pattern=re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")):
+class Email(StringRegexValidator, pattern=re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")):
     """
     An email string.
 
     https://emailregex.com/
     """
 
-    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
-        return visitor.visit_email(self)
 
-
-class SemanticVersion(StringRegexValidator, SpecObject):
+class SemanticVersion(StringRegexValidator):
     """
     A valid semantic version type.
 
@@ -126,9 +123,6 @@ class SemanticVersion(StringRegexValidator, SpecObject):
                                                       r"(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"
                                                       r"(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?"
                                                       r"$""")
-
-    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
-        return visitor.visit_semantic_version(self)
 
 
 class Identifier(StringRegexValidator, SpecObject):
@@ -166,38 +160,24 @@ class RuntimeExpression(str, SpecObject):
         return visitor.visit_runtime_expression(self)
 
 
-class ServerName(StringRegexValidator, SpecObject, pattern=re.compile(r"^[A-Za-z0-9_\-]+$")):
-
-    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
-        return visitor.visit_server_name(self)
+class ServerName(StringRegexValidator, pattern=re.compile(r"^[A-Za-z0-9_\-]+$")):
+    pass
 
 
-class ParameterName(StringRegexValidator, SpecObject, pattern=re.compile(r"^[A-Za-z0-9_\-]+$")):
-
-    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
-        return visitor.visit_parameter_name(self)
+class ParameterName(StringRegexValidator, pattern=re.compile(r"^[A-Za-z0-9_\-]+$")):
+    pass
 
 
-class ComponentName(StringRegexValidator, SpecObject, pattern=re.compile(r"^[a-zA-Z0-9.\-_]+$")):
-
-    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
-        return visitor.visit_component_name(self)
+class ComponentName(StringRegexValidator, pattern=re.compile(r"^[a-zA-Z0-9.\-_]+$")):
+    pass
 
 
 Protocol = t.Literal["amqp", "amqps", "http", "https", "ibmmq", "jms", "kafka", "kafka-secure", "anypointmq", "mqtt",
                      "secure-mqtt", "stomp", "stomps", "ws", "wss", "mercure"]
 
-
-class SecuritySchemeType(SpecObject, BaseModel):
-    """
-    The supported security scheme type.
-    """
-
-    __root__: t.Literal["userPassword", "apiKey", "X509", "symmetricEncryption", "asymmetricEncryption", "httpApiKey",
-                        "http", "oauth2", "openIdConnect", "plain", "scramSha256", "scramSha512", "gssapi"]
-
-    def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
-        return visitor.visit_security_scheme_type(self)
+SecuritySchemeType = t.Literal["userPassword", "apiKey", "X509", "symmetricEncryption", "asymmetricEncryption",
+                               "httpApiKey", "http", "oauth2", "openIdConnect", "plain", "scramSha256", "scramSha512",
+                               "gssapi"]
 
 
 class ReferenceObject(SpecObject, BaseModel):
@@ -890,13 +870,6 @@ class MessageTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDoc
         return visitor.visit_message_trait_object(self)
 
 
-# class MessageTraitsObject(SpecObject, BaseModel):
-#     __root__: t.Sequence[MessageTraitObject]
-#
-#     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
-#         return visitor.visit_message_traits_object(self)
-
-
 class MessageObject(MessageTraitObject, SpecObject, BaseModel):
     """
     Describes a message received on a given channel and operation.
@@ -1173,7 +1146,7 @@ class SecuritySchemeObject(_WithDescriptionField, _WithSpecificationExtension, S
     flows: OAuthFlowsObject = Field(
         description="""REQUIRED. An object containing configuration information for the flow types supported.""",
     )
-    openIdConnectUrl: str = Field(
+    openIdConnectUrl: AnyUrl = Field(
         description="""REQUIRED. OpenId Connect URL to discover OAuth2 configuration values. This MUST be in the form 
         of a URL.""",
     )
@@ -1269,13 +1242,6 @@ class AsyncAPIObject(_WithTagsField, _WithExternalDocsField, _WithSpecificationE
 
 # TODO: add string type and visit it
 class SpecObjectVisitor(t.Generic[T_co], metaclass=abc.ABCMeta):
-    @abc.abstractmethod
-    def visit_email(self, obj: Email) -> T_co:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def visit_semantic_version(self, obj: SemanticVersion) -> T_co:
-        raise NotImplementedError
 
     @abc.abstractmethod
     def visit_identifier(self, obj: Identifier) -> T_co:
@@ -1283,22 +1249,6 @@ class SpecObjectVisitor(t.Generic[T_co], metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def visit_runtime_expression(self, obj: RuntimeExpression) -> T_co:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def visit_server_name(self, obj: ServerName) -> T_co:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def visit_parameter_name(self, obj: ParameterName) -> T_co:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def visit_component_name(self, obj: ComponentName) -> T_co:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def visit_security_scheme_type(self, obj: SecuritySchemeType) -> T_co:
         raise NotImplementedError
 
     @abc.abstractmethod
