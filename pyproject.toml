@@ -15,13 +15,41 @@ dependency-injector = "^4.37.0"
 jsonschema = "^4.2.1"
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.2"
+pytest = "^6.2.5"
 mypy = "^0.910"
 types-PyYAML = "^6.0.1"
+pytest-cases = "^3.6.5"
+pytest-cov = "^3.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = [
+    "--strict-markers",
+    "--cov=src",
+    "--cov-report=html",
+    "--cov-report=term-missing",
+]
+markers = [
+    "cli: test emulate CLI",
+]
+testpaths = ["./tests"]
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "@abc.abstractmethod",
+    "if __name__ == .__main__.:",
+]
+show_missing = true
+
+[tool.coverage.html]
+directory = "htmlcov/"
 
 [tool.mypy]
 python_version = "3.8"
