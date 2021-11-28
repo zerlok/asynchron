@@ -12,7 +12,7 @@ import abc
 import typing as t
 from pathlib import Path
 
-from asyncapi_python_aio_pika_template.spec import AsyncAPIObject
+from asyncapi.spec.base import AsyncAPIObject
 
 
 class AsyncApiConfigReaderError(Exception):
@@ -41,7 +41,7 @@ class AsyncApiCodeGeneratorError(Exception):
 
 class AsyncApiCodeGenerator(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def generate(self, config: AsyncAPIObject) -> t.Iterable[t.Tuple[Path, t.TextIO]]:
+    def generate(self, config: AsyncAPIObject) -> t.Iterable[t.Tuple[Path, t.Iterable[str]]]:
         raise NotImplementedError
 
 

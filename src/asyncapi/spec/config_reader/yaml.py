@@ -6,8 +6,8 @@ import typing as t
 
 import yaml
 
-from asyncapi_python_aio_pika_template.app import AsyncApiConfigReader
-from asyncapi_python_aio_pika_template.spec import AsyncAPIObject
+from asyncapi.app import AsyncApiConfigReader
+from asyncapi.spec.base import AsyncAPIObject
 
 
 # TODO: handle IO, yaml and pydantic errors

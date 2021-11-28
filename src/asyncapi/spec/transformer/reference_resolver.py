@@ -7,13 +7,13 @@ import typing as t
 
 from jsonschema import RefResolutionError, RefResolver
 
-from asyncapi_python_aio_pika_template.app import AsyncApiConfigTransformer, AsyncApiConfigTransformerError
-from asyncapi_python_aio_pika_template.spec import AsyncAPIObject, ReferenceObject, SpecObject
-from asyncapi_python_aio_pika_template.visitor.referenced_descendants import (
+from asyncapi.app import AsyncApiConfigTransformer, AsyncApiConfigTransformerError
+from asyncapi.spec.base import AsyncAPIObject, ReferenceObject, SpecObject
+from asyncapi.spec.visitor.referenced_descendants import (
     ReferencedDescendantSpecObjectVisitor,
     ReferencedSpecObject,
 )
-from asyncapi_python_aio_pika_template.walker.bfs_path import BFSPathWalker
+from asyncapi.spec.walker.bfs_path import BFSPathWalker
 
 JsonReference = t.NewType("JsonReference", str)
 JsonPath = t.Sequence[t.Union[int, str]]
@@ -28,15 +28,12 @@ class JsonSerializable(t.Protocol):
 class ReferenceResolvingAsyncAPIObjectTransformer(AsyncApiConfigTransformer):
 
     def __init__(self, uri: str = "", max_iterations: int = 256) -> None:
-        if not (0 < max_iterations < 1024):
+        if not (0 < max_iterations <= 256):
             raise ValueError("Max iterations not in valid values range", max_iterations)
 
         self.__uri = uri
         self.__max_iterations = max_iterations
         self.__spec_object_descendants_visitor = ReferencedDescendantSpecObjectVisitor()
-
-    def __get_spec_object_descendants(self, obj: ReferencedSpecObject) -> t.Sequence[ReferencedSpecObject]:
-        return obj.value.accept_visitor(self.__spec_object_descendants_visitor)
 
     def transform(self, config: AsyncAPIObject) -> AsyncAPIObject:
         cfg = config
@@ -44,7 +41,7 @@ class ReferenceResolvingAsyncAPIObjectTransformer(AsyncApiConfigTransformer):
         # TODO: get total reference graph and resolve it ordering by dependencies or cancel resolution if graph has
         #  cycles.
         for _ in self.__iter_max_iterations():
-            cfg_json = t.cast(JsonSerializable, cfg.dict())
+            cfg_json = t.cast(JsonSerializable, cfg.dict(by_alias=True))
             resolver = _JsonReferenceResolver(cfg_json)
             references = list(self.__iter_references(cfg))
             if not references:
@@ -58,6 +55,9 @@ class ReferenceResolvingAsyncAPIObjectTransformer(AsyncApiConfigTransformer):
             cfg = AsyncAPIObject.parse_obj(cfg_json)  # type: ignore[misc]
 
         return cfg
+
+    def __get_spec_object_descendants(self, obj: ReferencedSpecObject) -> t.Sequence[ReferencedSpecObject]:
+        return obj.value.accept_visitor(self.__spec_object_descendants_visitor)
 
     def __iter_max_iterations(self) -> t.Iterable[int]:
         for i in range(self.__max_iterations):

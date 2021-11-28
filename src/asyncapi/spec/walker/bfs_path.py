@@ -6,7 +6,7 @@ __all__ = (
 import typing as t
 from dataclasses import dataclass
 
-from asyncapi_python_aio_pika_template.walker.bfs import BFSWalker
+from asyncapi.spec.walker.bfs import BFSWalker
 
 T = t.TypeVar("T")
 

@@ -1,0 +1,43 @@
+{%- macro Type(property) -%}
+    {%- if property.type == "boolean" -%}
+        bool
+    {%- elif property.type == "number" -%}
+        int
+    {%- elif property.type == "string" -%}
+        str
+    {%- elif property.type == "array" -%}
+        t.Sequence[t.Any]
+    {%- elif property.type == "object" -%}
+        t.Mapping[str, t.Any]
+    {%- elif property.enum -%}
+        t.Literal["{{ property.enum|join('", "') }}"]
+    {%- endif -%}
+{%- endmacro -%}
+{%- macro Property(alias, property) %}
+    {{ alias }}: {{ Type(property) }} = Field(
+    alias="{{ alias }}",
+    description="""{{ property.description }}""",
+    )
+{% endmacro -%}
+{%- macro MessageClass(message) %}
+    {%- set payload = message.payload -%}
+    class {{ payload.title }}(BaseModel):
+    {% if payload.summary %}"""{{ payload.summary }}"""{% endif %}
+    {%- if payload.properties -%}
+        {% for name, property in payload.properties.items() -%}
+            {{ Property(name, property) }}
+        {%- endfor %}
+    {% else -%}
+        pass
+    {%- endif %}
+{% endmacro -%}
+from pydantic import BaseModel
+
+
+{% for name, messages in context.messages|groupby("name") -%}
+    {%- set message = messages|first -%}
+    {%- if message.payload.type == "object" -%}
+        {{ MessageClass(message) }}
+    {%- endif -%}
+{%- endfor %}
+

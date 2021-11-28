@@ -7,7 +7,7 @@ __all__ = (
 import typing as t
 from dataclasses import dataclass
 
-from asyncapi_python_aio_pika_template.spec import (
+from asyncapi.spec.base import (
     AsyncAPIObject,
     ChannelBindingsObject,
     ChannelItemObject,

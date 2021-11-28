@@ -10,16 +10,16 @@ import click
 from dependency_injector.containers import DeclarativeContainer
 from dependency_injector.providers import Callable, Object, Provider, Singleton
 
-from asyncapi_python_aio_pika_template.app import (
+from asyncapi.app import (
     AsyncApiCodeGenerator,
     AsyncApiConfigReader,
     read_config,
 )
-from asyncapi_python_aio_pika_template.generator.jinja.python_aio_pika import JinjaBasedPythonAioPikaCodeGenerator
-from asyncapi_python_aio_pika_template.providers import KeySelector
-from asyncapi_python_aio_pika_template.reader.json import JsonAsyncApiConfigReader
-from asyncapi_python_aio_pika_template.reader.yaml import YamlAsyncApiConfigReader
-from asyncapi_python_aio_pika_template.transform.reference_resolver import ReferenceResolvingAsyncAPIObjectTransformer
+from asyncapi.providers import KeySelector
+from asyncapi.spec.code_generator.jinja.python_aio_pika import JinjaBasedPythonAioPikaCodeGenerator
+from asyncapi.spec.config_reader.json import JsonAsyncApiConfigReader
+from asyncapi.spec.config_reader.yaml import YamlAsyncApiConfigReader
+from asyncapi.spec.transformer.reference_resolver import ReferenceResolvingAsyncAPIObjectTransformer
 
 
 class CLIContainer(DeclarativeContainer):
@@ -69,28 +69,21 @@ def cli(context: click.Context, file: Path) -> None:
 @click.pass_obj
 def get_config(container: CLIContainer, pretty: bool, show_null: bool) -> None:
     config = container.config()
-    click.echo(config.json(exclude_none=not show_null, indent=2 if pretty else None,
-                           separators=(", ", ": ") if pretty else (",", ":")))
+    # FIXME: remove `sort_keys=True`, it is used for tests
+    click.echo(config.json(by_alias=True, exclude_none=not show_null, indent=2 if pretty else None,
+                           separators=(", ", ": ") if pretty else (",", ":"), sort_keys=True))
 
 
 @cli.command("generate")
 @click.argument("format", type=click.Choice(sorted(CLIContainer.generator.keys)))
 @click.pass_obj
 def generate_code(container: CLIContainer, format: str) -> None:
+    generator = container.generator(format)
     config = container.config()
-    # generator = container.generator(format)
-    #
-    # for destination_path, content in generator.generate(config):
-    #     click.echo(destination_path)
-    #     click.echo(content)
 
-    # for obj in BFSWalker(config):
-    #     if obj.key == "publish":
-    #         resolver = RefResolver("", config)
-    #         print(resolver)
-    #         print(obj)
-    #         # print(resolver.resolve(obj.value.message.ref))
-    #
+    for destination_path, content in generator.generate(config):
+        click.echo(destination_path)
+        click.echo("\n".join(content))
 
 
 if __name__ == "__main__":
