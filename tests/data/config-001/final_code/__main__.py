@@ -18,7 +18,7 @@ async def main() -> None:
         await runner.wait_for_termination()
 
     finally:
-        await connection.close()
+        await connection.close()  # type: ignore
 
 
 if __name__ == "__main__":

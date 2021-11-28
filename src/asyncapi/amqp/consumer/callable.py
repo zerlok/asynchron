@@ -1,7 +1,12 @@
+__all__ = (
+    "CallableMessageConsumer",
+)
+
 import typing as t
 
 from asyncapi.amqp.base import ConsumptionContext, MessageConsumer
-from asyncapi.amqp.consumer.runner import T_contra
+
+T_contra = t.TypeVar("T_contra", contravariant=True)
 
 
 class CallableMessageConsumer(MessageConsumer[T_contra]):

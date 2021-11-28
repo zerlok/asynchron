@@ -1,11 +1,13 @@
-import abc
+__all__ = (
+    "ProcessingMessageConsumer",
+)
 
 import aio_pika
 
 from asyncapi.amqp.base import ConsumptionContext, MessageConsumer
 
 
-class ProcessingMessageConsumer(MessageConsumer[aio_pika.IncomingMessage], metaclass=abc.ABCMeta):
+class ProcessingMessageConsumer(MessageConsumer[aio_pika.IncomingMessage]):
     def __init__(
             self,
             consumer: MessageConsumer[aio_pika.IncomingMessage],

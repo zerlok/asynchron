@@ -1,0 +1,26 @@
+import asyncio
+
+import aio_pika
+from asyncapi.amqp.consumer.runner import ConsumersRunner
+
+from {{ app.modules.consumer.python_path }} import add_{{ app.manager.name|to_snake_case }}_consumers
+
+
+async def main() -> None:
+connection = await aio_pika.connect_robust()  # type: aio_pika.Connection
+
+try:
+runner = ConsumersRunner(connection)
+
+# TODO: add implementation
+add_{{ app.manager.name|to_snake_case }}_consumers(runner, ...)
+
+runner.start()
+await runner.wait_for_termination()
+
+finally:
+await connection.close()  # type: ignore
+
+
+if __name__ == "__main__":
+asyncio.run(main())

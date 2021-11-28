@@ -1,4 +1,7 @@
-import abc
+__all__ = (
+    "DecodedMessageConsumer",
+)
+
 import typing as t
 
 import aio_pika
@@ -8,7 +11,7 @@ from asyncapi.amqp.base import ConsumptionContext, MessageConsumer, MessageDecod
 T = t.TypeVar("T")
 
 
-class DecodedMessageConsumer(MessageConsumer[aio_pika.IncomingMessage], metaclass=abc.ABCMeta):
+class DecodedMessageConsumer(MessageConsumer[aio_pika.IncomingMessage]):
     def __init__(self, consumer: MessageConsumer[T], decoder: MessageDecoder[T]) -> None:
         self.__consumer = consumer
         self.__decoder = decoder

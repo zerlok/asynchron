@@ -97,7 +97,7 @@ def get_config(container: CLIContainer, pretty: bool, show_null: bool) -> None:
 
 @cli.command("generate")
 @click.argument("format", type=click.Choice(sorted(CLIContainer.code_generator.keys)))
-@click.option("-o", "--output-dir", type=click.Path(exists=True, path_type=Path), default=Path.cwd(), )
+@click.option("-o", "--output-dir", type=click.Path(exists=False, path_type=Path), default=Path.cwd(), )
 @click.option("-d", "--dry-run", is_flag=True, default=False)
 @click.pass_obj
 def generate_code(container: CLIContainer, format: str, output_dir: Path, dry_run: bool) -> None:

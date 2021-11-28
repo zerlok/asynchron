@@ -1,0 +1,31 @@
+{% macro PythonType(property) %}
+    {%- if property.type == "boolean" -%}
+        bool
+    {%- elif property.type == "number" -%}
+        int
+    {%- elif property.type == "string" -%}
+        str
+    {%- elif property.type == "array" -%}
+        t.Sequence[t.Any]
+    {%- elif property.type == "object" -%}
+        t.Mapping[str, t.Any]
+    {%- elif property.enum -%}
+        t.Literal["{{ property.enum|join('", "') }}"]
+    {%- endif -%}
+{% endmacro %}
+import typing as t
+
+from pydantic import BaseModel, Field
+
+
+{% for consumer in app.consumers|ordered_values %}
+    {% set message = consumer.message %}
+    class {{ message.name|to_pascal_case }}(BaseModel):
+    {% if message.descrition %}"""{{ message.description }}"""{% endif %}
+    {% for field in message.fields|ordered_values %}
+        {{ field.name|to_snake_case }}: {{ PythonType(field.type) }} = Field(
+        alias="{{ field.alias }}",
+        description={% if field.description %}"""{{ field.description }}"""{% else %}None{% endif %},
+        )
+    {% endfor %}
+{% endfor %}

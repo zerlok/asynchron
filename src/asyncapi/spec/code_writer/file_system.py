@@ -14,6 +14,9 @@ class AsyncApiFileSystemCodeWriter(AsyncApiCodeWriter):
         self.__target_dir = target_dir
 
     def write(self, path: Path, content: t.Iterable[str]) -> None:
+        if not self.__target_dir.exists():
+            self.__target_dir.mkdir(parents=True)
+
         target = self.__target_dir.joinpath(path)
 
         with target.open("w") as fd:
