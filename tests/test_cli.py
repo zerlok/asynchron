@@ -5,7 +5,7 @@ from pathlib import Path
 from click.testing import CliRunner
 from pytest_cases import fixture, parametrize_with_cases
 
-from asyncapi_python_aio_pika_template.cli import cli
+from asyncapi.cli import cli
 
 
 @fixture()
@@ -20,10 +20,10 @@ def cli_runner() -> CliRunner:
 
 class ConfigCases:
     def case_config_001(self, data_dir: Path) -> t.Tuple[Path, t.Any]:
-        with (data_dir / "config-001-final.json").open("r") as fd:
+        with (data_dir / "config-001" / "final.json").open("r") as fd:
             config_json = json.load(fd)
 
-        return data_dir / "config-001.yaml", config_json
+        return data_dir / "config-001" / "asyncapi.yaml", config_json
 
 
 # TODO: i want to do less copy-past for parametrizing tests with `ConfigCases`
@@ -34,7 +34,8 @@ class CliCases:
             config_path: Path,
             config_json: t.Any,
     ) -> t.Tuple[t.Mapping[str, t.Any], t.Sequence[t.Any], int, str]:
-        return {}, ("-f", str(config_path), "get",), 0, json.dumps(config_json, indent=None, separators=(",", ":"))
+        return {}, ("-f", str(config_path), "get",), 0, json.dumps(config_json, indent=None, separators=(",", ":"),
+                                                                   sort_keys=True)
 
     @parametrize_with_cases(("config_path", "config_json"), ConfigCases)
     def case_read_config_in_pretty_format(
@@ -43,7 +44,7 @@ class CliCases:
             config_json: t.Any,
     ) -> t.Tuple[t.Mapping[str, t.Any], t.Sequence[t.Any], int, str]:
         return {}, ("-f", str(config_path), "get", "--pretty"), 0, json.dumps(config_json, indent=2,
-                                                                              separators=(", ", ": "))
+                                                                              separators=(", ", ": "), sort_keys=True)
 
 
 @parametrize_with_cases(("env", "args", "expected_exit_code", "expected_output",), (CliCases,))

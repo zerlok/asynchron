@@ -5,6 +5,18 @@
     "title": "Temperature Readings",
     "version": "1.0.0"
   },
+  "servers": {
+    "local-dev": {
+      "url": "amqp://localhost:5672",
+      "protocol": "amqp",
+      "description": "This is a local broker",
+      "security": [
+        {
+          "user-password": []
+        }
+      ]
+    }
+  },
   "channels": {
     "sensor/temperature/fahrenheit": {
       "subscribe": {
@@ -97,6 +109,11 @@
             }
           }
         }
+      }
+    },
+    "securitySchemes": {
+      "user-password": {
+        "type": "userPassword"
       }
     }
   }
