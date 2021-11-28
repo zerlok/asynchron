@@ -1,0 +1,50 @@
+asyncapi: "2.0.0"
+info:
+  title: Temperature Readings
+  description: Temperature Readings
+  version: "1.0.0"
+channels:
+#  sensor/temp/fa:
+  #    publish:
+  #      message:
+  #        name: sensorReadingMessage
+  #        payload:
+  #          title: SensorReading
+  #          type: object
+  #          properties:
+  #            sensorId:
+  #              type: string
+  #            temperature:
+  #              type: number
+  #            baseUnit:
+  #              enum: [
+  #                  CELSIUS,
+  #                  FAHRENHEIT
+  #              ]
+  sensor/temperature/fahrenheit:
+    subscribe:
+      message:
+        $ref: "#/components/messages/SensorReadingMessage"
+    publish:
+      message:
+        $ref: "#/components/messages/SensorReadingMessage"
+components:
+  schemas:
+    SensorReading:
+      title: SensorReading
+      type: object
+      properties:
+        sensorId:
+          type: string
+        temperature:
+          type: number
+        baseUnit:
+          enum: [
+            CELSIUS,
+            FAHRENHEIT
+          ]
+  messages:
+    SensorReadingMessage:
+      name: sensorReadingMessage
+      payload:
+        $ref: "#/components/schemas/SensorReading"

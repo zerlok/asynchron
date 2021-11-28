@@ -1,0 +1,103 @@
+{
+  "asyncapi": "2.0.0",
+  "info": {
+    "description": "Temperature Readings",
+    "title": "Temperature Readings",
+    "version": "1.0.0"
+  },
+  "channels": {
+    "sensor/temperature/fahrenheit": {
+      "subscribe": {
+        "message": {
+          "name": "sensorReadingMessage",
+          "payload": {
+            "title": "SensorReading",
+            "type": "object",
+            "properties": {
+              "sensorId": {
+                "type": "string"
+              },
+              "temperature": {
+                "type": "number"
+              },
+              "baseUnit": {
+                "enum": [
+                  "CELSIUS",
+                  "FAHRENHEIT"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "publish": {
+        "message": {
+          "name": "sensorReadingMessage",
+          "payload": {
+            "title": "SensorReading",
+            "type": "object",
+            "properties": {
+              "sensorId": {
+                "type": "string"
+              },
+              "temperature": {
+                "type": "number"
+              },
+              "baseUnit": {
+                "enum": [
+                  "CELSIUS",
+                  "FAHRENHEIT"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SensorReading": {
+        "title": "SensorReading",
+        "type": "object",
+        "properties": {
+          "sensorId": {
+            "type": "string"
+          },
+          "temperature": {
+            "type": "number"
+          },
+          "baseUnit": {
+            "enum": [
+              "CELSIUS",
+              "FAHRENHEIT"
+            ]
+          }
+        }
+      }
+    },
+    "messages": {
+      "SensorReadingMessage": {
+        "name": "sensorReadingMessage",
+        "payload": {
+          "title": "SensorReading",
+          "type": "object",
+          "properties": {
+            "sensorId": {
+              "type": "string"
+            },
+            "temperature": {
+              "type": "number"
+            },
+            "baseUnit": {
+              "enum": [
+                "CELSIUS",
+                "FAHRENHEIT"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

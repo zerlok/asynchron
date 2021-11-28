@@ -1,0 +1,117 @@
+[tool.poetry]
+name = "asyncapi-python-aio-pika-template"
+version = "0.1.0"
+description = ""
+authors = ["zerlok <denergytro@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+Jinja2 = "^3.0.3"
+pydantic = "^1.8.2"
+aio-pika = "^6.8.0"
+PyYAML = "^6.0"
+click = "^8.0.3"
+dependency-injector = "^4.37.0"
+jsonschema = "^4.2.1"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
+mypy = "^0.910"
+types-PyYAML = "^6.0.1"
+pytest-cases = "^3.6.5"
+pytest-cov = "^3.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = [
+    "--strict-markers",
+    "--cov=src",
+    "--cov-report=html",
+    "--cov-report=term-missing",
+]
+markers = [
+    "cli: test emulate CLI",
+]
+testpaths = ["./tests"]
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "@abc.abstractmethod",
+    "if __name__ == .__main__.:",
+]
+show_missing = true
+
+[tool.coverage.html]
+directory = "htmlcov/"
+
+[tool.mypy]
+python_version = "3.8"
+
+files = ["./src", "./tests"]
+
+disallow_any_expr = true
+disallow_any_explicit = true
+disallow_any_unimported = true
+disallow_any_decorated = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+strict_optional = true
+
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_return_any = true
+warn_unreachable = true
+
+strict_equality = true
+implicit_reexport = false
+
+show_error_context = true
+show_column_numbers = true
+show_error_codes = true
+pretty = true
+
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = ["asyncapi_python_aio_pika_template.cli"]
+disallow_any_expr = false
+disallow_any_explicit = false
+
+[[tool.mypy.overrides]]
+module = ["asyncapi_python_aio_pika_template.spec"]
+disallow_any_expr = false
+disallow_any_explicit = false
+disallow_any_decorated = false
+
+[[tool.mypy.overrides]]
+module = ["asyncapi_python_aio_pika_template.providers"]
+disallow_any_expr = false
+disallow_any_explicit = false
+disallow_any_decorated = false
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_any_expr = false
+disallow_any_explicit = false
+disallow_any_decorated = false
+disallow_any_unimported = false
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = ["jsonschema.*"]
+follow_imports = "skip"
+ignore_errors = true
+ignore_missing_imports = true
