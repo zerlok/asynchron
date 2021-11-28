@@ -26,7 +26,7 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
             self.__template = Template(fd.read())
 
     def generate(self, config: AsyncAPIObject) -> t.Iterable[t.Tuple[Path, t.Iterable[str]]]:
-        yield Path("main.py"), self.__template.stream(context={
+        yield Path("message.py"), self.__template.stream(context={
             "messages": [
                 {
                     "name": message.name,

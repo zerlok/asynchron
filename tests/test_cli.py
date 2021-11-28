@@ -18,12 +18,19 @@ def cli_runner() -> CliRunner:
     return CliRunner()
 
 
+@fixture()
+def target_dir(tmpdir) -> Path:
+    target = Path(tmpdir)
+
+    yield target
+
+
 class ConfigCases:
-    def case_config_001(self, data_dir: Path) -> t.Tuple[Path, t.Any]:
+    def case_config_001(self, data_dir: Path) -> t.Tuple[Path, t.Any, Path]:
         with (data_dir / "config-001" / "final.json").open("r") as fd:
             config_json = json.load(fd)
 
-        return data_dir / "config-001" / "asyncapi.yaml", config_json
+        return data_dir / "config-001" / "asyncapi.yaml", config_json, data_dir / "final_code"
 
 
 # TODO: i want to do less copy-past for parametrizing tests with `ConfigCases`
@@ -33,7 +40,7 @@ class CliCases:
             self,
             config_path: Path,
             config_json: t.Any,
-    ) -> t.Tuple[t.Mapping[str, t.Any], t.Sequence[t.Any], int, str]:
+    ) -> t.Tuple[t.Mapping[str, t.Optional[str]], t.Sequence[t.Any], int, str]:
         return {}, ("-f", str(config_path), "get",), 0, json.dumps(config_json, indent=None, separators=(",", ":"),
                                                                    sort_keys=True)
 
@@ -42,15 +49,26 @@ class CliCases:
             self,
             config_path: Path,
             config_json: t.Any,
-    ) -> t.Tuple[t.Mapping[str, t.Any], t.Sequence[t.Any], int, str]:
+    ) -> t.Tuple[t.Mapping[str, t.Optional[str]], t.Sequence[t.Any], int, str]:
         return {}, ("-f", str(config_path), "get", "--pretty"), 0, json.dumps(config_json, indent=2,
                                                                               separators=(", ", ": "), sort_keys=True)
+
+    @parametrize_with_cases(("config_path", "config_json", "expected_output_dir"), ConfigCases)
+    def case_generate_python_aio_pika_app_code_from_config(
+            self,
+            config_path: Path,
+            config_json: t.Any,
+            expected_output_dir: Path,
+            target_dir: Path,
+    ) -> t.Tuple[t.Mapping[str, t.Optional[str]], t.Sequence[t.Any], int, str]:
+        return {}, ("-f", str(config_path), "generate", "python-aio-pika", "-o", str(target_dir)), 0, \
+               "generating 'message.py' module"
 
 
 @parametrize_with_cases(("env", "args", "expected_exit_code", "expected_output",), (CliCases,))
 def test_cli(
         cli_runner: CliRunner,
-        env: t.Mapping[str, t.Any],
+        env: t.Mapping[str, t.Optional[str]],
         args: t.Sequence[t.Any],
         expected_exit_code: int,
         expected_output: str,

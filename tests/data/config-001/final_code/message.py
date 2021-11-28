@@ -15,6 +15,6 @@ class SensorReading(BaseModel):
     )
 
     base_unit: t.Literal["CELSIUS", "FAHRENHEIT"] = Field(
-        alias="base_unit",
+        alias="baseUnit",
         description="""""",
     )

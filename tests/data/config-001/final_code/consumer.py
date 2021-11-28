@@ -1,7 +1,4 @@
 import abc
-import asyncio
-
-import aio_pika
 
 from asyncapi.amqp.base import ConsumptionContext
 from asyncapi.amqp.consumer.callable import CallableMessageConsumer
@@ -20,26 +17,14 @@ class TemperatureReadingsConsumerManager(metaclass=abc.ABCMeta):
 
 def add_temperature_readings_consumers(runner: ConsumersRunner, manager: TemperatureReadingsConsumerManager) -> None:
     runner.add_consumer(
-        exchange_name="hello",
-        binding_keys=("worlkd",),
+        exchange_name="events",
+        binding_keys=("temperature.measured",),
         consumer=ProcessingMessageConsumer(
             DecodedMessageConsumer(CallableMessageConsumer(manager.consume_sensor_reading_message),
                                    PydanticModelMessageDecoder(SensorReading), )),
+        queue_name="measures",
+        is_auto_delete_enabled=True,
+        is_exclusive=None,
+        is_durable=None,
+        prefetch_count=None,
     )
-
-
-async def main():
-    connection = await aio_pika.connect_robust()
-
-    try:
-        runner = ConsumersRunner(connection)
-
-        runner.start()
-        await runner.wait_for_termination()
-
-    finally:
-        await connection.close()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

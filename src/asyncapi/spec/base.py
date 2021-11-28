@@ -432,7 +432,7 @@ class AMQPBindingTrait:
         exchange: t.Optional[Exchange] = Field(
             description="""When is=routingKey, this object defines the exchange properties.""",
         )
-        queue: t.Optional[Exchange] = Field(
+        queue: t.Optional[Queue] = Field(
             description="""When is=queue, this object defines the queue properties.""",
         )
 

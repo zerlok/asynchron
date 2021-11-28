@@ -19,6 +19,22 @@
   },
   "channels": {
     "sensor/temperature/fahrenheit": {
+      "bindings": {
+        "amqp": {
+          "exchange": {
+            "autoDelete": true,
+            "name": "events",
+            "type": "topic",
+            "vhost": "/"
+          },
+          "is": "routingKey",
+          "queue": {
+            "autoDelete": true,
+            "name": "measures",
+            "vhost": "/"
+          }
+        }
+      },
       "subscribe": {
         "message": {
           "name": "sensorReadingMessage",
@@ -43,6 +59,13 @@
         }
       },
       "publish": {
+        "bindings": {
+          "amqp": {
+            "cc": [
+              "temperature.measured"
+            ]
+          }
+        },
         "message": {
           "name": "sensorReadingMessage",
           "payload": {

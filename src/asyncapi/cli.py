@@ -76,14 +76,19 @@ def get_config(container: CLIContainer, pretty: bool, show_null: bool) -> None:
 
 @cli.command("generate")
 @click.argument("format", type=click.Choice(sorted(CLIContainer.generator.keys)))
+@click.option("-o", "--output-dir", type=click.Path(exists=True, path_type=Path), default=Path.cwd(), )
 @click.pass_obj
-def generate_code(container: CLIContainer, format: str) -> None:
+def generate_code(container: CLIContainer, format: str, output_dir: Path) -> None:
     generator = container.generator(format)
     config = container.config()
 
+    # TODO: add `--dry-run` option
     for destination_path, content in generator.generate(config):
-        click.echo(destination_path)
-        click.echo("\n".join(content))
+        click.echo(f"generating '{destination_path}' module")
+
+        with output_dir.joinpath(destination_path).open("w") as fd:
+            for chunk in content:
+                fd.write(chunk)
 
 
 if __name__ == "__main__":

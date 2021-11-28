@@ -16,8 +16,22 @@ channels:
       message:
         $ref: "#/components/messages/SensorReadingMessage"
     publish:
+      bindings:
+        amqp:
+          cc:
+            - temperature.measured
       message:
         $ref: "#/components/messages/SensorReadingMessage"
+    bindings:
+      amqp:
+        is: routingKey
+        queue:
+          name: measures
+          autoDelete: true
+        exchange:
+          name: events
+          type: topic
+          autoDelete: true
 components:
   schemas:
     SensorReading:

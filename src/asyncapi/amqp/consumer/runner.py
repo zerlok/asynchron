@@ -179,12 +179,12 @@ class ConsumersRunner:
         finally:
             await info.channel.close()
 
-    def __stop_on_start_error(self, fut: "asyncio.Future[t.Any]") -> None:
+    def __stop_on_start_error(self, fut: "asyncio.Future[object]") -> None:
         if not fut.cancelled() and fut.exception() is not None:
             self.stop(fut.exception())
 
-    def __set_waiter(self, fut: "asyncio.Future[t.Any]") -> None:
+    def __set_waiter(self, fut: "asyncio.Future[object]") -> None:
         if fut.exception():
             self.__stop_waiter.set_exception(fut.exception())
 
-        self.__stop_waiter.set_result(fut.result())
+        self.__stop_waiter.set_result(True)
