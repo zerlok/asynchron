@@ -7,8 +7,8 @@ import typing as t
 
 from jsonschema import RefResolutionError, RefResolver
 
-from asyncapi.app import AsyncApiConfigTransformer, AsyncApiConfigTransformerError
 from asyncapi.spec.base import AsyncAPIObject, ReferenceObject, SpecObject
+from asyncapi.spec.transformer.base import AsyncApiConfigTransformer, AsyncApiConfigTransformerError
 from asyncapi.spec.visitor.referenced_descendants import (
     ReferencedDescendantSpecObjectVisitor,
     ReferencedSpecObject,

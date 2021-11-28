@@ -1,11 +1,10 @@
 __all__ = (
     "AsyncApiConfigReaderError",
     "AsyncApiConfigReader",
-    "AsyncApiConfigTransformerError",
-    "AsyncApiConfigTransformer",
     "AsyncApiCodeGeneratorError",
     "AsyncApiCodeGenerator",
-    "read_config",
+    "AsyncApiCodeWriterError",
+    "AsyncApiCodeWriter",
 )
 
 import abc
@@ -25,16 +24,6 @@ class AsyncApiConfigReader(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
 
-class AsyncApiConfigTransformerError(Exception):
-    pass
-
-
-class AsyncApiConfigTransformer(metaclass=abc.ABCMeta):
-    @abc.abstractmethod
-    def transform(self, config: AsyncAPIObject) -> AsyncAPIObject:
-        raise NotImplementedError
-
-
 class AsyncApiCodeGeneratorError(Exception):
     pass
 
@@ -45,14 +34,11 @@ class AsyncApiCodeGenerator(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
 
-def read_config(
-        source: t.TextIO,
-        reader: AsyncApiConfigReader,
-        transformers: t.Sequence[AsyncApiConfigTransformer],
-) -> AsyncAPIObject:
-    config = reader.read(source)
+class AsyncApiCodeWriterError(Exception):
+    pass
 
-    for transformer in transformers:
-        config = transformer.transform(config)
 
-    return config
+class AsyncApiCodeWriter(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def write(self, path: Path, content: t.Iterable[str]) -> None:
+        raise NotImplementedError

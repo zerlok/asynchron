@@ -31,7 +31,7 @@
         pass
     {%- endif %}
 {% endmacro -%}
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 {% for name, messages in context.messages|groupby("name") -%}

@@ -6,12 +6,13 @@ import typing as t
 
 from dependency_injector.providers import Callable, Provider, deepcopy
 
-T = t.TypeVar("T")
+K = t.TypeVar("K")
+V = t.TypeVar("V")
 
 _MISSED = object()
 
 
-class KeySelector(Provider[T]):
+class KeySelector(t.Generic[K, V], Provider[V]):
     """
     Returns an instance from a provider, that was registered with specified key.
 
@@ -23,16 +24,16 @@ class KeySelector(Provider[T]):
         "__inner",
     )
 
-    def __init__(self, providers_by_key: t.Mapping[str, Provider[T]], key: t.Union[str, object] = _MISSED) -> None:
+    def __init__(self, providers_by_key: t.Mapping[K, Provider[V]], key: t.Union[str, object] = _MISSED) -> None:
         self.__providers_by_key = providers_by_key
-        self.__inner: Callable[T] = (
+        self.__inner: Callable[V] = (
             Callable(self.__provide_by_key, key)
             if key is not _MISSED
             else Callable(self.__provide_by_key)
         )
         super().__init__()
 
-    def __deepcopy__(self, memo: t.Optional[t.Dict[t.Any, t.Any]]) -> "KeySelector[T]":
+    def __deepcopy__(self, memo: t.Optional[t.Dict[t.Any, t.Any]]) -> "KeySelector[K, V]":
         if memo is not None:
             copied = memo.get(id(self))
             if copied is not None and isinstance(copied, self.__class__):
@@ -48,15 +49,15 @@ class KeySelector(Provider[T]):
         return copied
 
     @property
-    def related(self) -> t.Iterator[Provider[T]]:
+    def related(self) -> t.Iterator[Provider[V]]:
         """Return related providers generator."""
         yield self.__inner
         yield from super().related
 
-    def _provide(self, args: t.Sequence[t.Any], kwargs: t.Mapping[str, t.Any]) -> T:
+    def _provide(self, args: t.Sequence[t.Any], kwargs: t.Mapping[str, t.Any]) -> V:
         return self.__inner(*args, **kwargs)
 
-    def __provide_by_key(self, __key: str, *args: t.Any, **kwargs: t.Any) -> T:
+    def __provide_by_key(self, __key: K, *args: t.Any, **kwargs: t.Any) -> V:
         return self.__providers_by_key[__key](*args, **kwargs)
 
     @property
@@ -64,5 +65,5 @@ class KeySelector(Provider[T]):
         return self.__providers_by_key.keys()
 
     @property
-    def providers(self) -> t.Mapping[str, Provider[T]]:
+    def providers(self) -> t.Mapping[K, Provider[V]]:
         return self.__providers_by_key
