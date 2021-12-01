@@ -1,31 +1,41 @@
+{# @formatter:off #}
+{% extends "module.jinja2" %}
+
 {% macro PythonType(property) %}
-    {%- if property.type == "boolean" -%}
-        bool
-    {%- elif property.type == "number" -%}
-        int
-    {%- elif property.type == "string" -%}
-        str
-    {%- elif property.type == "array" -%}
-        t.Sequence[t.Any]
-    {%- elif property.type == "object" -%}
-        t.Mapping[str, t.Any]
-    {%- elif property.enum -%}
-        t.Literal["{{ property.enum|join('", "') }}"]
-    {%- endif -%}
+{%- if property.type_ == "boolean" -%}
+    bool
+{%- elif property.type_ == "number" -%}
+    int
+{%- elif property.type_ == "string" -%}
+    str
+{%- elif property.type_ == "array" -%}
+    t.Sequence[t.Any]
+{%- elif property.type_ == "object" -%}
+    t.Mapping[str, t.Any]
+{%- elif property.enum -%}
+    t.Literal["{{ property.enum|join('", "') }}"]
+{%- else -%}
+    "{{ property }}"
+{%- endif -%}
 {% endmacro %}
+
+{% block imports %}
 import typing as t
 
 from pydantic import BaseModel, Field
+{% endblock %}
 
-
+{% block classes %}
 {% for consumer in app.consumers|ordered_values %}
-    {% set message = consumer.message %}
-    class {{ message.name|to_pascal_case }}(BaseModel):
-    {% if message.descrition %}"""{{ message.description }}"""{% endif %}
-    {% for field in message.fields|ordered_values %}
-        {{ field.name|to_snake_case }}: {{ PythonType(field.type) }} = Field(
+{% set message = consumer.message %}
+class {{ message.name|to_pascal_case }}(BaseModel):
+{% if message.descrition %}"""{{ message.description }}"""{% endif %}
+{% for field in message.fields|ordered_values %}
+    {{ field.name|to_snake_case }}: {{ PythonType(field.type) }} = Field(
         alias="{{ field.alias }}",
         description={% if field.description %}"""{{ field.description }}"""{% else %}None{% endif %},
-        )
-    {% endfor %}
+    )
 {% endfor %}
+{% endfor %}
+{% endblock %}
+{# @formatter:on #}

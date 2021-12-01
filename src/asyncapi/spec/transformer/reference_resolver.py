@@ -41,7 +41,7 @@ class ReferenceResolvingAsyncAPIObjectTransformer(AsyncApiConfigTransformer):
         # TODO: get total reference graph and resolve it ordering by dependencies or cancel resolution if graph has
         #  cycles.
         for _ in self.__iter_max_iterations():
-            cfg_json = t.cast(JsonSerializable, cfg.dict(by_alias=True))
+            cfg_json = t.cast(JsonSerializable, cfg.dict(by_alias=True, exclude_none=True))
             resolver = _JsonReferenceResolver(cfg_json)
             references = list(self.__iter_references(cfg))
             if not references:

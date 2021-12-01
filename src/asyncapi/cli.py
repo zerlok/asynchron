@@ -14,7 +14,7 @@ from asyncapi.app import (
     AsyncApiCodeGenerator,
     AsyncApiCodeWriter, AsyncApiConfigReader,
 )
-from asyncapi.providers import KeySelector
+from asyncapi.providers import MappingValueSelector
 from asyncapi.spec.code_generator.jinja.python_aio_pika import JinjaBasedPythonAioPikaCodeGenerator
 from asyncapi.spec.code_writer.file_system import AsyncApiFileSystemCodeWriter
 from asyncapi.spec.code_writer.stream import AsyncApiStreamCodeWriter
@@ -31,7 +31,7 @@ class CLIContainer(DeclarativeContainer):
         lambda: (ReferenceResolvingAsyncAPIObjectTransformer(),),
     )
 
-    config_reader: KeySelector[str, AsyncApiConfigReader] = KeySelector(
+    config_reader: MappingValueSelector[str, AsyncApiConfigReader] = MappingValueSelector(
         {
             ".yml": Singleton(YamlAsyncApiConfigReader),
             ".yaml": Singleton(YamlAsyncApiConfigReader),
@@ -50,7 +50,7 @@ class CLIContainer(DeclarativeContainer):
     )
 
     code_generator_format = Provider[str]()
-    code_generator: KeySelector[str, AsyncApiCodeGenerator] = KeySelector(
+    code_generator: MappingValueSelector[str, AsyncApiCodeGenerator] = MappingValueSelector(
         {
             "python-aio-pika": Singleton(JinjaBasedPythonAioPikaCodeGenerator),
         },
@@ -59,7 +59,7 @@ class CLIContainer(DeclarativeContainer):
     code_generator_dry_run = Provider[bool]()
     code_generator_target_dir = Provider[Path]()
     code_generator_output_stream = Provider[t.TextIO]()
-    code_writer: KeySelector[bool, AsyncApiCodeWriter] = KeySelector(
+    code_writer: MappingValueSelector[bool, AsyncApiCodeWriter] = MappingValueSelector(
         {
             False: Singleton(AsyncApiFileSystemCodeWriter, target_dir=code_generator_target_dir),
             True: Singleton(AsyncApiStreamCodeWriter, stream=code_generator_output_stream),

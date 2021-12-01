@@ -66,8 +66,14 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
         return self.__EMPTY
 
     def visit_schema_object(self, obj: SchemaObject) -> t.Sequence[ReferencedSpecObject]:
-        # TODO: maybe return fields with `ReferenceObject`. Check it after `SchemaObject` is ready.
-        return self.__EMPTY
+        return _ReferencedSpecObjectListBuilder() \
+            .add(("items",), obj.items) \
+            .add(("additional_properties",), obj.additional_properties) \
+            .add(("pattern_properties",), obj.pattern_properties) \
+            .add(("one_of",), obj.one_of) \
+            .add(("any_of",), obj.any_of) \
+            .add(("all_of",), obj.all_of) \
+            .add(("properties",), obj.properties)
 
     def visit_external_documentation_object(
             self,
@@ -80,7 +86,7 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
             .add("externalDocs", obj.external_docs)
 
     def visit_tags_object(self, obj: TagsObject) -> t.Sequence[ReferencedSpecObject]:
-        return _ReferencedSpecObjectListBuilder().expand((), obj.__root__)
+        return _ReferencedSpecObjectListBuilder().add((), obj.__root__)
 
     def visit_contact_object(self, obj: ContactObject) -> t.Sequence[ReferencedSpecObject]:
         return self.__EMPTY
@@ -105,14 +111,14 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
 
     def visit_server_object(self, obj: ServerObject) -> t.Sequence[ReferencedSpecObject]:
         return _ReferencedSpecObjectListBuilder() \
-            .expand(("variables",), obj.variables) \
-            .expand(("security",), obj.security) \
+            .add(("variables",), obj.variables) \
+            .add(("security",), obj.security) \
             .add(("bindings",), obj.bindings)
 
     def visit_servers_object(self, obj: ServersObject) -> t.Sequence[ReferencedSpecObject]:
-        # FIXME: error: Argument 1 to "expand" of "_ReferencedSpecObjectListBuilder" has incompatible type "Mapping[
+        # FIXME: error: Argument 1 to "add" of "_ReferencedSpecObjectListBuilder" has incompatible type "Mapping[
         #  ServerName, ServerObject]"; expected "Optional[Mapping[str, Optional[ReferencedSpecObject]]]"  [arg-type]
-        return _ReferencedSpecObjectListBuilder().expand((), obj.__root__)
+        return _ReferencedSpecObjectListBuilder().add((), obj.__root__)
 
     def visit_default_content_type(self, obj: DefaultContentType) -> t.Sequence[ReferencedSpecObject]:
         return self.__EMPTY
@@ -126,17 +132,15 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
         return self.__EMPTY
 
     def visit_message_example_object(self, obj: MessageExampleObject) -> t.Sequence[ReferencedSpecObject]:
-        if isinstance(obj.payload, ReferenceObject):  # type: ignore[misc]
-            return _ReferencedSpecObjectListBuilder().add("payload", obj.payload)
-
-        return self.__EMPTY
+        return _ReferencedSpecObjectListBuilder() \
+            .add("payload", obj.payload)
 
     def visit_message_trait_object(self, obj: MessageTraitObject) -> t.Sequence[ReferencedSpecObject]:
         return _ReferencedSpecObjectListBuilder() \
             .add(("headers",), obj.headers) \
             .add(("correlationId",), obj.correlation_id) \
             .add(("bindings",), obj.bindings) \
-            .expand(("examples",), obj.examples) \
+            .add(("examples",), obj.examples) \
             .add(("tags",), obj.tags) \
             .add(("externalDocs",), obj.external_docs)
 
@@ -145,9 +149,9 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
             .add(("headers",), obj.headers) \
             .add(("correlationId",), obj.correlation_id) \
             .add(("bindings",), obj.bindings) \
-            .expand(("examples",), obj.examples) \
+            .add(("examples",), obj.examples) \
             .add(("payload",), obj.payload) \
-            .expand(("traits",), obj.traits) \
+            .add(("traits",), obj.traits) \
             .add(("tags",), obj.tags) \
             .add(("externalDocs",), obj.external_docs)
 
@@ -164,15 +168,10 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
     def visit_operation_object(self, obj: OperationObject) -> t.Sequence[ReferencedSpecObject]:
         result = _ReferencedSpecObjectListBuilder() \
             .add(("bindings",), obj.bindings) \
-            .expand(("traits",), obj.traits) \
+            .add(("traits",), obj.traits) \
             .add(("tags",), obj.tags) \
-            .add(("externalDocs",), obj.external_docs)
-
-        if isinstance(obj.message, (t.Sequence, t.Mapping)):
-            result.expand(("message",), obj.message)
-
-        else:
-            result.add(("message",), obj.message)
+            .add(("externalDocs",), obj.external_docs) \
+            .add(("message",), obj.message)
 
         return result
 
@@ -182,10 +181,10 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
             .add(("location",), obj.location)
 
     def visit_parameters_object(self, obj: ParametersObject) -> t.Sequence[ReferencedSpecObject]:
-        # FIXME: error: Argument 1 to "expand" of "_ReferencedSpecObjectListBuilder" has incompatible type "Mapping[
+        # FIXME: error: Argument 1 to "add" of "_ReferencedSpecObjectListBuilder" has incompatible type "Mapping[
         #  ParameterName, Union[ParameterObject, ReferenceObject]]"; expected  "Optional[Mapping[str,
         #  Optional[ReferencedSpecObject]]]"  [arg-type]
-        return _ReferencedSpecObjectListBuilder().expand((), t.cast(t.Mapping[str, SpecObject], obj.__root__))
+        return _ReferencedSpecObjectListBuilder().add((), t.cast(t.Mapping[str, SpecObject], obj.__root__))
 
     def visit_channel_bindings_object(self, obj: ChannelBindingsObject) -> t.Sequence[ReferencedSpecObject]:
         # TODO: maybe object of each protocol to the list
@@ -199,7 +198,7 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
             .add(("bindings",), obj.bindings)
 
     def visit_channels_object(self, obj: ChannelsObject) -> t.Sequence[ReferencedSpecObject]:
-        return _ReferencedSpecObjectListBuilder().expand((), obj.__root__)
+        return _ReferencedSpecObjectListBuilder().add((), obj.__root__)
 
     def visit_oauth_flow_object(self, obj: OAuthFlowObject) -> t.Sequence[ReferencedSpecObject]:
         return self.__EMPTY
@@ -217,17 +216,17 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
 
     def visit_components_object(self, obj: ComponentsObject) -> t.Sequence[ReferencedSpecObject]:
         return _ReferencedSpecObjectListBuilder() \
-            .expand(("schemas",), obj.schemas) \
-            .expand(("messages",), obj.messages) \
-            .expand(("securitySchemes",), obj.security_schemes) \
-            .expand(("parameters",), obj.parameters) \
-            .expand(("correlationIds",), obj.correlation_ids) \
-            .expand(("operationTraits",), obj.operation_traits) \
-            .expand(("messageTraits",), obj.message_traits) \
-            .expand(("serverBindings",), obj.server_bindings) \
-            .expand(("channelBindings",), obj.channel_bindings) \
-            .expand(("operationBindings",), obj.operation_bindings) \
-            .expand(("messageBindings",), obj.message_bindings)
+            .add(("schemas",), obj.schemas) \
+            .add(("messages",), obj.messages) \
+            .add(("securitySchemes",), obj.security_schemes) \
+            .add(("parameters",), obj.parameters) \
+            .add(("correlationIds",), obj.correlation_ids) \
+            .add(("operationTraits",), obj.operation_traits) \
+            .add(("messageTraits",), obj.message_traits) \
+            .add(("serverBindings",), obj.server_bindings) \
+            .add(("channelBindings",), obj.channel_bindings) \
+            .add(("operationBindings",), obj.operation_bindings) \
+            .add(("messageBindings",), obj.message_bindings)
 
     def visit_async_api_object(self, obj: AsyncAPIObject) -> t.Sequence[ReferencedSpecObject]:
         return _ReferencedSpecObjectListBuilder() \
@@ -277,49 +276,51 @@ class _ReferencedSpecObjectListBuilder(t.Sequence[ReferencedSpecObject]):
     def __len__(self) -> int:
         return len(self.__items)
 
+    @t.overload
     def add(
             self,
             ref: Reference,
-            obj: t.Optional[SpecObject],
+            obj: t.Optional[object],
+    ) -> "_ReferencedSpecObjectListBuilder":
+        ...
+
+    @t.overload
+    def add(
+            self,
+            ref: Reference,
+            obj: t.Optional[t.Sequence[t.Optional[object]]],
+    ) -> "_ReferencedSpecObjectListBuilder":
+        ...
+
+    @t.overload
+    def add(
+            self,
+            ref: Reference,
+            obj: t.Optional[t.Mapping[str, t.Optional[object]]],
+    ) -> "_ReferencedSpecObjectListBuilder":
+        ...
+
+    def add(
+            self,
+            ref: Reference,
+            obj: t.Optional[t.Union[
+                t.Optional[object],
+                t.Sequence[t.Optional[object]],
+                t.Mapping[str, t.Optional[object]],
+            ]],
     ) -> "_ReferencedSpecObjectListBuilder":
         if obj is not None:
-            self.__items.append(ReferencedSpecObject(ref, obj))
-
-        return self
-
-    @t.overload
-    def expand(
-            self,
-            ref: Reference,
-            objs: t.Optional[t.Sequence[t.Optional[SpecObject]]],
-    ) -> "_ReferencedSpecObjectListBuilder":
-        ...
-
-    @t.overload
-    def expand(
-            self,
-            ref: Reference,
-            objs: t.Optional[t.Mapping[str, t.Optional[SpecObject]]],
-    ) -> "_ReferencedSpecObjectListBuilder":
-        ...
-
-    def expand(
-            self,
-            ref: Reference,
-            objs: t.Optional[t.Union[t.Sequence[t.Optional[SpecObject]], t.Mapping[str, t.Optional[SpecObject]]]],
-    ) -> "_ReferencedSpecObjectListBuilder":
-        if objs is not None:
-            if isinstance(objs, t.Sequence):
-                for index, item in enumerate(objs):
-                    if item is not None:
+            if isinstance(obj, t.Sequence):
+                for index, item in enumerate(obj):
+                    if isinstance(item, SpecObject):
                         self.__items.append(ReferencedSpecObject((*ref, index), item))
 
-            elif isinstance(objs, t.Mapping):
-                for key, item in objs.items():
-                    if item is not None:
+            elif isinstance(obj, t.Mapping):
+                for key, item in obj.items():
+                    if isinstance(item, SpecObject):
                         self.__items.append(ReferencedSpecObject((*ref, key), item))
 
-            else:
-                raise TypeError("Invalid objects type", type(objs))
+            elif isinstance(obj, SpecObject):
+                self.__items.append(ReferencedSpecObject(ref, obj))
 
         return self

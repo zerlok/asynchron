@@ -1,9 +1,14 @@
+{# @formatter:off #}
+{% extends "module.jinja2" %}
+
+{% block imports %}
 import abc
 
-from asyncapi.amqp.base import ConsumptionContext, ConsumerRunner
+from asyncapi.amqp.base import ConsumptionContext
 from asyncapi.amqp.consumer.callable import CallableMessageConsumer
 from asyncapi.amqp.consumer.decoded import DecodedMessageConsumer
 from asyncapi.amqp.consumer.processing import ProcessingMessageConsumer
+from asyncapi.amqp.consumer.runner import ConsumersRunner
 from asyncapi.amqp.decoder.pydantic import PydanticModelMessageDecoder
 
 from {{ app.modules.message.python_path }} import (
@@ -11,34 +16,36 @@ from {{ app.modules.message.python_path }} import (
     {{ consumer.message.name|to_pascal_case }},
 {% endfor %}
 )
+{% endblock %}
 
-
+{% block classes %}
 class {{ app.manager.name|to_pascal_case }}(metaclass=abc.ABCMeta):
-"""{{ app.manager.description }}"""
-{% for consumer in app.consumers|ordered_values %}
+    """{{ app.manager.description }}"""
+    {% for consumer in app.consumers|ordered_values %}
     @abc.abstractmethod
-    async def consume_{{ consumer.name|to_snake_case }}(self, message: {{ consumer.message.name|to_pascal_case }},
-    context: ConsumptionContext) -> None:
-    """{{ consumer.description }}"""
-    raise NotImplementedError
-{% endfor %}
+    async def consume_{{ consumer.name|to_snake_case }}(self, message: {{ consumer.message.name|to_pascal_case }}, context: ConsumptionContext) -> None:
+        """{{ consumer.description }}"""
+        raise NotImplementedError
+    {% endfor %}
+{% endblock %}
 
-
+{% block functions %}
 def add_{{ app.manager.name|to_snake_case }}_consumers(runner: ConsumersRunner, manager: {{ app.manager.name|to_pascal_case }}) -> None:
 {% for consumer in app.consumers|ordered_values %}
     runner.add_consumer(
-    exchange_name="{{ consumer.exchange_name }}",
-    binding_keys=(
-    {% for binding_key in consumer.binding_keys %}
-        "{{ binding_key }}",
-    {% endfor %}
-    ),
-    consumer=ProcessingMessageConsumer(DecodedMessageConsumer(CallableMessageConsumer(manager.consume_
-    {{ consumer.name|to_snake_case }}), PydanticModelMessageDecoder({{ consumer.message.name|to_pascal_case }}),)),
-    queue_name="{{ consumer.queue_name }}",
-    is_auto_delete_enabled=None,
-    is_exclusive=None,
-    is_durable=None,
-    prefetch_count=None,
+        exchange_name="{{ consumer.exchange_name }}",
+        binding_keys=(
+        {% for binding_key in consumer.binding_keys %}
+            "{{ binding_key }}",
+        {% endfor %}
+        ),
+        consumer=ProcessingMessageConsumer(DecodedMessageConsumer(CallableMessageConsumer(manager.consume_{{ consumer.name|to_snake_case }}), PydanticModelMessageDecoder({{ consumer.message.name|to_pascal_case }}),)),
+        queue_name="{{ consumer.queue_name }}",
+        is_auto_delete_enabled=None,
+        is_exclusive=None,
+        is_durable=None,
+        prefetch_count=None,
     )
 {% endfor %}
+{% endblock %}
+{# @formatter:on #}

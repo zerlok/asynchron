@@ -52,8 +52,7 @@ import abc
 import re
 import typing as t
 
-from jsonschema.validators import validator_for
-from pydantic import AnyUrl, BaseModel, Field, HttpUrl, root_validator
+from pydantic import AnyUrl, BaseModel, Field, HttpUrl
 
 T = t.TypeVar("T")
 T_co = t.TypeVar("T_co", covariant=True)
@@ -229,7 +228,17 @@ class _WithSpecificationExtension(BaseModel):
     #     extra = Extra.allow
 
 
-class SchemaObject(_WithSpecificationExtension, SpecObject, BaseModel):
+class _WithDescriptionField(BaseModel):
+    description: t.Optional[str] = Field(
+        description="""A short description of the application. <a href="https://spec.commonmark.org/">CommonMark 
+        syntax</a> can be used for rich text representation.""",
+    )
+
+
+SchemaObjectType = t.Literal["null", "boolean", "number", "string", "array", "object"]
+
+
+class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObject, BaseModel):
     """
     The Schema Object allows the definition of input and output data types. These types can be objects,
     but also primitives and arrays. This object is a superset of the JSON Schema Specification Draft 07. The empty
@@ -241,63 +250,145 @@ class SchemaObject(_WithSpecificationExtension, SpecObject, BaseModel):
     https://www.asyncapi.com/docs/specifications/v2.2.0#schemaObject
     """
 
-    __root__: t.Mapping[str, t.Any]
+    # Implementation was adapted from
+    # https://github.com/koxudaxi/datamodel-code-generator/blob/513988f6391497b3c272801cd0f52941ec0178cb/datamodel_code_generator/parser/jsonschema.py#L115
 
-    @root_validator(pre=True)
-    def check_json_schema(cls, values: t.Any) -> t.Mapping[str, t.Any]:
-        try:
-            validator_for(values).check_schema(values)
-
-        except Exception as err:
-            raise ValueError("Invalid json schema", values)
-
-        return t.cast(t.Mapping[str, t.Any], values)
-
-    # TODO: read and define fields according to json schema spec
-    #  http://json-schema.org/draft/2020-12/json-schema-core.html or simply use `jsonschema` lib.
-    """
-    title: t.Optional[str]
-    type: t.Optional[str]
-    required: t.Optional[str]
-    multipleOf: t.Optional[str]
-    maximum: t.Optional[str]
-    exclusiveMaximum: t.Optional[str]
-    minimum: t.Optional[str]
-    exclusiveMinimum: t.Optional[str]
-    maxLength: t.Optional[str]
-    minLength: t.Optional[str]
-    pattern: t.Optional[str] = Field(
-        description="This string SHOULD be a valid regular expression, according to the ECMA 262 regular expression "
-                    "dialect.",
+    items: t.Optional[t.Union["SchemaObject", t.Sequence["SchemaObject"]]] = Field(
+        default=None,
+        alias="items",
     )
-    maxItems: t.Optional[str]
-    minItems: t.Optional[str]
-    uniqueItems: t.Optional[str]
-    maxProperties: t.Optional[str]
-    minProperties: t.Optional[str]
-    enum: t.Optional[str]
-    const: t.Optional[str]
-    examples: t.Optional[str]
-    if_: t.Optional[str]
-    then: t.Optional[str]
-    else_: t.Optional[str]
-    readOnly: t.Optional[str]
-    writeOnly: t.Optional[str]
-    properties: t.Optional[str]
-    patternProperties: t.Optional[str]
-    additionalProperties: t.Optional[str]
-    additionalItems: t.Optional[str]
-    items: t.Optional[str]
-    propertyNames: t.Optional[str]
-    contains: t.Optional[str]
-    allOf: t.Optional[str]
-    oneOf: t.Optional[str]
-    anyOf: t.Optional[str]
-    not_: t.Optional[str]
-    """
+    unique_item: t.Optional[bool] = Field(
+        default=None,
+        alias="uniqueItem",
+    )
+    type_: t.Optional[t.Union[SchemaObjectType, t.Sequence[SchemaObjectType]]] = Field(
+        default=None,
+        alias="type",
+    )
+    format_: t.Optional[str] = Field(
+        default=None,
+        alias="format",
+    )
+    pattern: t.Optional[str] = Field(
+        default=None,
+        alias="pattern",
+    )
+    min_length: t.Optional[int] = Field(
+        default=None,
+        alias="minLength",
+    )
+    max_length: t.Optional[int] = Field(
+        default=None,
+        alias="maxLength",
+    )
+    minimum: t.Optional[float] = Field(
+        default=None,
+        alias="minimum",
+    )
+    maximum: t.Optional[float] = Field(
+        default=None,
+        alias="maximum",
+    )
+    min_items: t.Optional[int] = Field(
+        default=None,
+        alias="minItems",
+    )
+    max_items: t.Optional[int] = Field(
+        default=None,
+        alias="maxItems",
+    )
+    multiple_of: t.Optional[float] = Field(
+        default=None,
+        alias="multipleOf",
+    )
+    exclusive_maximum: t.Optional[t.Union[float, bool]] = Field(
+        default=None,
+        alias="exclusiveMaximum",
+    )
+    exclusive_minimum: t.Optional[t.Union[float, bool]] = Field(
+        default=None,
+        alias="exclusiveMinimum",
+    )
+    additional_properties: t.Optional[t.Union["SchemaObject", bool]] = Field(
+        default=None,
+        alias="additionalProperties",
+    )
+    pattern_properties: t.Optional[t.Mapping[str, "SchemaObject"]] = Field(
+        default=None,
+        alias="patternProperties",
+    )
+    one_of: t.Optional[t.Sequence["SchemaObject"]] = Field(
+        default=None,
+        alias="oneOf",
+    )
+    any_of: t.Optional[t.Sequence["SchemaObject"]] = Field(
+        default=None,
+        alias="anyOf",
+    )
+    all_of: t.Optional[t.Sequence["SchemaObject"]] = Field(
+        default=None,
+        alias="allOf",
+    )
+    enum: t.Optional[t.Sequence[t.Union[int, float, bool, str]]] = Field(
+        default=None,
+        alias="enum",
+    )
+    write_only: t.Optional[bool] = Field(
+        default=None,
+        alias="writeOnly",
+    )
+    properties: t.Optional[t.Mapping[str, "SchemaObject"]] = Field(
+        default=None,
+        alias="properties",
+    )
+    required: t.Optional[t.Sequence[str]] = Field(
+        default=None,
+        alias="required",
+    )
+    nullable: t.Optional[bool] = Field(
+        default=None,
+        alias="nullable",
+    )
+    x_enum_var_names: t.Optional[t.Sequence[str]] = Field(
+        default=None,
+        alias="x-enum-varnames",
+    )
+    title: t.Optional[str] = Field(
+        default=None,
+        alias="title",
+    )
+    example: t.Optional[t.Any] = Field(
+        default=None,
+        alias="example",
+    )
+    examples: t.Optional[t.Any] = Field(
+        default=None,
+        alias="examples",
+    )
+    default: t.Optional[t.Any] = Field(
+        default=None,
+        alias="default",
+    )
+    ref: t.Optional[str] = Field(
+        alias="$ref",
+        regex=r"^#\S+$",
+    )
+    schema_: t.Optional[AnyUrl] = Field(
+        default=None,
+        alias="$schema",
+    )
+    id_: t.Optional[str] = Field(
+        default=None,
+        alias="$id",
+    )
 
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
         return visitor.visit_schema_object(self)
+
+
+# Fixes pydantic.errors.ConfigError: field "properties" not yet prepared so type is still a ForwardRef,
+# you might need to call SchemaObject.update_forward_refs().
+SchemaObject.update_forward_refs()
 
 
 class _WithBindingVersion(BaseModel):
@@ -519,13 +610,6 @@ class AMQPBindingTrait:
             alias="messageType",
             description="""Application-specific message type.""",
         )
-
-
-class _WithDescriptionField(BaseModel):
-    description: t.Optional[str] = Field(
-        description="""A short description of the application. <a href="https://spec.commonmark.org/">CommonMark 
-        syntax</a> can be used for rich text representation.""",
-    )
 
 
 class ExternalDocumentationObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, BaseModel):

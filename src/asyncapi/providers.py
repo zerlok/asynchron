@@ -1,5 +1,5 @@
 __all__ = (
-    "KeySelector",
+    "MappingValueSelector",
 )
 
 import typing as t
@@ -9,12 +9,12 @@ from dependency_injector.providers import Callable, Provider, deepcopy
 K = t.TypeVar("K")
 V = t.TypeVar("V")
 
-_MISSED = object()
+_MISSED: t.Final[object] = object()
 
 
-class KeySelector(t.Generic[K, V], Provider[V]):
+class MappingValueSelector(t.Generic[K, V], Provider[V]):
     """
-    Returns an instance from a provider, that was registered with specified key.
+    Returns an instance from a provider, that was registered by specified key.
 
     See suggestion: https://github.com/ets-labs/python-dependency-injector/issues/530
     """
@@ -24,7 +24,7 @@ class KeySelector(t.Generic[K, V], Provider[V]):
         "__inner",
     )
 
-    def __init__(self, providers_by_key: t.Mapping[K, Provider[V]], key: t.Union[str, object] = _MISSED) -> None:
+    def __init__(self, providers_by_key: t.Mapping[K, Provider[V]], key: t.Union[K, object] = _MISSED) -> None:
         self.__providers_by_key = providers_by_key
         self.__inner: Callable[V] = (
             Callable(self.__provide_by_key, key)
@@ -33,7 +33,7 @@ class KeySelector(t.Generic[K, V], Provider[V]):
         )
         super().__init__()
 
-    def __deepcopy__(self, memo: t.Optional[t.Dict[t.Any, t.Any]]) -> "KeySelector[K, V]":
+    def __deepcopy__(self, memo: t.Optional[t.Dict[object, object]]) -> "MappingValueSelector[K, V]":
         if memo is not None:
             copied = memo.get(id(self))
             if copied is not None and isinstance(copied, self.__class__):
@@ -54,14 +54,14 @@ class KeySelector(t.Generic[K, V], Provider[V]):
         yield self.__inner
         yield from super().related
 
-    def _provide(self, args: t.Sequence[t.Any], kwargs: t.Mapping[str, t.Any]) -> V:
+    def _provide(self, args: t.Sequence[object], kwargs: t.Mapping[str, object]) -> V:
         return self.__inner(*args, **kwargs)
 
-    def __provide_by_key(self, __key: K, *args: t.Any, **kwargs: t.Any) -> V:
+    def __provide_by_key(self, __key: K, *args: object, **kwargs: object) -> V:
         return self.__providers_by_key[__key](*args, **kwargs)
 
     @property
-    def keys(self) -> t.Collection[str]:
+    def keys(self) -> t.Collection[K]:
         return self.__providers_by_key.keys()
 
     @property

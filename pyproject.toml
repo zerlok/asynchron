@@ -99,7 +99,6 @@ disallow_any_decorated = false
 [[tool.mypy.overrides]]
 module = ["asyncapi.providers"]
 disallow_any_expr = false
-disallow_any_explicit = false
 disallow_any_decorated = false
 
 [[tool.mypy.overrides]]
@@ -115,3 +114,11 @@ module = ["jsonschema.*"]
 follow_imports = "skip"
 ignore_errors = true
 ignore_missing_imports = true
+
+# FIXME: enalbe pydantic mypy plugin support after https://github.com/samuelcolvin/pydantic/pull/2908 released, also
+#  see https://pydantic-docs.helpmanual.io/mypy_plugin/#enabling-the-plugin
+#[tool.mypy.pydantic-mypy]
+#init_forbid_extra = true
+#init_typed = true
+#warn_required_dynamic_aliases = true
+#warn_untyped_fields = true

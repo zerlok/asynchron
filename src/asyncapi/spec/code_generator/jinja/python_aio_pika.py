@@ -74,6 +74,8 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
     def __init__(self) -> None:
         self.__jinja_env = Environment(
             loader=FileSystemLoader(Path(__file__).parent / "templates"),
+            trim_blocks=True,
+            lstrip_blocks=True,
         )
         self.__jinja_env.filters.update({
             "to_snake_case": self.__make_snake_case,
@@ -146,16 +148,16 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
                                 name=channel_alias,
                                 description="...",
                                 message=MessageDef(
-                                    name="_".join((channel_alias, payload.__root__["title"])),
-                                    description=payload.__root__.get("description"),
+                                    name="_".join((channel_alias, payload.title)),
+                                    description=payload.description,
                                     fields={
                                         prop_name: MessageFieldDef(
                                             name=prop_name,
-                                            description=prop.get("description"),
+                                            description=prop.description,
                                             type=prop,
-                                            alias=prop.get("alias", prop_name),
+                                            alias=prop.title,
                                         )
-                                        for prop_name, prop in payload.__root__["properties"].items()
+                                        for prop_name, prop in payload.properties.items()
                                     },
                                 ),
                                 exchange_name=channel.bindings.amqp.exchange.name,
