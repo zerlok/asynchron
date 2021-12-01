@@ -235,7 +235,7 @@ class _WithDescriptionField(BaseModel):
     )
 
 
-SchemaObjectType = t.Literal["null", "boolean", "number", "string", "array", "object"]
+SchemaObjectType = t.Literal["null", "boolean", "number", "string", "array", "object", "integer"]
 
 
 class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObject, BaseModel):
@@ -257,9 +257,9 @@ class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
         default=None,
         alias="items",
     )
-    unique_item: t.Optional[bool] = Field(
+    unique_items: t.Optional[bool] = Field(
         default=None,
-        alias="uniqueItem",
+        alias="uniqueItems",
     )
     type_: t.Optional[t.Union[SchemaObjectType, t.Sequence[SchemaObjectType]]] = Field(
         default=None,
@@ -329,7 +329,7 @@ class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
         default=None,
         alias="allOf",
     )
-    enum: t.Optional[t.Sequence[t.Union[int, float, bool, str]]] = Field(
+    enum: t.Optional[t.Sequence[t.Union[int, str]]] = Field(
         default=None,
         alias="enum",
     )
@@ -496,7 +496,7 @@ class AMQPBindingTrait:
             )
 
         class Queue(BaseModel):
-            name: str = Field(
+            name: t.Optional[str] = Field(
                 max_length=255,
                 description="""The name of the queue. It MUST NOT exceed 255 characters long.""",
             )

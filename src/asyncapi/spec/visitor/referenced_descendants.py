@@ -133,7 +133,7 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
 
     def visit_message_example_object(self, obj: MessageExampleObject) -> t.Sequence[ReferencedSpecObject]:
         return _ReferencedSpecObjectListBuilder() \
-            .add("payload", obj.payload)
+            .add("payload", t.cast(object, obj.payload))
 
     def visit_message_trait_object(self, obj: MessageTraitObject) -> t.Sequence[ReferencedSpecObject]:
         return _ReferencedSpecObjectListBuilder() \
@@ -276,30 +276,6 @@ class _ReferencedSpecObjectListBuilder(t.Sequence[ReferencedSpecObject]):
     def __len__(self) -> int:
         return len(self.__items)
 
-    @t.overload
-    def add(
-            self,
-            ref: Reference,
-            obj: t.Optional[object],
-    ) -> "_ReferencedSpecObjectListBuilder":
-        ...
-
-    @t.overload
-    def add(
-            self,
-            ref: Reference,
-            obj: t.Optional[t.Sequence[t.Optional[object]]],
-    ) -> "_ReferencedSpecObjectListBuilder":
-        ...
-
-    @t.overload
-    def add(
-            self,
-            ref: Reference,
-            obj: t.Optional[t.Mapping[str, t.Optional[object]]],
-    ) -> "_ReferencedSpecObjectListBuilder":
-        ...
-
     def add(
             self,
             ref: Reference,
@@ -310,17 +286,17 @@ class _ReferencedSpecObjectListBuilder(t.Sequence[ReferencedSpecObject]):
             ]],
     ) -> "_ReferencedSpecObjectListBuilder":
         if obj is not None:
-            if isinstance(obj, t.Sequence):
-                for index, item in enumerate(obj):
+            if isinstance(obj, SpecObject):
+                self.__items.append(ReferencedSpecObject(ref, obj))
+
+            elif isinstance(obj, t.Sequence):
+                for index, item in enumerate(t.cast(t.Sequence[object], obj)):
                     if isinstance(item, SpecObject):
                         self.__items.append(ReferencedSpecObject((*ref, index), item))
 
             elif isinstance(obj, t.Mapping):
-                for key, item in obj.items():
-                    if isinstance(item, SpecObject):
+                for key, item in t.cast(t.Mapping[object, object], obj).items():
+                    if isinstance(key, str) and isinstance(item, SpecObject):
                         self.__items.append(ReferencedSpecObject((*ref, key), item))
-
-            elif isinstance(obj, SpecObject):
-                self.__items.append(ReferencedSpecObject(ref, obj))
 
         return self

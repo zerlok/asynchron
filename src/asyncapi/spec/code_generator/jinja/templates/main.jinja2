@@ -1,13 +1,17 @@
 {# @formatter:off #}
-{% extends "module.jinja2" %}
+{% extends "base_module.jinja2" %}
 
 {% block imports %}
+{% for import in module.imports %}
+{{ import }}
+{% endfor %}
+
 import asyncio
 
 import aio_pika
 from asyncapi.amqp.consumer.runner import ConsumersRunner
 
-from {{ app.modules.consumer.python_path }} import add_{{ app.manager.name|to_snake_case }}_consumers
+from {{ app.modules.consumer.python_path }} import add_{{ app.manager.name|snake_case }}_consumers
 {% endblock %}
 
 {% block functions %}
@@ -18,7 +22,7 @@ async def main() -> None:
         runner = ConsumersRunner(connection)
 
         # TODO: add implementation
-        add_{{ app.manager.name|to_snake_case }}_consumers(runner, ...)
+        add_{{ app.manager.name|snake_case }}_consumers(runner, ...)
 
         runner.start()
         await runner.wait_for_termination()

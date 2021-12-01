@@ -1,7 +1,11 @@
 {# @formatter:off #}
-{% extends "module.jinja2" %}
+{% extends "base_module.jinja2" %}
 
 {% block imports %}
+{% for import in module.imports %}
+{{ import }}
+{% endfor %}
+
 import abc
 
 from asyncapi.amqp.base import ConsumptionContext
@@ -12,26 +16,31 @@ from asyncapi.amqp.consumer.runner import ConsumersRunner
 from asyncapi.amqp.decoder.pydantic import PydanticModelMessageDecoder
 
 from {{ app.modules.message.python_path }} import (
-{% for consumer in app.consumers|ordered_values %}
-    {{ consumer.message.name|to_pascal_case }},
-{% endfor %}
+    {% for message in app.messages|sorted(attribute="name") %}
+    {{ message.name|pascal_case }},
+    {% endfor %}
 )
 {% endblock %}
 
 {% block classes %}
-class {{ app.manager.name|to_pascal_case }}(metaclass=abc.ABCMeta):
+class {{ app.manager.name|pascal_case }}(metaclass=abc.ABCMeta):
     """{{ app.manager.description }}"""
-    {% for consumer in app.consumers|ordered_values %}
+    {% if app.consumers %}
+        {% for consumer in app.consumers|sorted("name") %}
     @abc.abstractmethod
-    async def consume_{{ consumer.name|to_snake_case }}(self, message: {{ consumer.message.name|to_pascal_case }}, context: ConsumptionContext) -> None:
+    async def consume_{{ consumer.name|snake_case }}(self, message: {{ consumer.message.name|pascal_case }}, context: ConsumptionContext) -> None:
         """{{ consumer.description }}"""
         raise NotImplementedError
-    {% endfor %}
+        {% endfor %}
+    {% else %}
+    pass
+    {% endif %}
 {% endblock %}
 
 {% block functions %}
-def add_{{ app.manager.name|to_snake_case }}_consumers(runner: ConsumersRunner, manager: {{ app.manager.name|to_pascal_case }}) -> None:
-{% for consumer in app.consumers|ordered_values %}
+def add_{{ app.manager.name|snake_case }}_consumers(runner: ConsumersRunner, manager: {{ app.manager.name|pascal_case }}) -> None:
+    {% if app.consumers %}
+        {% for consumer in app.consumers|sorted("names") %}
     runner.add_consumer(
         exchange_name="{{ consumer.exchange_name }}",
         binding_keys=(
@@ -39,13 +48,16 @@ def add_{{ app.manager.name|to_snake_case }}_consumers(runner: ConsumersRunner, 
             "{{ binding_key }}",
         {% endfor %}
         ),
-        consumer=ProcessingMessageConsumer(DecodedMessageConsumer(CallableMessageConsumer(manager.consume_{{ consumer.name|to_snake_case }}), PydanticModelMessageDecoder({{ consumer.message.name|to_pascal_case }}),)),
+        consumer=ProcessingMessageConsumer(DecodedMessageConsumer(CallableMessageConsumer(manager.consume_{{ consumer.name|snake_case }}), PydanticModelMessageDecoder({{ consumer.message.name|pascal_case }}),)),
         queue_name="{{ consumer.queue_name }}",
         is_auto_delete_enabled=None,
         is_exclusive=None,
         is_durable=None,
         prefetch_count=None,
     )
-{% endfor %}
+        {% endfor %}
+    {% else %}
+    pass
+    {% endif %}
 {% endblock %}
 {# @formatter:on #}

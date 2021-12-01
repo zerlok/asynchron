@@ -17,7 +17,7 @@ class PydanticModelMessageDecoder(MessageDecoder[T_model]):
     def __init__(
             self,
             model: t.Type[T_model],
-            protocol_getter: t.Optional[t.Callable[[aio_pika.IncomingMessage], t.Optional[Protocol]]] = None,
+            protocol_getter: t.Optional[t.Callable[[aio_pika.IncomingMessage], Protocol]] = None,
     ) -> None:
         self.__model = model
         self.__protocol_getter = protocol_getter or self.__get_none_protocol
@@ -30,5 +30,6 @@ class PydanticModelMessageDecoder(MessageDecoder[T_model]):
             proto=self.__protocol_getter(message),
         )
 
-    def __get_none_protocol(self, _: aio_pika.IncomingMessage) -> t.Optional[Protocol]:
-        return None
+    def __get_none_protocol(self, _: aio_pika.IncomingMessage) -> Protocol:
+        # fixes typing for `proto` argument in `parse_raw` function
+        return None  # type: ignore

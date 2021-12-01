@@ -19,10 +19,8 @@ def cli_runner() -> CliRunner:
 
 
 @fixture()
-def target_dir(tmpdir) -> Path:
-    target = Path(tmpdir)
-
-    yield target
+def target_dir(tmpdir: str) -> Path:
+    return Path(tmpdir)
 
 
 class ConfigCases:
@@ -41,8 +39,8 @@ class CliCases:
             config_path: Path,
             config_json: t.Any,
     ) -> t.Tuple[t.Mapping[str, t.Optional[str]], t.Sequence[t.Any], int, str]:
-        return {}, ("-f", str(config_path), "get",), 0, json.dumps(config_json, indent=None, separators=(",", ":"),
-                                                                   sort_keys=True)
+        return {}, ("-f", str(config_path), "get",), 0, \
+               json.dumps(config_json, indent=None, separators=(",", ":"), sort_keys=True) + "\n"
 
     @parametrize_with_cases(("config_path", "config_json"), ConfigCases)
     def case_read_config_in_pretty_format(
@@ -50,8 +48,8 @@ class CliCases:
             config_path: Path,
             config_json: t.Any,
     ) -> t.Tuple[t.Mapping[str, t.Optional[str]], t.Sequence[t.Any], int, str]:
-        return {}, ("-f", str(config_path), "get", "--pretty"), 0, json.dumps(config_json, indent=2,
-                                                                              separators=(", ", ": "), sort_keys=True)
+        return {}, ("-f", str(config_path), "get", "--pretty"), 0, \
+               json.dumps(config_json, indent=2, separators=(", ", ": "), sort_keys=True) + "\n"
 
     @parametrize_with_cases(("config_path", "config_json", "expected_output_dir"), ConfigCases)
     def case_generate_python_aio_pika_app_code_from_config(
@@ -61,8 +59,7 @@ class CliCases:
             expected_output_dir: Path,
             target_dir: Path,
     ) -> t.Tuple[t.Mapping[str, t.Optional[str]], t.Sequence[t.Any], int, str]:
-        return {}, ("-f", str(config_path), "generate", "python-aio-pika", "-o", str(target_dir)), 0, \
-               "generating 'message.py' module"
+        return {}, ("-f", str(config_path), "generate", "python-aio-pika", "-o", str(target_dir)), 0, ""
 
 
 @parametrize_with_cases(("env", "args", "expected_exit_code", "expected_output",), (CliCases,))
@@ -75,4 +72,4 @@ def test_cli(
 ) -> None:
     result = cli_runner.invoke(cli, args=args, env=env)
 
-    assert (result.exit_code, result.stdout) == (expected_exit_code, f"{expected_output}\n")
+    assert (result.exit_code, result.stdout) == (expected_exit_code, expected_output)

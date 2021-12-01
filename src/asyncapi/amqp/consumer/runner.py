@@ -88,7 +88,7 @@ class ConsumersRunner:
         self.__start_task = self.__loop.create_task(self.__start_consumers())
         self.__start_task.add_done_callback(self.__stop_on_start_error)
 
-    def stop(self, err: t.Optional[Exception] = None) -> None:
+    def stop(self, err: t.Optional[BaseException] = None) -> None:
         if self.__start_task is not None and not self.__start_task.done():
             self.__start_task.cancel()
 
@@ -102,10 +102,10 @@ class ConsumersRunner:
         await self.__stop_waiter
 
     async def __start_consumers(self) -> None:
-        active_consumers = await asyncio.gather(*(
+        active_consumers = await _gather_with_errors(
             self.__start_consumer(registered_consumer)
             for registered_consumer in self.__registered_consumers.values()
-        ), return_exceptions=True)
+        )
 
         self.__active_consumers.update(
             (active_consumer.consumer, active_consumer)
@@ -128,10 +128,10 @@ class ConsumersRunner:
             auto_delete=info.is_auto_delete_enabled,
         )
 
-        await asyncio.gather(*(
+        await _gather(
             queue.bind(exchange, binding_key)
             for binding_key in info.binding_keys
-        ))
+        )
 
         consumer_tag = await queue.consume(
             ft.partial(self.__consume, consumer=info.consumer, channel=channel, exchange=exchange, queue=queue, ))
@@ -164,10 +164,10 @@ class ConsumersRunner:
 
     async def __stop_consumers(self) -> None:
         try:
-            await asyncio.gather(*(
+            await _gather_with_errors(
                 self.__stop_consumer(info)
                 for info in self.__active_consumers.values()
-            ), return_exceptions=True)
+            )
 
         finally:
             self.__active_consumers.clear()
@@ -177,14 +177,26 @@ class ConsumersRunner:
             await info.queue.cancel(info.tag)
 
         finally:
-            await info.channel.close()
+            await info.channel.close()  # type: ignore
 
-    def __stop_on_start_error(self, fut: "asyncio.Future[object]") -> None:
+    def __stop_on_start_error(self, fut: "asyncio.Future[None]") -> None:
         if not fut.cancelled() and fut.exception() is not None:
             self.stop(fut.exception())
 
-    def __set_waiter(self, fut: "asyncio.Future[object]") -> None:
-        if fut.exception():
-            self.__stop_waiter.set_exception(fut.exception())
+    def __set_waiter(self, fut: "asyncio.Future[None]") -> None:
+        error = fut.exception()
+        if error is not None:
+            self.__stop_waiter.set_exception(error)
 
         self.__stop_waiter.set_result(True)
+
+
+T = t.TypeVar("T")
+
+
+async def _gather(coros: t.Iterable[t.Awaitable[T]]) -> t.Sequence[T]:
+    return await asyncio.gather(*coros)
+
+
+async def _gather_with_errors(coros: t.Iterable[t.Awaitable[T]]) -> t.Sequence[t.Union[T, BaseException]]:
+    return await asyncio.gather(*coros, return_exceptions=True)

@@ -2,6 +2,8 @@ __all__ = (
     "ProcessingMessageConsumer",
 )
 
+import typing as t
+
 import aio_pika
 
 from asyncapi.amqp.base import ConsumptionContext, MessageConsumer
@@ -21,9 +23,9 @@ class ProcessingMessageConsumer(MessageConsumer[aio_pika.IncomingMessage]):
         self.__ignore_processed = ignore_processed
 
     async def consume(self, message: aio_pika.IncomingMessage, context: ConsumptionContext) -> None:
-        async with message.process(
+        async with t.cast(t.AsyncContextManager[aio_pika.IncomingMessage], message.process(
                 requeue=self.__requeue_on_exception,
                 reject_on_redelivered=self.__reject_on_redelivered,
                 ignore_processed=self.__ignore_processed,
-        ):
+        )):
             await self.__consumer.consume(message, context)

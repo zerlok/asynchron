@@ -2,32 +2,75 @@ __all__ = (
     "JinjaBasedPythonAioPikaCodeGenerator",
 )
 
+import re
 import typing as t
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
+import stringcase  # type: ignore
 from jinja2 import Environment, FileSystemLoader
+from pydantic.fields import FieldInfo
 
 from asyncapi.app import AsyncApiCodeGenerator
-from asyncapi.spec.base import AsyncAPIObject, SchemaObject
+from asyncapi.spec.base import (
+    AMQPBindingTrait,
+    AsyncAPIObject,
+    ChannelBindingsObject, ChannelItemObject,
+    MessageObject,
+    OperationBindingsObject, OperationObject,
+    SchemaObject,
+)
+from asyncapi.strict_typing import as_, as_sequence
 
 K = t.TypeVar("K", bound=t.Hashable)
 V = t.TypeVar("V")
 T = t.TypeVar("T")
 
 
-def _map(*values: t.Optional[T]) -> t.Iterable[T]:
-    for value in values:
-        if value is not None:
-            yield value
+@dataclass(frozen=True)
+class TypeDef:
+    name: str
+    nested: t.Sequence["TypeDef"] = field(default_factory=tuple)
+
+
+class TypeTraits:
+    ANY: t.Final[TypeDef] = TypeDef("typing.Any")
+    NONE: t.Final[TypeDef] = TypeDef("None")
+    BOOL: t.Final[TypeDef] = TypeDef("bool")
+    INT: t.Final[TypeDef] = TypeDef("int")
+    FLOAT: t.Final[TypeDef] = TypeDef("float")
+    NUMBER: t.Final[TypeDef] = TypeDef("typing.Union", (INT, FLOAT,))
+    STR: t.Final[TypeDef] = TypeDef("str")
+
+    @classmethod
+    def create_optional(cls, type_: TypeDef) -> TypeDef:
+        return TypeDef("typing.Optional", (type_,))
+
+    @classmethod
+    def create_union(cls, options: t.Iterable[TypeDef]) -> TypeDef:
+        return TypeDef("typing.Union", tuple(options))
+
+    @classmethod
+    def create_literal(cls, options: t.Iterable[t.Union[int, str]]) -> TypeDef:
+        return TypeDef(f"""typing.Literal["{'", "'.join(str(option) for option in options)}"]""")
+
+    @classmethod
+    def create_collection(cls, item: TypeDef) -> TypeDef:
+        return TypeDef("typing.Collection", (item,))
+
+    @classmethod
+    def create_sequence(cls, item: TypeDef) -> TypeDef:
+        return TypeDef("typing.Sequence", (item,))
+
+    @classmethod
+    def create_mapping(cls, key: TypeDef, value: TypeDef) -> TypeDef:
+        return TypeDef("typing.Mapping", (key, value,))
 
 
 @dataclass(frozen=True)
 class MessageFieldDef:
-    name: str
-    description: t.Optional[str]
-    type: str
-    alias: str
+    type_: TypeDef
+    info: FieldInfo
 
 
 @dataclass(frozen=True)
@@ -55,9 +98,11 @@ class ManagerDef:
 
 @dataclass(frozen=True)
 class ModuleDef:
-    name: str
     description: t.Optional[str]
     python_path: str
+    fs_path: Path
+    aliases: t.Mapping[str, str] = field(default_factory=dict)
+    imports: t.Sequence[str] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)
@@ -65,8 +110,23 @@ class AppDef:
     name: str
     description: t.Optional[str]
     modules: t.Mapping[str, ModuleDef]
-    consumers: t.Mapping[str, ConsumerDef]
+    consumers: t.Collection[ConsumerDef]
+    messages: t.Collection[MessageDef]
     manager: ManagerDef
+
+
+@dataclass(frozen=True)
+class AmqpConsumerOperation:
+    name: str
+    channel: ChannelItemObject
+    operation: OperationObject
+    messages: t.Sequence[MessageObject]
+    exchange_name: str
+    queue_name: str
+    binding_keys: t.Collection[str]
+
+    channel_binding: AMQPBindingTrait.AMQPChannelBindingObject
+    operation_binding: AMQPBindingTrait.AMQPOperationBindingObject
 
 
 class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
@@ -78,98 +138,276 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
             lstrip_blocks=True,
         )
         self.__jinja_env.filters.update({
-            "to_snake_case": self.__make_snake_case,
-            "to_pascal_case": self.__make_pascal_case,
-            "ordered_values": self.__iter_ordered_values,
-            # "iter_message_payloads": self.__iter_message_payloads,
+            "snake_case": stringcase.snakecase,
+            "pascal_case": stringcase.pascalcase,
+            "sorted": self.__iter_sorted,
+            "items_sorted_by_keys": self.__iter_items_sorted_by_keys,
+            "with_alias": self.__render_string_with_aliases,
         })
 
     def generate(self, config: AsyncAPIObject) -> t.Iterable[t.Tuple[Path, t.Iterable[str]]]:
-        modules = [
-            ModuleDef(
-                name="__main__",
-                python_path="app.__main__",
-                description=None,
-            ),
-            ModuleDef(
-                name="message",
-                python_path="app.message",
-                description=None,
-            ),
-            ModuleDef(
-                name="consumer",
-                python_path="app.consumer",
-                description=None,
-            ),
-        ]
+        app_messages: t.List[MessageDef] = []
+        app_consumers: t.List[ConsumerDef] = []
+        for op in self.__iter_amqp_publish_operations(config):
+            consumer, messages = self.__create_consumer_def(op)
+            app_consumers.append(consumer)
+            app_messages.extend(messages)
 
-        kwargs = {
-            "app": AppDef(
+        app = AppDef(
+            name=config.info.title,
+            description=config.info.description,
+            modules={
+                "main": ModuleDef(
+                    python_path="app.__main__",
+                    description=None,
+                    fs_path=Path("main.py"),
+                ),
+                "message": ModuleDef(
+                    python_path="app.message",
+                    description=None,
+                    fs_path=Path("message.py"),
+                ),
+                "consumer": ModuleDef(
+                    python_path="app.consumer",
+                    description=None,
+                    fs_path=Path("consumer.py"),
+                ),
+            },
+            consumers=app_consumers,
+            messages=app_messages,
+            manager=ManagerDef(
                 name=config.info.title,
                 description=config.info.description,
-                modules=self.__build_mapping_by_name(*modules),
-                consumers=self.__build_mapping_by_name(*self.__iter_consumers(config)),
-                manager=ManagerDef(
-                    name=config.info.title,
-                    description=config.info.description,
-                ),
             ),
-        }
+        )
 
-        for module in modules:
-            yield Path(f"{module.name}.py"), self.__jinja_env.get_template(f"{module.name}.jinja2").stream(**kwargs)
+        for module_name, module in app.modules.items():
+            yield module.fs_path, self.__jinja_env.get_template(f"{module_name}.jinja2").stream(app=app, module=module)
 
-    def __make_snake_case(self, value: str) -> str:
-        # FIXME: implement a correct method
-        return value.replace(" ", "_").lower()
+    def __iter_sorted(self, values: object, attribute: str) -> t.Iterable[object]:
+        if isinstance(values, t.Iterable):
+            # FIXME: fix typing.
+            yield from sorted(values, key=lambda v: getattr(v, attribute, 0))  # type: ignore
 
-    def __make_pascal_case(self, value: str) -> str:
-        # FIXME: implement a correct method
-        return "".join(v.capitalize() for v in value.replace(" ", "_").replace("-", "_").split("_"))
+    def __iter_items_sorted_by_keys(self, values: object) -> t.Iterable[t.Tuple[object, object]]:
+        if isinstance(values, t.Mapping):
+            # FIXME: fix typing.
+            yield from sorted(values.items(), key=lambda pair: pair[0])  # type: ignore
 
-    def __iter_ordered_values(self, value: t.Mapping[K, V]) -> t.Iterable[V]:
-        return (v for _, v in sorted(value.items(), key=lambda pair: pair[0]))
+    def __render_string_with_aliases(self, value: object, **kwargs: str) -> str:
+        s = str(value)
 
-    def __build_mapping_by_name(self, *objs: V) -> t.Mapping[str, V]:
-        return {
-            obj.name: obj
-            for obj in objs
-        }
+        for name, alias in kwargs.items():
+            s = s.replace(name, alias)
 
-    def __iter_consumers(self, config: AsyncAPIObject) -> t.Iterable[MessageDef]:
+        return s
+
+    def __iter_amqp_publish_operations(self, config: AsyncAPIObject) -> t.Iterable[AmqpConsumerOperation]:
         for _, channels in config.channels:
             for channel_name, channel in channels.items():
-                channel_alias = channel_name.replace("/", "_")
-                for operation in _map(channel.publish):
-                    for message in _map(operation.message):
-                        payload = message.payload
-                        if isinstance(payload, SchemaObject):
-                            yield ConsumerDef(
-                                name=channel_alias,
-                                description="...",
-                                message=MessageDef(
-                                    name="_".join((channel_alias, payload.title)),
-                                    description=payload.description,
-                                    fields={
-                                        prop_name: MessageFieldDef(
-                                            name=prop_name,
-                                            description=prop.description,
-                                            type=prop,
-                                            alias=prop.title,
-                                        )
-                                        for prop_name, prop in payload.properties.items()
-                                    },
-                                ),
-                                exchange_name=channel.bindings.amqp.exchange.name,
-                                queue_name=channel.bindings.amqp.queue.name,
-                                binding_keys=operation.bindings.amqp.cc,
-                            )
+                publish = as_(OperationObject, channel.publish)
+                channel_bindings = as_(ChannelBindingsObject, channel.bindings)
 
-    def __get_first_by_key(self, values: t.Iterable[T], key_getter: t.Callable[[T], K]) -> t.Mapping[K, T]:
-        groups: t.Dict[K, T] = {}
+                if publish is None or channel_bindings is None:
+                    continue
 
-        for value in values:
-            key = key_getter(value)
-            groups.setdefault(key, value)
+                operation_bindings = as_(OperationBindingsObject, publish.bindings)
+                if operation_bindings is None:
+                    continue
 
-        return groups
+                amqp_operation_bindings = as_(AMQPBindingTrait.AMQPOperationBindingObject, operation_bindings.amqp)
+                amqp_channel_bindings = as_(AMQPBindingTrait.AMQPChannelBindingObject, channel_bindings.amqp)
+                if amqp_operation_bindings is None or amqp_channel_bindings is None:
+                    continue
+
+                message = as_(MessageObject, publish.message)
+                messages = as_sequence(MessageObject, publish.message)
+                if message is not None:
+                    messages = (message,)
+
+                if messages is None:
+                    continue
+
+                exchange = as_(AMQPBindingTrait.AMQPChannelBindingObject.Exchange, amqp_channel_bindings.exchange)
+                queue = as_(AMQPBindingTrait.AMQPChannelBindingObject.Queue, amqp_channel_bindings.queue)
+                binding_keys = amqp_operation_bindings.cc
+                if exchange is None or queue is None or binding_keys is None:
+                    continue
+
+                queue_name = as_(str, queue.name)
+                if queue_name is None:
+                    continue
+
+                yield AmqpConsumerOperation(
+                    name=self.__normalize_name(channel_name),
+                    channel=channel,
+                    operation=publish,
+                    messages=messages,
+                    exchange_name=exchange.name,
+                    queue_name=queue_name,
+                    binding_keys=binding_keys,
+                    channel_binding=amqp_channel_bindings,
+                    operation_binding=amqp_operation_bindings,
+                )
+
+    def __normalize_name(self, value: str) -> str:
+        # re.compile(r"[^A-Za-z0-9_]")
+        x = re.sub(r"[^A-Za-z0-9_]+", "_", value)
+        x = stringcase.snakecase(x)
+        # x = re.sub(r"([a-z][A-Z])", lambda m: "_".join(m.group(1)).lower(), x)
+        x = re.sub(r"_+", "_", x)
+        x = re.sub(r"^_?(.*?)_$", "\1", x)
+        return x
+
+    def __join_name(self, values: t.Sequence[str]) -> str:
+        return "_".join(values)
+
+    def __create_consumer_def(self, operation: AmqpConsumerOperation) -> t.Tuple[ConsumerDef, t.Sequence[MessageDef]]:
+        messages = tuple(
+            MessageDef(
+                name=self.__join_name((operation.name, self.__normalize_name(message.title or "message"))),
+                description=message.description,
+                fields={
+                    self.__normalize_name(name): self.__get_field_def(
+                        schema=schema,
+                        alias=name,
+                        is_optional=not message.required or name in message.required,
+                    )
+                    for name, schema in properties.items()
+                },
+            )
+            for message, properties in self.__split_on_messages(operation.messages)
+        )
+
+        return ConsumerDef(
+            name=operation.name,
+            description=operation.channel.description,
+            exchange_name=operation.exchange_name,
+            queue_name=operation.queue_name,
+            binding_keys=operation.binding_keys,
+            message=messages[0],
+        ), messages
+
+    def __split_on_messages(
+            self,
+            messages: t.Collection[MessageObject],
+    ) -> t.Iterable[t.Tuple[SchemaObject, t.Mapping[str, SchemaObject]]]:
+        for message in messages:
+            payload = as_(SchemaObject, message.payload)
+            if payload is None:
+                continue
+
+            properties = payload.properties
+            if properties is None:
+                continue
+
+            yield payload, properties
+
+            # TODO: build messages from nested objects
+            # visited = {}
+            # stack: t.List[t.Tuple[t.Sequence[str], SchemaObject]] = [((), payload)]
+            # while stack:
+            #     path, info = stack.pop(0)
+            #
+            #     if isinstance(info.items, SchemaObject):
+            #         stack.append(((*path, "item",), info.items,))
+            #
+            #     elif isinstance(info.items, t.Sequence):
+            #         for subinfo in info.items:
+            #             stack.append(((*path, subinfo.title or "item",), subinfo,))
+            #
+            #     if info.all_of is not None:
+            #         for subinfo in info.all_of:
+            #             stack.append(((*path, subinfo.title or "item",), subinfo,))
+            #
+            #     if info.any_of is not None:
+            #         for subinfo in info.any_of:
+            #             stack.append(((*path, subinfo.title or "item",), subinfo,))
+            #
+            #     if info.one_of is not None:
+            #         for subinfo in info.one_of:
+            #             stack.append(((*path, subinfo.title or "item",), subinfo,))
+            #
+            #     for name, subinfo in (info.properties or {}).items():
+            #         if subinfo.type_ == "object" and subinfo.properties is not None:
+            #             stack.append(((*path, subinfo.title or "value",), subinfo,))
+            #             # visited[(*path, "Item",)] = info
+            #
+            # print(stack)
+
+    def __get_field_def(
+            self,
+            schema: SchemaObject,
+            alias: t.Optional[str] = None,
+            is_optional: bool = False,
+    ) -> MessageFieldDef:
+        field_type = self.__get_field_type(schema)
+        if is_optional:
+            field_type = TypeTraits.create_optional(field_type)
+
+        return MessageFieldDef(
+            type_=field_type,
+            info=FieldInfo(
+                default=schema.default,
+                alias=alias,
+                title=schema.title,
+                description=schema.description,
+                const=None,
+                gt=schema.exclusive_minimum,
+                ge=schema.minimum,
+                lt=schema.exclusive_maximum,
+                le=schema.maximum,
+                multiple_of=schema.multiple_of,
+                min_items=schema.min_items,
+                max_items=schema.max_items,
+                min_length=schema.min_length,
+                max_length=schema.max_length,
+                allow_mutation=False,
+                regex=schema.pattern,
+            ),
+        )
+
+    def __get_field_type(self, value: t.Optional[SchemaObject]) -> TypeDef:
+        if value is None:
+            return TypeTraits.ANY
+
+        if value.type_ == "null":
+            result = TypeTraits.NONE
+
+        elif value.type_ == "boolean":
+            result = TypeTraits.BOOL
+
+        elif value.type_ == "number":
+            result = TypeTraits.NUMBER
+
+        elif value.type_ == "integer":
+            result = TypeTraits.INT
+
+        elif value.type_ == "string":
+            result = TypeTraits.STR
+
+        elif value.type_ == "array":
+            assert isinstance(value.items, SchemaObject)
+            item = self.__get_field_type(value.items)
+
+            if value.unique_items:
+                result = TypeTraits.create_collection(item)
+            else:
+                result = TypeTraits.create_sequence(item)
+
+        elif value.type_ == "object":
+            result = TypeTraits.create_mapping(TypeTraits.STR, TypeTraits.ANY)
+
+        elif options := as_sequence(SchemaObject, value.type_):
+            result = TypeTraits.create_union(self.__get_field_type(option) for option in options)
+
+        elif value.enum is not None:
+            result = TypeTraits.create_literal(value.enum)
+
+        else:
+            raise ValueError
+
+        # if value.nullable:
+        #     result = TypeTraits.create_optional(result)
+
+        return result

@@ -13,6 +13,7 @@ PyYAML = "^6.0"
 click = "^8.0.3"
 dependency-injector = "^4.37.0"
 jsonschema = "^4.2.1"
+stringcase = "^1.2.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
@@ -84,11 +85,11 @@ show_error_codes = true
 pretty = true
 
 warn_unused_configs = true
+exclude = "tests/data.*"
 
 [[tool.mypy.overrides]]
 module = ["asyncapi.cli"]
 disallow_any_expr = false
-disallow_any_explicit = false
 
 [[tool.mypy.overrides]]
 module = ["asyncapi.spec.base"]
@@ -102,12 +103,29 @@ disallow_any_expr = false
 disallow_any_decorated = false
 
 [[tool.mypy.overrides]]
+module = ["asyncapi.amqp.consumer.runner"]
+disallow_any_expr = false
+disallow_any_decorated = false
+
+[[tool.mypy.overrides]]
+module = ["asyncapi.spec.code_generator.jinja.*"]
+disallow_any_expr = false
+disallow_any_explicit = false
+disallow_any_decorated = false
+
+[[tool.mypy.overrides]]
 module = ["tests.*"]
 disallow_any_expr = false
 disallow_any_explicit = false
 disallow_any_decorated = false
 disallow_any_unimported = false
 disallow_untyped_decorators = false
+
+#[[tool.mypy.overrides]]
+#file = ["tests.data.*"]
+#follow_imports = "skip"
+#ignore_errors = true
+#ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["jsonschema.*"]
