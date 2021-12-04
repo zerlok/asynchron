@@ -7,8 +7,8 @@ import typing as t
 
 from jsonschema import RefResolutionError, RefResolver
 
+from asyncapi.app import AsyncApiConfigTransformer, AsyncApiConfigTransformerError
 from asyncapi.spec.base import AsyncAPIObject, ReferenceObject, SpecObject
-from asyncapi.spec.transformer.base import AsyncApiConfigTransformer, AsyncApiConfigTransformerError
 from asyncapi.spec.visitor.referenced_descendants import (
     ReferencedDescendantSpecObjectVisitor,
     ReferencedSpecObject,
@@ -27,11 +27,10 @@ class JsonSerializable(t.Protocol):
 
 class ReferenceResolvingAsyncAPIObjectTransformer(AsyncApiConfigTransformer):
 
-    def __init__(self, uri: str = "", max_iterations: int = 256) -> None:
+    def __init__(self, max_iterations: int = 256) -> None:
         if not (0 < max_iterations <= 256):
             raise ValueError("Max iterations not in valid values range", max_iterations)
 
-        self.__uri = uri
         self.__max_iterations = max_iterations
         self.__spec_object_descendants_visitor = ReferencedDescendantSpecObjectVisitor()
 

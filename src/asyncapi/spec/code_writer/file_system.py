@@ -1,24 +1,25 @@
 __all__ = (
-    "AsyncApiFileSystemCodeWriter",
+    "AsyncApiFileSystemContentWriter",
 )
 
 import typing as t
 from pathlib import Path
 
-from asyncapi.app import AsyncApiCodeWriter
+from asyncapi.app import AsyncApiContentWriter
 
 
-class AsyncApiFileSystemCodeWriter(AsyncApiCodeWriter):
+class AsyncApiFileSystemContentWriter(AsyncApiContentWriter):
 
     def __init__(self, target_dir: Path) -> None:
         self.__target_dir = target_dir
 
-    def write(self, path: Path, content: t.Iterable[str]) -> None:
+    def write(self, content: t.Iterable[t.Tuple[Path, t.Iterable[str]]]) -> None:
         if not self.__target_dir.exists():
             self.__target_dir.mkdir(parents=True)
 
-        target = self.__target_dir.joinpath(path)
+        for path, chunks in content:
+            target = self.__target_dir.joinpath(path)
 
-        with target.open("w") as fd:
-            for chunk in content:
-                fd.write(chunk)
+            with target.open("w") as fd:
+                for chunk in chunks:
+                    fd.write(chunk)

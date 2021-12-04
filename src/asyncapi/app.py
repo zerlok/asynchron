@@ -1,10 +1,14 @@
 __all__ = (
     "AsyncApiConfigReaderError",
     "AsyncApiConfigReader",
+    "AsyncApiConfigTransformerError",
+    "AsyncApiConfigTransformer",
+    "AsyncApiConfigViewerError",
+    "AsyncApiConfigViewer",
     "AsyncApiCodeGeneratorError",
     "AsyncApiCodeGenerator",
-    "AsyncApiCodeWriterError",
-    "AsyncApiCodeWriter",
+    "AsyncApiContentWriterError",
+    "AsyncApiContentWriter",
 )
 
 import abc
@@ -24,6 +28,26 @@ class AsyncApiConfigReader(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
 
+class AsyncApiConfigTransformerError(Exception):
+    pass
+
+
+class AsyncApiConfigTransformer(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def transform(self, config: AsyncAPIObject) -> AsyncAPIObject:
+        raise NotImplementedError
+
+
+class AsyncApiConfigViewerError(Exception):
+    pass
+
+
+class AsyncApiConfigViewer(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def view(self, config: AsyncAPIObject) -> None:
+        raise NotImplementedError
+
+
 class AsyncApiCodeGeneratorError(Exception):
     pass
 
@@ -34,11 +58,11 @@ class AsyncApiCodeGenerator(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
 
-class AsyncApiCodeWriterError(Exception):
+class AsyncApiContentWriterError(Exception):
     pass
 
 
-class AsyncApiCodeWriter(metaclass=abc.ABCMeta):
+class AsyncApiContentWriter(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def write(self, path: Path, content: t.Iterable[str]) -> None:
+    def write(self, content: t.Iterable[t.Tuple[Path, t.Iterable[str]]]) -> None:
         raise NotImplementedError

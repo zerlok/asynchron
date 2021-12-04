@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import stringcase  # type: ignore
-from jinja2 import Environment, FileSystemLoader
 from pydantic.fields import FieldInfo
 
 from asyncapi.app import AsyncApiCodeGenerator
@@ -20,6 +19,8 @@ from asyncapi.spec.base import (
     OperationBindingsObject, OperationObject,
     SchemaObject,
 )
+from asyncapi.spec.code_generator.info import AsyncApiCodeGeneratorMetaInfo
+from asyncapi.spec.code_generator.jinja.renderer import JinjaTemplateRenderer
 from asyncapi.strict_typing import as_, as_sequence
 
 K = t.TypeVar("K", bound=t.Hashable)
@@ -130,20 +131,15 @@ class AmqpConsumerOperation:
 
 
 class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
+    __JINJA_TEMPLATES_DIR: t.Final[Path] = Path(__file__).parent / "templates"
 
-    def __init__(self) -> None:
-        self.__jinja_env = Environment(
-            loader=FileSystemLoader(Path(__file__).parent / "templates"),
-            trim_blocks=True,
-            lstrip_blocks=True,
-        )
-        self.__jinja_env.filters.update({
-            "snake_case": stringcase.snakecase,
-            "pascal_case": stringcase.pascalcase,
-            "sorted": self.__iter_sorted,
-            "items_sorted_by_keys": self.__iter_items_sorted_by_keys,
-            "with_alias": self.__render_string_with_aliases,
-        })
+    def __init__(
+            self,
+            meta: AsyncApiCodeGeneratorMetaInfo,
+            renderer: t.Optional[JinjaTemplateRenderer] = None,
+    ) -> None:
+        self.__meta = meta
+        self.__renderer = renderer or JinjaTemplateRenderer(self.__JINJA_TEMPLATES_DIR)
 
     def generate(self, config: AsyncAPIObject) -> t.Iterable[t.Tuple[Path, t.Iterable[str]]]:
         app_messages: t.List[MessageDef] = []
@@ -156,23 +152,7 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
         app = AppDef(
             name=config.info.title,
             description=config.info.description,
-            modules={
-                "main": ModuleDef(
-                    python_path="app.__main__",
-                    description=None,
-                    fs_path=Path("main.py"),
-                ),
-                "message": ModuleDef(
-                    python_path="app.message",
-                    description=None,
-                    fs_path=Path("message.py"),
-                ),
-                "consumer": ModuleDef(
-                    python_path="app.consumer",
-                    description=None,
-                    fs_path=Path("consumer.py"),
-                ),
-            },
+            modules=self.__get_app_modules(),
             consumers=app_consumers,
             messages=app_messages,
             manager=ManagerDef(
@@ -182,25 +162,31 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
         )
 
         for module_name, module in app.modules.items():
-            yield module.fs_path, self.__jinja_env.get_template(f"{module_name}.jinja2").stream(app=app, module=module)
+            yield module.fs_path, self.__renderer.render(name=module_name, module=module, app=app, meta=self.__meta)
 
-    def __iter_sorted(self, values: object, attribute: str) -> t.Iterable[object]:
-        if isinstance(values, t.Iterable):
-            # FIXME: fix typing.
-            yield from sorted(values, key=lambda v: getattr(v, attribute, 0))  # type: ignore
-
-    def __iter_items_sorted_by_keys(self, values: object) -> t.Iterable[t.Tuple[object, object]]:
-        if isinstance(values, t.Mapping):
-            # FIXME: fix typing.
-            yield from sorted(values.items(), key=lambda pair: pair[0])  # type: ignore
-
-    def __render_string_with_aliases(self, value: object, **kwargs: str) -> str:
-        s = str(value)
-
-        for name, alias in kwargs.items():
-            s = s.replace(name, alias)
-
-        return s
+    def __get_app_modules(self) -> t.Mapping[str, ModuleDef]:
+        return {
+            "__init__": ModuleDef(
+                python_path=f"{self.__meta.project_name}.__init__",
+                description=None,
+                fs_path=Path("__init__.py"),
+            ),
+            "__main__": ModuleDef(
+                python_path=f"{self.__meta.project_name}.__main__",
+                description=None,
+                fs_path=Path("__main__.py"),
+            ),
+            "message": ModuleDef(
+                python_path=f"{self.__meta.project_name}.message",
+                description=None,
+                fs_path=Path("message.py"),
+            ),
+            "consumer": ModuleDef(
+                python_path=f"{self.__meta.project_name}.consumer",
+                description=None,
+                fs_path=Path("consumer.py"),
+            ),
+        }
 
     def __iter_amqp_publish_operations(self, config: AsyncAPIObject) -> t.Iterable[AmqpConsumerOperation]:
         for _, channels in config.channels:

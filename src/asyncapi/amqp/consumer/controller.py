@@ -1,5 +1,5 @@
 __all__ = (
-    "ConsumersRunner",
+    "ConsumersController",
 )
 
 import asyncio
@@ -9,7 +9,10 @@ from dataclasses import dataclass
 
 import aio_pika
 
-from asyncapi.amqp.base import ConsumptionContext, MessageConsumer
+from asyncapi.amqp.base import ConsumptionContext, MessageConsumer, MessageConsumerFactory
+from asyncapi.strict_typing import gather, gather_with_errors
+
+T = t.TypeVar("T")
 
 
 @dataclass(frozen=True)
@@ -33,10 +36,11 @@ class ActiveConsumer:
     tag: str
 
 
-class ConsumersRunner:
+class ConsumersController(t.Generic[T]):
     def __init__(
             self,
             connection: aio_pika.Connection,
+            consumer_factory: MessageConsumerFactory[T],
             default_prefetch_count: int = 0,
             default_auto_delete_enabled: bool = False,
             default_exclusive: bool = False,
@@ -44,13 +48,14 @@ class ConsumersRunner:
             loop: t.Optional[asyncio.AbstractEventLoop] = None,
     ) -> None:
         self.__connection = connection
+        self.__consumer_factory = consumer_factory
         self.__server_name = self.__connection.kwargs.get("server_name", str(self))
         self.__default_prefetch_count = default_prefetch_count
         self.__default_auto_delete_enabled = default_auto_delete_enabled
         self.__default_exclusive = default_exclusive
         self.__default_durable = default_durable
 
-        self.__registered_consumers: t.Dict[MessageConsumer[aio_pika.IncomingMessage], RegisteredConsumer] = {}
+        self.__registered_consumers: t.Dict[T, RegisteredConsumer] = {}
         self.__active_consumers: t.Dict[MessageConsumer[aio_pika.IncomingMessage], ActiveConsumer] = {}
 
         self.__loop = loop or asyncio.get_event_loop()
@@ -62,7 +67,7 @@ class ConsumersRunner:
             self,
             exchange_name: str,
             binding_keys: t.Collection[str],
-            consumer: MessageConsumer[aio_pika.IncomingMessage],
+            consumer: T,
             queue_name: t.Optional[str] = None,
             is_auto_delete_enabled: t.Optional[bool] = None,
             is_exclusive: t.Optional[bool] = None,
@@ -73,7 +78,7 @@ class ConsumersRunner:
             raise RuntimeError()
 
         self.__registered_consumers[consumer] = RegisteredConsumer(
-            consumer=consumer,
+            consumer=self.__consumer_factory.create_consumer(consumer),
             exchange_name=exchange_name,
             queue_name=queue_name,
             binding_keys=binding_keys,
@@ -102,11 +107,12 @@ class ConsumersRunner:
         await self.__stop_waiter
 
     async def __start_consumers(self) -> None:
-        active_consumers = await _gather_with_errors(
+        active_consumers = await gather_with_errors(
             self.__start_consumer(registered_consumer)
             for registered_consumer in self.__registered_consumers.values()
         )
 
+        # TODO: handle failed starts
         self.__active_consumers.update(
             (active_consumer.consumer, active_consumer)
             for active_consumer in active_consumers
@@ -128,7 +134,7 @@ class ConsumersRunner:
             auto_delete=info.is_auto_delete_enabled,
         )
 
-        await _gather(
+        await gather(
             queue.bind(exchange, binding_key)
             for binding_key in info.binding_keys
         )
@@ -158,13 +164,17 @@ class ConsumersRunner:
             exchange=exchange,
             queue=queue,
             message=message,
+            correlation_id=message.correlation_id,
+            reply_to=message.reply_to,
+            user_id=message.user_id,
+            app_id=message.app_id,
         )
 
         await consumer.consume(message, context)
 
     async def __stop_consumers(self) -> None:
         try:
-            await _gather_with_errors(
+            await gather_with_errors(
                 self.__stop_consumer(info)
                 for info in self.__active_consumers.values()
             )
@@ -189,14 +199,3 @@ class ConsumersRunner:
             self.__stop_waiter.set_exception(error)
 
         self.__stop_waiter.set_result(True)
-
-
-T = t.TypeVar("T")
-
-
-async def _gather(coros: t.Iterable[t.Awaitable[T]]) -> t.Sequence[T]:
-    return await asyncio.gather(*coros)
-
-
-async def _gather_with_errors(coros: t.Iterable[t.Awaitable[T]]) -> t.Sequence[t.Union[T, BaseException]]:
-    return await asyncio.gather(*coros, return_exceptions=True)

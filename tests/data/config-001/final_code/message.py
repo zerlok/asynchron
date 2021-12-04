@@ -1,20 +1,15 @@
-import typing as t
+import typing
 
 from pydantic import BaseModel, Field
 
 
-class SensorReading(BaseModel):
-    sensor_id: str = Field(
-        alias="sensorId",
-        description="""""",
-    )
-
-    temperature: int = Field(
-        alias="temperature",
-        description="""""",
-    )
-
-    base_unit: t.Literal["CELSIUS", "FAHRENHEIT"] = Field(
+class SensorTemperatureFahrenheitSensorReading(BaseModel):
+    base_unit: typing.Optional[typing.Literal["CELSIUS", "FAHRENHEIT"]] = Field(
         alias="baseUnit",
-        description="""""",
+    )
+    sensor_id: typing.Optional[str] = Field(
+        alias="sensorId",
+    )
+    temperature: typing.Optional[typing.Union[int, float]] = Field(
+        alias="temperature",
     )

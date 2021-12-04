@@ -88,7 +88,7 @@ warn_unused_configs = true
 exclude = "tests/data.*"
 
 [[tool.mypy.overrides]]
-module = ["asyncapi.cli"]
+module = ["asyncapi.spec.cli"]
 disallow_any_expr = false
 
 [[tool.mypy.overrides]]
@@ -103,7 +103,7 @@ disallow_any_expr = false
 disallow_any_decorated = false
 
 [[tool.mypy.overrides]]
-module = ["asyncapi.amqp.consumer.runner"]
+module = ["asyncapi.amqp.consumer.controller"]
 disallow_any_expr = false
 disallow_any_decorated = false
 

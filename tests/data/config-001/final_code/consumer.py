@@ -1,29 +1,43 @@
 import abc
+import typing
+
+from pydantic import BaseModel
 
 from asyncapi.amqp.base import ConsumptionContext
 from asyncapi.amqp.consumer.callable import CallableMessageConsumer
-from asyncapi.amqp.consumer.decoded import DecodedMessageConsumer
-from asyncapi.amqp.consumer.processing import ProcessingMessageConsumer
-from asyncapi.amqp.consumer.runner import ConsumersRunner
-from asyncapi.amqp.decoder.pydantic import PydanticModelMessageDecoder
-from .message import SensorReading
+from asyncapi.amqp.consumer.controller import ConsumersController
+from .message import (
+    SensorTemperatureFahrenheitSensorReading,
+)
 
 
-class TemperatureReadingsConsumerManager(metaclass=abc.ABCMeta):
+class TemperatureReadings(metaclass=abc.ABCMeta):
+    """Temperature Readings"""
+
     @abc.abstractmethod
-    async def consume_sensor_reading_message(self, message: SensorReading, context: ConsumptionContext) -> None:
+    async def consume_sensor_temperature_fahrenheit(
+            self,
+            message: SensorTemperatureFahrenheitSensorReading,
+            context: ConsumptionContext,
+    ) -> None:
         raise NotImplementedError
 
 
-def add_temperature_readings_consumers(runner: ConsumersRunner, manager: TemperatureReadingsConsumerManager) -> None:
+def add_temperature_readings_consumers(
+        runner: ConsumersController[typing.Tuple[BaseModel, CallableMessageConsumer[BaseModel]]],
+        manager: TemperatureReadings,
+) -> None:
     runner.add_consumer(
         exchange_name="events",
-        binding_keys=("temperature.measured",),
-        consumer=ProcessingMessageConsumer(
-            DecodedMessageConsumer(CallableMessageConsumer(manager.consume_sensor_reading_message),
-                                   PydanticModelMessageDecoder(SensorReading), )),
+        binding_keys=(
+            "temperature.measured",
+        ),
+        consumer=(
+            SensorTemperatureFahrenheitSensorReading,
+            manager.consume_sensor_temperature_fahrenheit,
+        ),
         queue_name="measures",
-        is_auto_delete_enabled=True,
+        is_auto_delete_enabled=None,
         is_exclusive=None,
         is_durable=None,
         prefetch_count=None,

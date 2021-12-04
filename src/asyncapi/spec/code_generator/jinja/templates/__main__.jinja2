@@ -1,15 +1,14 @@
 {# @formatter:off #}
-{% extends "base_module.jinja2" %}
+{% extends "base/python_module.jinja2" %}
 
 {% block imports %}
 {% for import in module.imports %}
 {{ import }}
 {% endfor %}
-
 import asyncio
 
 import aio_pika
-from asyncapi.amqp.consumer.runner import ConsumersRunner
+from asyncapi.amqp.consumer.runner import ConsumersController
 
 from {{ app.modules.consumer.python_path }} import add_{{ app.manager.name|snake_case }}_consumers
 {% endblock %}
@@ -19,7 +18,7 @@ async def main() -> None:
     connection = await aio_pika.connect_robust()  # type: aio_pika.Connection
 
     try:
-        runner = ConsumersRunner(connection)
+        runner = ConsumersController(connection)
 
         # TODO: add implementation
         add_{{ app.manager.name|snake_case }}_consumers(runner, ...)

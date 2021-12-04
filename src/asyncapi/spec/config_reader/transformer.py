@@ -4,9 +4,8 @@ __all__ = (
 
 import typing as t
 
-from asyncapi.app import AsyncApiConfigReader
+from asyncapi.app import AsyncApiConfigReader, AsyncApiConfigTransformer
 from asyncapi.spec.base import AsyncAPIObject
-from asyncapi.spec.transformer.base import AsyncApiConfigTransformer
 
 
 class AsyncApiConfigTransformingConfigReader(AsyncApiConfigReader):
