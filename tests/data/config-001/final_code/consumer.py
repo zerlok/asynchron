@@ -24,10 +24,10 @@ class TemperatureReadings(metaclass=abc.ABCMeta):
 
 
 def add_temperature_readings_consumers(
-        runner: ConsumersController[typing.Tuple[BaseModel, CallableMessageConsumer[BaseModel]]],
+        consumers: ConsumersController[typing.Tuple[BaseModel, CallableMessageConsumer[BaseModel]]],
         manager: TemperatureReadings,
 ) -> None:
-    runner.add_consumer(
+    consumers.add_consumer(
         exchange_name="events",
         binding_keys=(
             "temperature.measured",

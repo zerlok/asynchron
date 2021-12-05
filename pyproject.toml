@@ -108,6 +108,11 @@ disallow_any_expr = false
 disallow_any_decorated = false
 
 [[tool.mypy.overrides]]
+module = ["asyncapi.amqp.publisher.controller"]
+disallow_any_expr = false
+disallow_any_decorated = false
+
+[[tool.mypy.overrides]]
 module = ["asyncapi.spec.code_generator.jinja.*"]
 disallow_any_expr = false
 disallow_any_explicit = false

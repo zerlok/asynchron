@@ -12,7 +12,7 @@ import aio_pika
 from asyncapi.amqp.base import ConsumptionContext, MessageConsumer, MessageConsumerFactory
 from asyncapi.strict_typing import gather, gather_with_errors
 
-T = t.TypeVar("T")
+T = t.TypeVar("T", bound=t.Hashable)
 
 
 @dataclass(frozen=True)
