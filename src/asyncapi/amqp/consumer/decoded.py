@@ -8,11 +8,11 @@ import aio_pika
 
 from asyncapi.amqp.base import ConsumptionContext, MessageConsumer, MessageDecoder
 
-T = t.TypeVar("T")
+T_contra = t.TypeVar("T_contra", contravariant=True)
 
 
 class DecodedMessageConsumer(MessageConsumer[aio_pika.IncomingMessage]):
-    def __init__(self, consumer: MessageConsumer[T], decoder: MessageDecoder[T]) -> None:
+    def __init__(self, consumer: MessageConsumer[T_contra], decoder: MessageDecoder[T_contra]) -> None:
         self.__consumer = consumer
         self.__decoder = decoder
 

@@ -1,22 +1,15 @@
-import typing
-
 import aio_pika
-from pydantic import BaseModel
 
 from asyncapi.amqp.base import MessagePublisher
+from asyncapi.amqp.decoder.pydantic import PydanticModelMessageEncoder
 from asyncapi.amqp.publisher.controller import PublishersController
-from asyncapi.amqp.publisher.factory import (
-    ExchangeBasedEncodedMessagePublisherFactory,
-    PydanticModelMessagePublisherFactory,
-)
+from asyncapi.amqp.publisher.factory import ExchangeBasedEncodedWithContextMessagePublisherFactory
 from .message import (
     SensorTemperatureFahrenheitSensorReading,
 )
 
-T_model = typing.TypeVar("T_model", bound=BaseModel)
 
-
-class TemperatureReadingsPublisherProvider:
+class TemperatureReadingsPublisherFactory:
     """Temperature Readings"""
 
     def __init__(
@@ -25,19 +18,19 @@ class TemperatureReadingsPublisherProvider:
     ) -> None:
         self.__publishers = PublishersController(
             connection=connection,
-            publisher_factory=ExchangeBasedEncodedMessagePublisherFactory(
-                factory=PydanticModelMessagePublisherFactory(),
-            ),
+            publisher_factory=ExchangeBasedEncodedWithContextMessagePublisherFactory(),
         )
 
-    async def provide_sensor_temperature_fahrenheit(
+    async def publish_sensor_temperature_fahrenheit(
             self,
     ) -> MessagePublisher[SensorTemperatureFahrenheitSensorReading]:
         return await self.__publishers.create_publisher(
             exchange_name="events",
             exchange_type="direct",
             routing_key="temperature.measured",
-            publisher=SensorTemperatureFahrenheitSensorReading,
+            publisher=PydanticModelMessageEncoder(
+                model=SensorTemperatureFahrenheitSensorReading,
+            ),
             is_auto_delete_enabled=None,
             is_durable=None,
             is_mandatory=None,

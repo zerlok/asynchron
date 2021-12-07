@@ -9,7 +9,7 @@ import typing as t
 import aio_pika
 from pydantic import BaseModel, Protocol
 
-from asyncapi.amqp.base import ConsumptionContext, MessageDecoder, MessageEncoder, PublicationContext
+from asyncapi.amqp.base import ConsumptionContext, MessageDecoder, MessageEncoder
 from asyncapi.strict_typing import raise_not_exhaustive
 
 T_contra = t.TypeVar("T_contra", bound=BaseModel, contravariant=True)
@@ -26,7 +26,7 @@ class PydanticModelMessageEncoder(MessageEncoder[T_contra]):
         self.__model = model
         self.__protocol = protocol
 
-    def encode(self, message: T_contra, context: PublicationContext) -> aio_pika.Message:
+    def encode(self, message: T_contra) -> aio_pika.Message:
         if self.__protocol is Protocol.json:
             return aio_pika.Message(
                 body=message.json().encode("utf-8"),

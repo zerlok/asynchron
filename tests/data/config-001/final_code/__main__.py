@@ -5,7 +5,6 @@ import aio_pika
 from asyncapi.amqp.consumer.controller import ConsumersController
 from asyncapi.amqp.consumer.factory import (
     ProcessingCallableDecodedMessageConsumerFactory,
-    PydanticModelMessageConsumerFactory,
 )
 from .consumer import add_temperature_readings_consumers
 
@@ -16,9 +15,7 @@ async def main() -> None:
     try:
         runner = ConsumersController(
             connection=connection,
-            consumer_factory=ProcessingCallableDecodedMessageConsumerFactory(
-                factory=PydanticModelMessageConsumerFactory(),
-            ),
+            consumer_factory=ProcessingCallableDecodedMessageConsumerFactory(),
         )
 
         add_temperature_readings_consumers(runner, ...)

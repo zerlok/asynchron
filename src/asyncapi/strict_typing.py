@@ -2,6 +2,7 @@ __all__ = (
     "as_",
     "as_sequence",
     "as_mapping",
+    "get_or_default",
     "raise_not_exhaustive",
     "gather",
     "gather_with_errors",
@@ -35,6 +36,10 @@ def as_mapping(key: t.Type[K], value: t.Type[V], obj: object) -> t.Optional[t.Ma
         return None
 
     return t.cast(t.Mapping[K, V], obj)
+
+
+def get_or_default(value: t.Optional[T], default: T) -> T:
+    return value if value is not None else default
 
 
 def raise_not_exhaustive(*args: t.NoReturn) -> t.NoReturn:

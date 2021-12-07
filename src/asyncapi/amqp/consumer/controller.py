@@ -40,7 +40,7 @@ class ConsumersController(t.Generic[T]):
     def __init__(
             self,
             connection: aio_pika.Connection,
-            consumer_factory: MessageConsumerFactory[T],
+            consumer_factory: MessageConsumerFactory[T, aio_pika.IncomingMessage],
             default_prefetch_count: int = 0,
             default_auto_delete_enabled: bool = False,
             default_exclusive: bool = False,
@@ -164,10 +164,6 @@ class ConsumersController(t.Generic[T]):
             exchange=exchange,
             queue=queue,
             message=message,
-            correlation_id=message.correlation_id,
-            reply_to=message.reply_to,
-            user_id=message.user_id,
-            app_id=message.app_id,
         )
 
         await consumer.consume(message, context)

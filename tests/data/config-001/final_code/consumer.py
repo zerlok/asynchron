@@ -3,9 +3,10 @@ import typing
 
 from pydantic import BaseModel
 
-from asyncapi.amqp.base import ConsumptionContext
+from asyncapi.amqp.base import ConsumptionContext, MessageDecoder
 from asyncapi.amqp.consumer.callable import CallableMessageConsumer
 from asyncapi.amqp.consumer.controller import ConsumersController
+from asyncapi.amqp.decoder.pydantic import PydanticModelMessageDecoder
 from .message import (
     SensorTemperatureFahrenheitSensorReading,
 )
@@ -24,7 +25,7 @@ class TemperatureReadings(metaclass=abc.ABCMeta):
 
 
 def add_temperature_readings_consumers(
-        consumers: ConsumersController[typing.Tuple[BaseModel, CallableMessageConsumer[BaseModel]]],
+        consumers: ConsumersController[typing.Tuple[MessageDecoder[BaseModel], CallableMessageConsumer[BaseModel]]],
         manager: TemperatureReadings,
 ) -> None:
     consumers.add_consumer(
@@ -33,7 +34,9 @@ def add_temperature_readings_consumers(
             "temperature.measured",
         ),
         consumer=(
-            SensorTemperatureFahrenheitSensorReading,
+            PydanticModelMessageDecoder(
+                model=SensorTemperatureFahrenheitSensorReading,
+            ),
             manager.consume_sensor_temperature_fahrenheit,
         ),
         queue_name="measures",

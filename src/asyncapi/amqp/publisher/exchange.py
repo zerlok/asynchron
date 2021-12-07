@@ -4,7 +4,7 @@ __all__ = (
 
 import aio_pika
 
-from asyncapi.amqp.base import MessagePublisher, PublicationContext
+from asyncapi.amqp.base import MessagePublisher
 
 
 class ExchangeMessagePublisher(MessagePublisher[aio_pika.Message]):
@@ -18,7 +18,7 @@ class ExchangeMessagePublisher(MessagePublisher[aio_pika.Message]):
         self.__routing_key = routing_key
         self.__is_mandatory = is_mandatory
 
-    async def publish(self, message: aio_pika.Message, context: PublicationContext) -> None:
+    async def publish(self, message: aio_pika.Message) -> None:
         await self.__exchange.publish(
             message=message,
             routing_key=self.__routing_key,
