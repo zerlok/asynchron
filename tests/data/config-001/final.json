@@ -1,5 +1,5 @@
 {
-  "asyncapi": "2.0.0",
+  "asyncapi": "2.2.0",
   "info": {
     "description": "Temperature Readings",
     "title": "Temperature Readings",

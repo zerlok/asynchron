@@ -3,10 +3,10 @@ import typing
 
 from pydantic import BaseModel
 
-from asyncapi.amqp.base import ConsumptionContext, MessageDecoder
-from asyncapi.amqp.consumer.callable import CallableMessageConsumer
-from asyncapi.amqp.consumer.controller import ConsumersController
-from asyncapi.amqp.decoder.pydantic import PydanticModelMessageDecoder
+from asynchron.amqp.base import ConsumptionContext, MessageDecoder
+from asynchron.amqp.consumer.callable import CallableMessageConsumer
+from asynchron.amqp.consumer.controller import ConsumersController
+from asynchron.amqp.decoder.pydantic import PydanticModelMessageDecoder
 from .message import (
     SensorTemperatureFahrenheitSensorReading,
 )

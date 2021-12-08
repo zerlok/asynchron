@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "asyncapi-python-aio-pika-template"
+name = "asynchron"
 version = "0.1.0"
 description = ""
 authors = ["zerlok <denergytro@gmail.com>"]
@@ -88,32 +88,32 @@ warn_unused_configs = true
 exclude = "tests/data.*"
 
 [[tool.mypy.overrides]]
-module = ["asyncapi.spec.cli"]
+module = ["asynchron.spec.cli"]
 disallow_any_expr = false
 
 [[tool.mypy.overrides]]
-module = ["asyncapi.spec.base"]
+module = ["asynchron.spec.base"]
 disallow_any_expr = false
 disallow_any_explicit = false
 disallow_any_decorated = false
 
 [[tool.mypy.overrides]]
-module = ["asyncapi.providers"]
+module = ["asynchron.providers"]
 disallow_any_expr = false
 disallow_any_decorated = false
 
 [[tool.mypy.overrides]]
-module = ["asyncapi.amqp.consumer.controller"]
+module = ["asynchron.amqp.consumer.controller"]
 disallow_any_expr = false
 disallow_any_decorated = false
 
 [[tool.mypy.overrides]]
-module = ["asyncapi.amqp.publisher.controller"]
+module = ["asynchron.amqp.publisher.controller"]
 disallow_any_expr = false
 disallow_any_decorated = false
 
 [[tool.mypy.overrides]]
-module = ["asyncapi.spec.code_generator.jinja.*"]
+module = ["asynchron.spec.code_generator.jinja.*"]
 disallow_any_expr = false
 disallow_any_explicit = false
 disallow_any_decorated = false
@@ -125,12 +125,6 @@ disallow_any_explicit = false
 disallow_any_decorated = false
 disallow_any_unimported = false
 disallow_untyped_decorators = false
-
-#[[tool.mypy.overrides]]
-#file = ["tests.data.*"]
-#follow_imports = "skip"
-#ignore_errors = true
-#ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["jsonschema.*"]

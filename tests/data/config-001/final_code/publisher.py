@@ -1,9 +1,9 @@
 import aio_pika
 
-from asyncapi.amqp.base import MessagePublisher
-from asyncapi.amqp.decoder.pydantic import PydanticModelMessageEncoder
-from asyncapi.amqp.publisher.controller import PublishersController
-from asyncapi.amqp.publisher.factory import ExchangeBasedEncodedWithContextMessagePublisherFactory
+from asynchron.amqp.base import MessagePublisher
+from asynchron.amqp.decoder.pydantic import PydanticModelMessageEncoder
+from asynchron.amqp.publisher.controller import PublishersController
+from asynchron.amqp.publisher.factory import ExchangeBasedEncodedWithContextMessagePublisherFactory
 from .message import (
     SensorTemperatureFahrenheitSensorReading,
 )

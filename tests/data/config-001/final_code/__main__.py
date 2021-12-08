@@ -2,8 +2,8 @@ import asyncio
 
 import aio_pika
 
-from asyncapi.amqp.consumer.controller import ConsumersController
-from asyncapi.amqp.consumer.factory import (
+from asynchron.amqp.consumer.controller import ConsumersController
+from asynchron.amqp.consumer.factory import (
     ProcessingCallableDecodedMessageConsumerFactory,
 )
 from .consumer import add_temperature_readings_consumers
