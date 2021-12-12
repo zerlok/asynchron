@@ -28,5 +28,5 @@ class TemperatureReadingsPublisherProvider:
                 routing_key="temperature.measured",
                 is_mandatory=None,
                 prefetch_count=None,
-            )
+            ),
         )

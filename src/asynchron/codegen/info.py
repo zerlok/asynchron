@@ -15,3 +15,4 @@ class AsyncApiCodeGeneratorMetaInfo:
     config_path: Path
     project_name: str
     author: str
+    use_absolute_imports: bool = True

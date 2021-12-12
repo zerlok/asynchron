@@ -53,7 +53,16 @@ def target_dir(tmp_path: Path) -> Path:
 
 
 @fixture()
-def file_content_loader() -> t.Callable[[Path], t.Mapping[Path, t.Sequence[str]]]:
+def file_loader() -> t.Callable[[Path], str]:
+    def load(path: Path) -> str:
+        with path.open("r") as fd:
+            return "".join(fd)
+
+    return load
+
+
+@fixture()
+def dir_files_loader(file_loader: t.Callable[[Path], str]) -> t.Callable[[Path], t.Mapping[Path, t.Sequence[str]]]:
     def walk_file_paths(root: Path) -> t.Iterable[Path]:
         paths: t.List[Path] = [root]
         while paths:
@@ -64,15 +73,11 @@ def file_content_loader() -> t.Callable[[Path], t.Mapping[Path, t.Sequence[str]]
             if path.is_file():
                 yield path
 
-    def load_file(path: Path) -> str:
-        with path.open("r") as fd:
-            return "\n".join(line for line in (line.strip() for line in fd) if line)[:100]
-
     def load_dir(root: Path) -> t.Mapping[Path, t.Sequence[str]]:
         results = {}
 
         for path in walk_file_paths(root):
-            results[Path(*path.parts[len(root.parts):])] = load_file(path)
+            results[Path(*path.parts[len(root.parts):])] = file_loader(path)
 
         # noinspection PyTypeChecker
         return OrderedDict(sorted(results.items(), key=lambda pair: str(pair[0])))
@@ -84,14 +89,25 @@ class ConfigCases:
     def case_config_001(
             self,
             data_dir: Path,
-            file_content_loader: t.Callable[[Path], t.Mapping[Path, t.Sequence[str]]],
+            file_loader: t.Callable[[Path], str],
     ) -> t.Tuple[Path, t.Any, t.Mapping[Path, t.Sequence[str]], str]:
         root = data_dir / "config-001"
 
         with (root / "final.json").open("r") as fd:
             config_json = json.load(fd)
 
-        return root / "asyncapi.yaml", config_json, file_content_loader(root / "generated"), "config_001"
+        files = {
+            path: file_loader(path)
+            for path in (
+                root / "generated" / "__init__.py",
+                root / "generated" / "__main__.py",
+                root / "generated" / "consumer.py",
+                root / "generated" / "message.py",
+                root / "generated" / "publisher.py",
+            )
+        }
+
+        return root / "asyncapi.yaml", config_json, files, "config_001"
 
 
 class CurrentTimeCases:
@@ -197,10 +213,10 @@ def test_cli_output(
 #         input: CliInput,
 #         output: CliOutput,
 #         target_dir: Path,
-#         file_content_loader: t.Callable[[Path], t.Mapping[Path, t.Sequence[str]]],
+#         dir_files_loader: t.Callable[[Path], t.Mapping[Path, t.Sequence[str]]],
 # ) -> None:
-#     assert not file_content_loader(target_dir)
+#     assert not dir_files_loader(target_dir)
 #
 #     cli_runner(input)
 #
-#     assert file_content_loader(target_dir) == output.files_content
+#     assert dir_files_loader(target_dir) == output.files_content

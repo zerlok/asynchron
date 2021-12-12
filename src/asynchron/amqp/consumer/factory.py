@@ -7,14 +7,10 @@ import typing as t
 import aio_pika
 
 from asynchron.amqp.consumer.processing import ProcessingMessageConsumer
-from asynchron.amqp.decoder.context import MessageWithContextDecoder
 from asynchron.core.consumer import (
-    CallableMessageConsumer,
-    DecodedMessageConsumer, MessageConsumer,
+    MessageConsumer,
     MessageConsumerFactory,
-    MessageConsumerFunc,
 )
-from asynchron.core.message import MessageDecoder
 
 T = t.TypeVar("T")
 T_contra = t.TypeVar("T_contra", contravariant=True)

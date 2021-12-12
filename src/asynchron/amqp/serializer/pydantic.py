@@ -27,8 +27,8 @@ class PydanticMessageSerializer(t.Generic[T_model], MessageSerializer[aio_pika.M
     def decode(self, message: aio_pika.Message) -> T_model:
         return self.__model.parse_raw(
             b=message.body,
-            content_type=message.content_type,
-            encoding=message.content_encoding,
+            content_type=message.content_type or "",
+            encoding=message.content_encoding or "utf8",
             proto=self.__protocol,
             allow_pickle=self.__protocol is Protocol.pickle,
         )

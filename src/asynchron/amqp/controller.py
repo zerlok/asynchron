@@ -98,26 +98,26 @@ class AioPikaBasedAmqpController(
         return bind_publisher
 
     async def start(self) -> None:
-        for settings, publisher in self.__declared_publishers.items():
-            channel = await self.__connection.channel()
-            await channel.set_qos(prefetch_count=settings.prefetch_count)
+        for publisher_bindings, publisher in self.__declared_publishers.items():
+            channel = t.cast(aio_pika.Channel, await self.__connection.channel())
+            await channel.set_qos(prefetch_count=publisher_bindings.prefetch_count or 0)  # type: ignore[misc]
 
-            exchange = await channel.get_exchange()
+            exchange = await channel.declare_exchange(publisher_bindings.exchange_name, publisher_bindings.exchange_type or "direct")
             publisher.attach(exchange)
 
-        for settings, consumer in self.__declared_consumers.items():
-            channel = await self.__connection.channel()
-            await channel.set_qos(prefetch_count=settings.prefetch_count)
+        for consumer_bindings, consumer in self.__declared_consumers.items():
+            channel = t.cast(aio_pika.Channel, await self.__connection.channel())
+            await channel.set_qos(prefetch_count=consumer_bindings.prefetch_count or 0)  # type: ignore[misc]
 
-            exchange = await channel.get_exchange()
-            queue = await channel.declare_queue()
+            exchange = await channel.declare_exchange(consumer_bindings.exchange_name, consumer_bindings.exchange_type or "direct")
+            queue = await channel.declare_queue(consumer_bindings.queue_name or "")
 
-            for binding_key in settings.binding_keys:
-                await queue.bind(exchange, binding_key)
+            for binding_key in consumer_bindings.binding_keys:
+                await queue.bind(exchange, binding_key)  # type: ignore[misc]
 
             consumer_tag = await queue.consume(consumer.consume)
             self.__consumer_tags[consumer_tag] = queue
 
     async def stop(self) -> None:
         for consumer_tag, queue in self.__consumer_tags.items():
-            await queue.cancel(consumer_tag)
+            await queue.cancel(consumer_tag)  # type: ignore[misc]

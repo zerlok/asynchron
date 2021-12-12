@@ -25,13 +25,14 @@ class AioPikaConnector(t.AsyncContextManager[AioPikaBasedAmqpController]):
             ]] = None,
             publisher_factory: t.Optional[MessagePublisherFactory[
                 MessagePublisher[aio_pika.Message],
-                aio_pika.Message
+                aio_pika.Message,
             ]] = None,
     ) -> None:
         self.__bindings = bindings
-        self.__connection: t.Optional[aio_pika.Connection] = None
         self.__consumer_factory = consumer_factory
         self.__publisher_factory = publisher_factory
+
+        self.__connection: t.Optional[aio_pika.Connection] = None
 
     async def __aenter__(self) -> AioPikaBasedAmqpController:
         if self.__connection is not None:

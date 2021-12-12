@@ -74,7 +74,7 @@ class MessageContextAssigningMessageEncoder(MessageEncoder[T_contra, aio_pika.Me
 
         if context is not None:
             if context.headers is not None:
-                encoded_message.headers = context.headers  # mypy: allow-any-expr
+                encoded_message.headers = context.headers
 
             if context.correlation_id is not None:
                 encoded_message.correlation_id = context.correlation_id

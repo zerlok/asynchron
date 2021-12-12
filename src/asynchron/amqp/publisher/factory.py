@@ -6,7 +6,7 @@ import typing as t
 
 import aio_pika
 
-from asynchron.amqp.decoder.context import MessageContext, MessageContextAssigningMessageEncoder
+from asynchron.amqp.serializer.context import MessageContext, MessageContextAssigningMessageEncoder
 from asynchron.core.message import MessageEncoder
 from asynchron.core.publisher import EncodedMessagePublisher, MessagePublisher, MessagePublisherFactory
 

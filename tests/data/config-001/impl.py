@@ -1,6 +1,11 @@
-from .generated.consumer import TemperatureReadingsConsumerFacade
-from .generated.message import SensorTemperatureFahrenheitSensorReading
-from .generated.publisher import TemperatureReadingsPublisherProvider
+import asyncio
+
+from asynchron.amqp.controller import AioPikaBasedAmqpController
+from asynchron.core.amqp import AmqpServerBindings
+from generated.consumer import TemperatureReadingsConsumerFacade
+from generated.message import SensorTemperatureFahrenheitSensorReading
+from generated.publisher import TemperatureReadingsPublisherProvider
+from generated.__main__ import builder
 
 
 class TemperatureReadingsConsumerFacadeImpl(TemperatureReadingsConsumerFacade):
@@ -19,3 +24,17 @@ class TemperatureReadingsConsumerFacadeImpl(TemperatureReadingsConsumerFacade):
             sensorId=message.sensor_id,
             temperature=message.temperature,
         ))
+
+
+@builder.consumer_facade_factory
+def create_consumer_facade(
+        server: AmqpServerBindings,
+        controller: AioPikaBasedAmqpController,
+) -> TemperatureReadingsConsumerFacade:
+    publishers = TemperatureReadingsPublisherProvider(controller)
+
+    return TemperatureReadingsConsumerFacadeImpl(publishers)
+
+
+if __name__ == "__main__":
+    asyncio.run(builder.build().run())

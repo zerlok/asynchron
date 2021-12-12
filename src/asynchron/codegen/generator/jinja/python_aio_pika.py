@@ -123,8 +123,23 @@ class AmqpConsumerOperation:
     operation: OperationObject
     messages: t.Sequence[MessageObject]
     exchange_name: str
+    exchange_type: str
     queue_name: str
     binding_keys: t.Collection[str]
+
+    channel_binding: AMQPBindingTrait.AMQPChannelBindingObject
+    operation_binding: AMQPBindingTrait.AMQPOperationBindingObject
+
+
+@dataclass(frozen=True)
+class AmqpPublisherOperation:
+    name: str
+    channel: ChannelItemObject
+    operation: OperationObject
+    messages: t.Sequence[MessageObject]
+    exchange_name: str
+    exchange_type: str
+    routing_key: str
 
     channel_binding: AMQPBindingTrait.AMQPChannelBindingObject
     operation_binding: AMQPBindingTrait.AMQPOperationBindingObject
@@ -149,8 +164,9 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
             app_consumers.append(consumer)
             app_messages.extend(messages)
 
+        app_name = self.__normalize_name(config.info.title)
         app = AppDef(
-            name=self.__normalize_name(config.info.title),
+            name=app_name,
             description=config.info.description,
             modules=self.__get_app_modules(),
             consumers=app_consumers,
@@ -165,27 +181,22 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
             yield module.fs_path, self.__renderer.render(name=module_name, module=module, app=app, meta=self.__meta)
 
     def __get_app_modules(self) -> t.Mapping[str, ModuleDef]:
+        def define_module(name: str) -> ModuleDef:
+            return ModuleDef(
+                python_path=f"{self.__meta.project_name}.{name}" if self.__meta.use_absolute_imports else f".{name}",
+                description=None,
+                fs_path=Path(f"{name}.py"),
+            )
+
         return {
-            "__init__": ModuleDef(
-                python_path=f"{self.__meta.project_name}.__init__",
-                description=None,
-                fs_path=Path("__init__.py"),
-            ),
-            "__main__": ModuleDef(
-                python_path=f"{self.__meta.project_name}.__main__",
-                description=None,
-                fs_path=Path("__main__.py"),
-            ),
-            "message": ModuleDef(
-                python_path=f"{self.__meta.project_name}.message",
-                description=None,
-                fs_path=Path("message.py"),
-            ),
-            "consumer": ModuleDef(
-                python_path=f"{self.__meta.project_name}.consumer",
-                description=None,
-                fs_path=Path("consumer.py"),
-            ),
+            name: define_module(name)
+            for name in (
+                "__init__",
+                "__main__",
+                "message",
+                "consumer",
+                "publisher",
+            )
         }
 
     def __iter_amqp_publish_operations(self, config: AsyncAPIObject) -> t.Iterable[AmqpConsumerOperation]:
@@ -230,6 +241,7 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
                     operation=publish,
                     messages=messages,
                     exchange_name=exchange.name,
+                    exchange_type=exchange.type_,
                     queue_name=queue_name,
                     binding_keys=binding_keys,
                     channel_binding=amqp_channel_bindings,
@@ -391,7 +403,7 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
             result = TypeTraits.create_literal(value.enum)
 
         else:
-            raise ValueError
+            raise ValueError(value)
 
         # if value.nullable:
         #     result = TypeTraits.create_optional(result)

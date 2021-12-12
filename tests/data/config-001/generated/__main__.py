@@ -15,11 +15,8 @@ builder = ApplicationBuilder(bind_temperature_readings_consumers)
 
 
 @builder.env_name_based_server_factory("AMQP_BROKER_URL")
-def create_server(name: typing.Optional[str]) -> AmqpServerBindings:
-    if name is None:
-        raise ValueError()
-
-    return AmqpServerBindings(connection_url=name)
+def create_server(value: typing.Optional[str]) -> AmqpServerBindings:
+    return AmqpServerBindings(connection_url=value or "amqp://guest:guest@localhost:5672/")
 
 
 @builder.runnable_factory

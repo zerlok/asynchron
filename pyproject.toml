@@ -21,6 +21,7 @@ mypy = "^0.910"
 types-PyYAML = "^6.0.1"
 pytest-cases = "^3.6.5"
 pytest-cov = "^3.0.0"
+pytest-asyncio = "^0.16.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -34,6 +35,7 @@ addopts = [
     "--cov-report=term-missing",
 ]
 markers = [
+    "asyncio: test asyncio",
     "cli: test emulate CLI",
 ]
 testpaths = ["./tests"]

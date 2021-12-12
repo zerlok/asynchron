@@ -48,9 +48,14 @@ class Application(t.Generic[S, R, F]):
         self.__consumer_facade_factory = consumer_facade_factory
         self.__consumer_binding = consumer_binding
 
-        self.__stop_waiter = asyncio.Future()  # type: asyncio.Future[bool]
+        self.__stop_waiter = None  # type: t.Optional[asyncio.Future[bool]]
 
     async def run(self) -> None:
+        if self.__stop_waiter is not None:
+            raise RuntimeError()
+
+        stop_waiter = self.__stop_waiter = asyncio.Future()
+
         server = self.__server_factory()
 
         async with self.__runnable_factory(server) as runnable:
@@ -58,11 +63,12 @@ class Application(t.Generic[S, R, F]):
             self.__consumer_binding(server, runnable, facade)
 
             await runnable.start()
-            await self.__stop_waiter
+            await stop_waiter
             await runnable.stop()
 
     def stop(self) -> None:
-        self.__stop_waiter.set_result(True)
+        if self.__stop_waiter is not None:
+            self.__stop_waiter.set_result(True)
 
 
 class ApplicationBuilder(t.Generic[S, R, F]):
