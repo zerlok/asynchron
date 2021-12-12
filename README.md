@@ -1,2 +1,2 @@
 # asynchron
-Python aio-pika service template for the AsyncAPI generator
+Python code generator based on AsyncAPI specification

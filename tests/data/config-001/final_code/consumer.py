@@ -3,7 +3,7 @@ import typing
 
 from pydantic import BaseModel
 
-from asynchron.amqp.base import ConsumptionContext, MessageDecoder
+from asynchron.amqp.context import ConsumptionContext, MessageDecoder
 from asynchron.amqp.consumer.callable import CallableMessageConsumer
 from asynchron.amqp.consumer.controller import ConsumersController
 from asynchron.amqp.decoder.pydantic import PydanticModelMessageDecoder

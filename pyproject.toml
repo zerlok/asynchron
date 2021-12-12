@@ -88,16 +88,6 @@ warn_unused_configs = true
 exclude = "tests/data.*"
 
 [[tool.mypy.overrides]]
-module = ["asynchron.spec.cli"]
-disallow_any_expr = false
-
-[[tool.mypy.overrides]]
-module = ["asynchron.spec.base"]
-disallow_any_expr = false
-disallow_any_explicit = false
-disallow_any_decorated = false
-
-[[tool.mypy.overrides]]
 module = ["asynchron.providers"]
 disallow_any_expr = false
 disallow_any_decorated = false
@@ -113,7 +103,17 @@ disallow_any_expr = false
 disallow_any_decorated = false
 
 [[tool.mypy.overrides]]
-module = ["asynchron.spec.code_generator.jinja.*"]
+module = ["asynchron.codegen.cli"]
+disallow_any_expr = false
+
+[[tool.mypy.overrides]]
+module = ["asynchron.codegen.spec.base"]
+disallow_any_expr = false
+disallow_any_explicit = false
+disallow_any_decorated = false
+
+[[tool.mypy.overrides]]
+module = ["asynchron.codegen.generator.jinja.*"]
 disallow_any_expr = false
 disallow_any_explicit = false
 disallow_any_decorated = false

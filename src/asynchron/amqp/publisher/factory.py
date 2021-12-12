@@ -1,21 +1,22 @@
 __all__ = (
-    "ExchangeBasedEncodedWithContextMessagePublisherFactory",
+    "EncodedWithContextMessagePublisherFactory",
 )
 
 import typing as t
 
 import aio_pika
 
-from asynchron.amqp.base import MessageEncoder, MessagePublisher, MessagePublisherFactory
 from asynchron.amqp.decoder.context import MessageContext, MessageContextAssigningMessageEncoder
-from asynchron.amqp.publisher.encoded import EncodedMessagePublisher
-from asynchron.amqp.publisher.exchange import ExchangeMessagePublisher
+from asynchron.core.message import MessageEncoder
+from asynchron.core.publisher import EncodedMessagePublisher, MessagePublisher, MessagePublisherFactory
 
 T = t.TypeVar("T")
+T_contra = t.TypeVar("T_contra", contravariant=True)
+T_co = t.TypeVar("T_co", covariant=True)
 
 
-class ExchangeBasedEncodedWithContextMessagePublisherFactory(
-    MessagePublisherFactory[t.Tuple[MessageEncoder[T], aio_pika.Exchange, str, bool], T],
+class EncodedWithContextMessagePublisherFactory(
+    MessagePublisherFactory[t.Tuple[MessageEncoder[T, aio_pika.Message], MessagePublisher[aio_pika.Message]], T],
 ):
     def __init__(
             self,
@@ -25,18 +26,14 @@ class ExchangeBasedEncodedWithContextMessagePublisherFactory(
 
     def create_publisher(
             self,
-            settings: t.Tuple[MessageEncoder[T], aio_pika.Exchange, str, bool],
+            settings: t.Tuple[MessageEncoder[T, aio_pika.Message], MessagePublisher[aio_pika.Message]],
     ) -> MessagePublisher[T]:
-        encoder, exchange, routing_key, is_mandatory = settings
+        encoder, publisher = settings
 
         return EncodedMessagePublisher(
-            encoder=MessageContextAssigningMessageEncoder(
+            encoder=MessageContextAssigningMessageEncoder[T](
                 encoder=encoder,
                 context_provider=self.__context_provider,
             ),
-            publisher=ExchangeMessagePublisher(
-                exchange=exchange,
-                routing_key=routing_key,
-                is_mandatory=is_mandatory,
-            ),
+            publisher=publisher,
         )

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import aio_pika
 
-from asynchron.amqp.base import ConsumptionContext, MessageDecoder, MessageEncoder
+from asynchron.core.message import MessageDecoder, MessageEncoder
 
 T = t.TypeVar("T")
 T_co = t.TypeVar("T_co", covariant=True)
@@ -36,16 +36,16 @@ class MessageWithContext(t.Generic[T]):
     app_id: t.Optional[str]
 
 
-class MessageWithContextDecoder(MessageDecoder[MessageWithContext[T_co]]):
+class MessageWithContextDecoder(MessageDecoder[aio_pika.IncomingMessage, MessageWithContext[T_co]]):
 
     def __init__(
             self,
-            decoder: MessageDecoder[T_co],
+            decoder: MessageDecoder[aio_pika.IncomingMessage, T_co],
     ) -> None:
         self.__decoder = decoder
 
-    def decode(self, message: aio_pika.IncomingMessage, context: ConsumptionContext) -> MessageWithContext[T_co]:
-        decoded_message = self.__decoder.decode(message, context)
+    def decode(self, message: aio_pika.IncomingMessage) -> MessageWithContext[T_co]:
+        decoded_message = self.__decoder.decode(message)
 
         # TODO: remove type ignore, get typing stubs for aio-pika, maybe
         return MessageWithContext(
@@ -58,11 +58,11 @@ class MessageWithContextDecoder(MessageDecoder[MessageWithContext[T_co]]):
         )
 
 
-class MessageContextAssigningMessageEncoder(MessageEncoder[T_contra]):
+class MessageContextAssigningMessageEncoder(MessageEncoder[T_contra, aio_pika.Message]):
 
     def __init__(
             self,
-            encoder: MessageEncoder[T_contra],
+            encoder: MessageEncoder[T_contra, aio_pika.Message],
             context_provider: t.Optional[t.Callable[[T_contra], t.Optional[MessageContext]]] = None,
     ) -> None:
         self.__encoder = encoder

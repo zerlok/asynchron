@@ -1,4 +1,4 @@
-asyncapi: "2.2.0"
+asyncapi: "2.0.0"
 info:
   title: Temperature Readings
   description: Temperature Readings
@@ -13,6 +13,10 @@ servers:
 channels:
   sensor/temperature/fahrenheit:
     subscribe:
+      bindings:
+        amqp:
+          cc:
+            - temperature.measured
       message:
         $ref: "#/components/messages/SensorReadingMessage"
     publish:

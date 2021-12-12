@@ -6,23 +6,22 @@ import typing as t
 
 import aio_pika
 
-from asynchron.amqp.base import (
-    MessageConsumer,
-    MessageConsumerFactory, MessageDecoder,
-)
-from asynchron.amqp.consumer.callable import CallableInvokingMessageConsumer, CallableMessageConsumer
-from asynchron.amqp.consumer.decoded import DecodedMessageConsumer
 from asynchron.amqp.consumer.processing import ProcessingMessageConsumer
 from asynchron.amqp.decoder.context import MessageWithContextDecoder
+from asynchron.core.consumer import (
+    CallableMessageConsumer,
+    DecodedMessageConsumer, MessageConsumer,
+    MessageConsumerFactory,
+    MessageConsumerFunc,
+)
+from asynchron.core.message import MessageDecoder
 
+T = t.TypeVar("T")
 T_contra = t.TypeVar("T_contra", contravariant=True)
 
 
 class ProcessingCallableDecodedMessageConsumerFactory(
-    MessageConsumerFactory[
-        t.Tuple[MessageDecoder[T_contra], CallableMessageConsumer[T_contra]],
-        aio_pika.IncomingMessage,
-    ],
+    MessageConsumerFactory[MessageConsumer[aio_pika.IncomingMessage], aio_pika.IncomingMessage],
 ):
     def __init__(
             self,
@@ -36,22 +35,21 @@ class ProcessingCallableDecodedMessageConsumerFactory(
 
     def create_consumer(
             self,
-            settings: t.Tuple[MessageDecoder[T_contra], CallableMessageConsumer[T_contra]],
+            settings: MessageConsumer[aio_pika.IncomingMessage],
     ) -> MessageConsumer[aio_pika.IncomingMessage]:
-        decoder, callable_consumer = settings
-
-        callable_consumer_wrapper = CallableInvokingMessageConsumer(consumer=callable_consumer, )
-        message_with_context_decoder = MessageWithContextDecoder(decoder=decoder, )
-
-        # FIXME: cast fixes mypy error
-        #  note: Revealed type is "asynchron.amqp.decoder.context.MessageWithContextDecoder[T`1]"
-        #  error: Cannot infer type argument 1 of "DecodedMessageConsumer"  [misc]
-        # reveal_type(message_with_context_decoder)
-        consumer = DecodedMessageConsumer(consumer=callable_consumer_wrapper,
-                                          decoder=t.cast(MessageDecoder[T_contra], message_with_context_decoder), )
+        # callable_consumer_wrapper = CallableMessageConsumer(consumer=callable_consumer, )
+        # message_with_context_decoder = MessageWithContextDecoder(decoder=decoder, )
+        #
+        # # FIXME: cast fixes mypy error
+        # #  note: Revealed type is "asynchron.amqp.decoder.context.MessageWithContextDecoder[T`1]"
+        # #  error: Cannot infer type argument 1 of "DecodedMessageConsumer"  [misc]
+        # # reveal_type(message_with_context_decoder)
+        # consumer = DecodedMessageConsumer(consumer=callable_consumer_wrapper,
+        #                                   decoder=t.cast(MessageDecoder[aio_pika.IncomingMessage, T],
+        #                                                  message_with_context_decoder), )
 
         return ProcessingMessageConsumer(
-            consumer=consumer,
+            consumer=settings,
             requeue_on_exception=self.__requeue_on_exception,
             reject_on_redelivered=self.__reject_on_redelivered,
             ignore_processed=self.__ignore_processed,

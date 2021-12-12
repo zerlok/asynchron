@@ -6,6 +6,7 @@ __all__ = (
     "raise_not_exhaustive",
     "gather",
     "gather_with_errors",
+    "FuncWrapper",
 )
 
 import asyncio
@@ -14,6 +15,7 @@ import typing as t
 T = t.TypeVar("T")
 K = t.TypeVar("K")
 V = t.TypeVar("V")
+F = t.TypeVar("F", bound=t.Callable[..., t.Optional[object]])  # type: ignore[misc]
 
 
 def as_(type_: t.Type[T], obj: object) -> t.Optional[T]:
@@ -53,3 +55,7 @@ async def gather(coros: t.Iterable[t.Awaitable[T]]) -> t.Sequence[T]:
 
 async def gather_with_errors(coros: t.Iterable[t.Awaitable[T]]) -> t.Sequence[t.Union[T, BaseException]]:
     return await asyncio.gather(*coros, return_exceptions=True)  # type: ignore
+
+
+class FuncWrapper(t.Protocol[F]):
+    def __call__(self, func: F) -> F: ...  # type: ignore[misc]

@@ -9,7 +9,7 @@ from click.testing import CliRunner, Result
 from dependency_injector.providers import Object
 from pytest_cases import case, fixture, parametrize_with_cases
 
-from asynchron.spec.cli import CLIContainer, cli
+from asynchron.codegen.cli import CLIContainer, cli
 
 
 @dataclass(frozen=True)
