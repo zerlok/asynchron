@@ -1,10 +1,3 @@
-{# @formatter:off #}
-{% extends "base/python_module.jinja2" %}
-
-{% block imports %}
-{% for import in module.imports %}
-{{ import }}
-{% endfor %}
 import asyncio
 import typing
 
@@ -13,14 +6,12 @@ from asynchron.amqp.controller import AioPikaBasedAmqpController
 from asynchron.core.amqp import AmqpServerBindings
 from asynchron.core.application import ApplicationBuilder
 from .consumer import (
-    {{ app.name|pascal_case }}ConsumerFacade,
-    bind_{{ app.name|snake_case }}_consumers,
+    TemperatureReadingsConsumerFacade,
+    bind_temperature_readings_consumers,
 )
-from .publisher import {{ app.name|pascal_case }}PublisherProvider
-{% endblock %}
+from .publisher import TemperatureReadingsPublisherProvider
 
-{% block functions %}
-builder = ApplicationBuilder(bind_{{ app.name|snake_case }}_consumers)
+builder = ApplicationBuilder(bind_temperature_readings_consumers)
 
 
 @builder.env_name_based_server_factory("AMQP_BROKER_URL")
@@ -46,15 +37,11 @@ def create_controller(
 def create_consumer_facade(
         server: AmqpServerBindings,
         controller: AioPikaBasedAmqpController,
-) -> {{ app.name|pascal_case }}ConsumerFacade:
-    publishers = {{ app.name|pascal_case }}PublisherProvider(controller)
+) -> TemperatureReadingsConsumerFacade:
+    publishers = TemperatureReadingsPublisherProvider(controller)
 
-    return {{ app.name|pascal_case }}ConsumerFacade()
-{% endblock %}
+    return TemperatureReadingsConsumerFacade()
 
-{% block main %}
+
 if __name__ == "__main__":
-    app = builder.build()
-    asyncio.run(app.run())
-{% endblock %}
-{# @formatter:on #}
+    asyncio.run(builder.build().run())

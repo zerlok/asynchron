@@ -7,14 +7,12 @@
 {% endfor %}
 import abc
 
-from asynchron.amqp.base import ConsumptionContext
-from asynchron.amqp.consumer.callable import CallableMessageConsumer
-from asynchron.amqp.consumer.decoded import DecodedMessageConsumer
-from asynchron.amqp.consumer.processing import ProcessingMessageConsumer
-from asynchron.amqp.consumer.runner import ConsumersController
-from asynchron.amqp.decoder.pydantic import PydanticModelMessageEncoderDecoder
+from asynchron.amqp.controller import AioPikaBasedAmqpController
+from asynchron.amqp.serializer.pydantic import PydanticMessageSerializer
+from asynchron.core.amqp import AmqpConsumerBindings, AmqpServerBindings
+from asynchron.core.consumer import CallableMessageConsumer
 
-from {{ app.modules.message.python_path }} import (
+from .message import (
     {% for message in app.messages|sorted(attribute="name") %}
     {{ message.name|pascal_case }},
     {% endfor %}
@@ -22,9 +20,9 @@ from {{ app.modules.message.python_path }} import (
 {% endblock %}
 
 {% block classes %}
-class {{ app.manager.name|pascal_case }}(metaclass=abc.ABCMeta):
-    {% if app.manager.description %}
-    """{{ app.manager.description }}"""
+class {{ app.name|pascal_case }}ConsumerFacade(metaclass=abc.ABCMeta):
+    {% if app.description %}
+    """{{ app.description }}"""
 
     {% endif %}
     {% if app.consumers %}
@@ -33,9 +31,10 @@ class {{ app.manager.name|pascal_case }}(metaclass=abc.ABCMeta):
     async def consume_{{ consumer.name|snake_case }}(
             self,
             message: {{ consumer.message.name|pascal_case }},
-            context: ConsumptionContext,
     ) -> None:
+            {% if consumer.description %}
         """{{ consumer.description }}"""
+            {% endif %}
         raise NotImplementedError
 
         {% endfor %}
@@ -46,34 +45,33 @@ class {{ app.manager.name|pascal_case }}(metaclass=abc.ABCMeta):
 {% endblock %}
 
 {% block functions %}
-def add_{{ app.manager.name|snake_case }}_consumers(
-        runner: ConsumersController,
-        manager: {{ app.manager.name|pascal_case }},
+def bind_{{ app.name|snake_case }}_consumers(
+        server: AmqpServerBindings,
+        consumers: AioPikaBasedAmqpController,
+        facade: {{ app.name|pascal_case }}ConsumerFacade,
 ) -> None:
     {% if app.consumers %}
         {% for consumer in app.consumers|sorted("names") %}
-    runner.add_consumer(
-        exchange_name="{{ consumer.exchange_name }}",
-        binding_keys=(
-        {% for binding_key in consumer.binding_keys %}
-            "{{ binding_key }}",
-        {% endfor %}
+    consumers.bind_consumer(
+        decoder=PydanticMessageSerializer(
+            model={{ consumer.message.name|pascal_case }},
         ),
-        consumer=ProcessingMessageConsumer(
-            consumer=DecodedMessageConsumer(
-                consumer=CallableMessageConsumer(
-                    consumer=manager.consume_{{ consumer.name|snake_case }},
-                ),
-                decoder=PydanticModelMessageEncoderDecoder(
-                    model={{ consumer.message.name|pascal_case }},
-                ),
+        consumer=CallableMessageConsumer(
+            consumer=facade.consume_{{ consumer.name|snake_case }},
+        ),
+        bindings=AmqpConsumerBindings(
+            exchange_name="{{ consumer.exchange_name }}",
+            binding_keys=(
+            {% for binding_key in consumer.binding_keys %}
+                "{{ binding_key }}",
+            {% endfor %}
             ),
+            queue_name="{{ consumer.queue_name }}",
+            is_auto_delete_enabled=None,
+            is_exclusive=None,
+            is_durable=None,
+            prefetch_count=None,
         ),
-        queue_name="{{ consumer.queue_name }}",
-        is_auto_delete_enabled=None,
-        is_exclusive=None,
-        is_durable=None,
-        prefetch_count=None,
     )
         {% endfor %}
     {% else %}

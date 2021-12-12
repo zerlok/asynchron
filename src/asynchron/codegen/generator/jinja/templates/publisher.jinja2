@@ -1,0 +1,56 @@
+{# @formatter:off #}
+{% extends "base/python_module.jinja2" %}
+
+{% block imports %}
+{% for import in module.imports %}
+{{ import }}
+{% endfor %}
+from asynchron.amqp.controller import AioPikaBasedAmqpController
+from asynchron.amqp.serializer.pydantic import PydanticMessageSerializer
+from asynchron.core.amqp import AmqpPublisherBindings
+from asynchron.core.publisher import MessagePublisher
+
+from .message import (
+    {% for message in app.messages|sorted(attribute="name") %}
+    {{ message.name|pascal_case }},
+    {% endfor %}
+)
+{% endblock %}
+
+{% block classes %}
+class {{ app.name|pascal_case }}PublisherProvider:
+    {% if app.description %}
+    """{{ app.description }}"""
+
+    {% endif %}
+    def __init__(
+            self,
+            controller: AioPikaBasedAmqpController,
+    ) -> None:
+        self.__controller = controller
+
+    {% if app.publishers %}
+        {% for publisher in app.publishers|sorted("name") %}
+    @abc.abstractmethod
+    def provide_{{ publisher.name|snake_case }}_publisher(
+            self,
+    ) -> MessagePublisher[{{ publisher.message.name|pascal_case }}]:
+        """{{ publisher.description }}"""
+        return self.__controller.bind_publisher(
+            encoder=PydanticMessageSerializer(
+                model={{ publisher.message.name|pascal_case }},
+            ),
+            bindings=AmqpPublisherBindings(
+                exchange_name="{{ publisher.exchange_name }}",
+                routing_key="{{ publisher.routing_key }}",
+                is_mandatory=None,
+                prefetch_count=None,
+            ),
+        )
+
+        {% endfor %}
+    {% else %}
+    pass
+
+    {% endif %}
+{% endblock %}

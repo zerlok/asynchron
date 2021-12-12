@@ -91,7 +91,7 @@ class ConfigCases:
         with (root / "final.json").open("r") as fd:
             config_json = json.load(fd)
 
-        return root / "asyncapi.yaml", config_json, file_content_loader(root / "final_code"), "config_001"
+        return root / "asyncapi.yaml", config_json, file_content_loader(root / "generated"), "config_001"
 
 
 class CurrentTimeCases:

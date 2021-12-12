@@ -150,7 +150,7 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
             app_messages.extend(messages)
 
         app = AppDef(
-            name=config.info.title,
+            name=self.__normalize_name(config.info.title),
             description=config.info.description,
             modules=self.__get_app_modules(),
             consumers=app_consumers,
