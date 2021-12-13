@@ -31,9 +31,6 @@ jobs:
       - name: Set up test PyPi server
         run: |
           poetry config repositories.testpypi https://test.pypi.org/legacy/
-      - name: Set up PyPi token
-        run: |
-          poetry config http-basic.pypi "__token__" "${{ secrets.PYPI_API_TOKEN }}"
       - name: Build & Publish Project
         run: |
-          poetry publish --build -r testpypi
+          poetry publish --build -r testpypi -u __token__ -p ${{ secrets.PYPI_API_TOKEN }}
