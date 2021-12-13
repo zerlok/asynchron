@@ -1,0 +1,61 @@
+{# @formatter:off #}
+{% extends "base/python_module.jinja2" %}
+
+{% block imports %}
+{% for import in module.imports %}
+{{ import }}
+{% endfor %}
+from asynchron.amqp.controller import AioPikaBasedAmqpController
+from asynchron.amqp.serializer.pydantic import PydanticMessageSerializer
+from asynchron.core.amqp import AmqpPublisherBindings
+from asynchron.core.publisher import MessagePublisher
+
+from .message import (
+    {% for message in app.messages|sorted(attribute="name") %}
+    {{ message.name|pascal_case }},
+    {% endfor %}
+)
+{% endblock %}
+
+{% block classes %}
+class {{ app.name|pascal_case }}PublisherFacade:
+    {% if app.description %}
+    """{{ app.description }}"""
+
+    {% endif %}
+    def __init__(
+            self,
+            controller: AioPikaBasedAmqpController,
+    ) -> None:
+        {% if app.publishers %}
+        {% for publisher in app.publishers|sorted("name") %}
+        self.__{{ publisher.name|snake_case }}_publisher: MessagePublisher[{{ publisher.message.name|pascal_case }}] = controller.bind_publisher(
+            encoder=PydanticMessageSerializer(
+                model={{ publisher.message.name|pascal_case }},  # type: ignore[misc]
+            ),
+            bindings=AmqpPublisherBindings(
+                exchange_name="{{ publisher.exchange_name }}",
+                routing_key="{{ publisher.routing_key }}",
+                is_mandatory=None,
+                prefetch_count=None,
+            ),
+        )
+        {% endfor %}
+        {% else %}
+        pass
+        {% endif %}
+
+    {% if app.publishers %}
+        {% for publisher in app.publishers|sorted("name") %}
+    async def publish_{{ publisher.name|snake_case }}(
+            self,
+            message: {{ publisher.message.name|pascal_case }},
+    ) -> None:
+            {% if publisher.description %}
+        """{{ publisher.description }}"""
+            {% endif %}
+        await self.__{{ publisher.name|snake_case }}_publisher.publish(message)
+
+        {% endfor %}
+    {% endif %}
+{% endblock %}

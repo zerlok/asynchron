@@ -1,8 +1,21 @@
 [tool.poetry]
-name = "asyncapi-python-aio-pika-template"
+name = "asynchron"
 version = "0.1.0"
-description = ""
+description = "Python service framework with code generator based on AsyncAPI specification"
 authors = ["zerlok <denergytro@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/zerlok/asynchron"
+repository = "https://github.com/zerlok/asynchron"
+keywords = ["asyncapi", "codegen", "amqp"]
+classifiers = [
+    "Programming Language :: Python :: 3.8",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Code Generators",
+]
+include = [
+    "LICENSE",
+]
 
 [tool.poetry.dependencies]
 python = "^3.8"
@@ -13,6 +26,7 @@ PyYAML = "^6.0"
 click = "^8.0.3"
 dependency-injector = "^4.37.0"
 jsonschema = "^4.2.1"
+stringcase = "^1.2.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
@@ -20,6 +34,10 @@ mypy = "^0.910"
 types-PyYAML = "^6.0.1"
 pytest-cases = "^3.6.5"
 pytest-cov = "^3.0.0"
+pytest-asyncio = "^0.16.0"
+
+[tool.poetry.scripts]
+asynchron-codegen = "asynchron.codegen:cli"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -33,6 +51,7 @@ addopts = [
     "--cov-report=term-missing",
 ]
 markers = [
+    "asyncio: test asyncio",
     "cli: test emulate CLI",
 ]
 testpaths = ["./tests"]
@@ -84,20 +103,35 @@ show_error_codes = true
 pretty = true
 
 warn_unused_configs = true
+#exclude = "tests/data.*"
 
 [[tool.mypy.overrides]]
-module = ["asyncapi_python_aio_pika_template.cli"]
+module = ["asynchron.providers"]
 disallow_any_expr = false
-disallow_any_explicit = false
+disallow_any_decorated = false
 
 [[tool.mypy.overrides]]
-module = ["asyncapi_python_aio_pika_template.spec"]
+module = ["asynchron.amqp.consumer.controller"]
+disallow_any_expr = false
+disallow_any_decorated = false
+
+[[tool.mypy.overrides]]
+module = ["asynchron.amqp.publisher.controller"]
+disallow_any_expr = false
+disallow_any_decorated = false
+
+[[tool.mypy.overrides]]
+module = ["asynchron.codegen.cli"]
+disallow_any_expr = false
+
+[[tool.mypy.overrides]]
+module = ["asynchron.codegen.spec.base"]
 disallow_any_expr = false
 disallow_any_explicit = false
 disallow_any_decorated = false
 
 [[tool.mypy.overrides]]
-module = ["asyncapi_python_aio_pika_template.providers"]
+module = ["asynchron.codegen.generator.jinja.*"]
 disallow_any_expr = false
 disallow_any_explicit = false
 disallow_any_decorated = false
@@ -115,3 +149,11 @@ module = ["jsonschema.*"]
 follow_imports = "skip"
 ignore_errors = true
 ignore_missing_imports = true
+
+# FIXME: enalbe pydantic mypy plugin support after https://github.com/samuelcolvin/pydantic/pull/2908 released, also
+#  see https://pydantic-docs.helpmanual.io/mypy_plugin/#enabling-the-plugin
+#[tool.mypy.pydantic-mypy]
+#init_forbid_extra = true
+#init_typed = true
+#warn_required_dynamic_aliases = true
+#warn_untyped_fields = true

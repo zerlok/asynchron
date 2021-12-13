@@ -1,0 +1,78 @@
+{# @formatter:off #}
+{% extends "base/python_module.jinja2" %}
+
+{% block imports %}
+{% for import in module.imports %}
+{{ import }}
+{% endfor %}
+import abc
+
+from asynchron.amqp.controller import AioPikaBasedAmqpController
+from asynchron.amqp.serializer.pydantic import PydanticMessageSerializer
+from asynchron.core.amqp import AmqpConsumerBindings, AmqpServerBindings
+from asynchron.core.consumer import CallableMessageConsumer
+
+from .message import (
+    {% for message in app.messages|sorted(attribute="name") %}
+    {{ message.name|pascal_case }},
+    {% endfor %}
+)
+{% endblock %}
+
+{% block classes %}
+class {{ app.name|pascal_case }}ConsumerFacade(metaclass=abc.ABCMeta):
+    {% if app.description %}
+    """{{ app.description }}"""
+
+    {% endif %}
+    def __init__(
+            self,
+            controller: AioPikaBasedAmqpController,
+    ) -> None:
+        {% if app.consumers %}
+        {% for consumer in app.consumers|sorted("names") %}
+        controller.bind_consumer(
+            decoder=PydanticMessageSerializer(
+                model={{ consumer.message.name|pascal_case }},  # type: ignore[misc]
+            ),
+            consumer=CallableMessageConsumer(
+                consumer=self.consume_{{ consumer.name|snake_case }},
+            ),
+            bindings=AmqpConsumerBindings(
+                exchange_name="{{ consumer.exchange_name }}",
+                binding_keys=(
+                {% for binding_key in consumer.binding_keys %}
+                    "{{ binding_key }}",
+                {% endfor %}
+                ),
+                queue_name="{{ consumer.queue_name }}",
+                is_auto_delete_enabled=None,
+                is_exclusive=None,
+                is_durable=None,
+                prefetch_count=None,
+            ),
+        )
+        {% endfor %}
+        {% else %}
+        pass
+        {% endif %}
+
+    {% if app.consumers %}
+        {% for consumer in app.consumers|sorted("name") %}
+    @abc.abstractmethod
+    async def consume_{{ consumer.name|snake_case }}(
+            self,
+            message: {{ consumer.message.name|pascal_case }},
+    ) -> None:
+            {% if consumer.description %}
+        """{{ consumer.description }}"""
+            {% endif %}
+        raise NotImplementedError
+
+        {% endfor %}
+    {% else %}
+    pass
+
+    {% endif %}
+{% endblock %}
+{# @formatter:on #}

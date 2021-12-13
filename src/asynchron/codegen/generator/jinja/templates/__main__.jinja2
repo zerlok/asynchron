@@ -1,0 +1,42 @@
+{# @formatter:off #}
+{% extends "base/python_module.jinja2" %}
+
+{% block imports %}
+{% for import in module.imports %}
+{{ import }}
+{% endfor %}
+
+import asyncio
+
+from asynchron.amqp.connector import AmqpConnector
+from asynchron.core.amqp import AmqpServerBindings
+from asynchron.core.application import ApplicationBuilder
+from asynchron.core.controller import Runnable
+from .consumer import {{ app.name|pascal_case }}ConsumerFacade
+from .publisher import {{ app.name|pascal_case }}PublisherFacade
+{% endblock %}
+
+{% block constants %}
+builder = ApplicationBuilder()
+{% endblock %}
+
+{% block functions %}
+@builder.runnable_factory
+def startup() -> Runnable:
+    async with AmqpConnector(
+            bindings=AmqpServerBindings(connection_url="..."),
+            consumer_factory=None,
+            publisher_factory=None,
+    ) as controller:
+        publishers = {{ app.name|pascal_case }}PublisherFacade(controller)
+        consumers = {{ app.name|pascal_case }}ConsumerFacade(controller)
+
+        yield controller
+{% endblock %}
+
+{% block main %}
+if __name__ == "__main__":
+    app = builder.build()
+    asyncio.run(app.run())
+{% endblock %}
+{# @formatter:on #}

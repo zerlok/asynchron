@@ -1,0 +1,150 @@
+{
+  "asyncapi": "2.0.0",
+  "info": {
+    "description": "Temperature Readings",
+    "title": "Temperature Readings",
+    "version": "1.0.0"
+  },
+  "servers": {
+    "local-dev": {
+      "url": "amqp://localhost:5672",
+      "protocol": "amqp",
+      "description": "This is a local broker",
+      "security": [
+        {
+          "user-password": []
+        }
+      ]
+    }
+  },
+  "channels": {
+    "sensor/temperature/fahrenheit": {
+      "bindings": {
+        "amqp": {
+          "exchange": {
+            "autoDelete": true,
+            "name": "events",
+            "type": "topic",
+            "vhost": "/"
+          },
+          "is": "routingKey",
+          "queue": {
+            "autoDelete": true,
+            "name": "measures",
+            "vhost": "/"
+          }
+        }
+      },
+      "subscribe": {
+        "message": {
+          "name": "sensorReadingMessage",
+          "payload": {
+            "title": "SensorReading",
+            "type": "object",
+            "properties": {
+              "sensorId": {
+                "type": "string"
+              },
+              "temperature": {
+                "type": "number"
+              },
+              "baseUnit": {
+                "enum": [
+                  "CELSIUS",
+                  "FAHRENHEIT"
+                ]
+              }
+            }
+          }
+        },
+        "bindings": {
+          "amqp": {
+            "cc": [
+              "temperature.measured"
+            ]
+          }
+        }
+      },
+      "publish": {
+        "bindings": {
+          "amqp": {
+            "cc": [
+              "temperature.measured"
+            ]
+          }
+        },
+        "message": {
+          "name": "sensorReadingMessage",
+          "payload": {
+            "title": "SensorReading",
+            "type": "object",
+            "properties": {
+              "sensorId": {
+                "type": "string"
+              },
+              "temperature": {
+                "type": "number"
+              },
+              "baseUnit": {
+                "enum": [
+                  "CELSIUS",
+                  "FAHRENHEIT"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SensorReading": {
+        "title": "SensorReading",
+        "type": "object",
+        "properties": {
+          "sensorId": {
+            "type": "string"
+          },
+          "temperature": {
+            "type": "number"
+          },
+          "baseUnit": {
+            "enum": [
+              "CELSIUS",
+              "FAHRENHEIT"
+            ]
+          }
+        }
+      }
+    },
+    "messages": {
+      "SensorReadingMessage": {
+        "name": "sensorReadingMessage",
+        "payload": {
+          "title": "SensorReading",
+          "type": "object",
+          "properties": {
+            "sensorId": {
+              "type": "string"
+            },
+            "temperature": {
+              "type": "number"
+            },
+            "baseUnit": {
+              "enum": [
+                "CELSIUS",
+                "FAHRENHEIT"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "user-password": {
+        "type": "userPassword"
+      }
+    }
+  }
+}
