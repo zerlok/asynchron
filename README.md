@@ -1,2 +1,2 @@
 # asynchron
-Python code generator based on AsyncAPI specification
+Python service framework with code generator based on AsyncAPI specification
