@@ -33,10 +33,7 @@ jobs:
           poetry config repositories.testpypi https://test.pypi.org/legacy/
       - name: Set up PyPi token
         run: |
-          poetry config pypi-token.pypi ${{ secrets.PYPI_API_TOKEN }}
-      - name: Build Project
+          poetry config http-basic.pypi "__token__" "${{ secrets.PYPI_API_TOKEN }}"
+      - name: Build & Publish Project
         run: |
-          poetry build
-      - name: Publish Project
-        run: |
-          poetry publish -r testpypi
+          poetry publish --build -r testpypi
