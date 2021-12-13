@@ -5,51 +5,33 @@
 {% for import in module.imports %}
 {{ import }}
 {% endfor %}
-import asyncio
-import typing
 
-from asynchron.amqp.connector import AioPikaConnector
-from asynchron.amqp.controller import AioPikaBasedAmqpController
+import asyncio
+
+from asynchron.amqp.connector import AmqpConnector
 from asynchron.core.amqp import AmqpServerBindings
 from asynchron.core.application import ApplicationBuilder
-from .consumer import (
-    {{ app.name|pascal_case }}ConsumerFacade,
-    bind_{{ app.name|snake_case }}_consumers,
-)
-from .publisher import {{ app.name|pascal_case }}PublisherProvider
+from asynchron.core.controller import Runnable
+from .consumer import {{ app.name|pascal_case }}ConsumerFacade
+from .publisher import {{ app.name|pascal_case }}PublisherFacade
+{% endblock %}
+
+{% block constants %}
+builder = ApplicationBuilder()
 {% endblock %}
 
 {% block functions %}
-builder = ApplicationBuilder(bind_{{ app.name|snake_case }}_consumers)
-
-
-@builder.env_name_based_server_factory("AMQP_BROKER_URL")
-def create_server(name: typing.Optional[str]) -> AmqpServerBindings:
-    if name is None:
-        raise ValueError()
-
-    return AmqpServerBindings(connection_url=name)
-
-
 @builder.runnable_factory
-def create_controller(
-        server: AmqpServerBindings,
-) -> typing.AsyncContextManager[AioPikaBasedAmqpController]:
-    return AioPikaConnector(
-        bindings=server,
-        consumer_factory=None,
-        publisher_factory=None,
-    )
+def startup() -> Runnable:
+    async with AmqpConnector(
+            bindings=AmqpServerBindings(connection_url="..."),
+            consumer_factory=None,
+            publisher_factory=None,
+    ) as controller:
+        publishers = {{ app.name|pascal_case }}PublisherFacade(controller)
+        consumers = {{ app.name|pascal_case }}ConsumerFacade(controller)
 
-
-@builder.consumer_facade_factory
-def create_consumer_facade(
-        server: AmqpServerBindings,
-        controller: AioPikaBasedAmqpController,
-) -> {{ app.name|pascal_case }}ConsumerFacade:
-    publishers = {{ app.name|pascal_case }}PublisherProvider(controller)
-
-    return {{ app.name|pascal_case }}ConsumerFacade()
+        yield controller
 {% endblock %}
 
 {% block main %}

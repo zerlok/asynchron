@@ -25,6 +25,38 @@ class {{ app.name|pascal_case }}ConsumerFacade(metaclass=abc.ABCMeta):
     """{{ app.description }}"""
 
     {% endif %}
+    def __init__(
+            self,
+            controller: AioPikaBasedAmqpController,
+    ) -> None:
+        {% if app.consumers %}
+        {% for consumer in app.consumers|sorted("names") %}
+        controller.bind_consumer(
+            decoder=PydanticMessageSerializer(
+                model={{ consumer.message.name|pascal_case }},  # type: ignore[misc]
+            ),
+            consumer=CallableMessageConsumer(
+                consumer=self.consume_{{ consumer.name|snake_case }},
+            ),
+            bindings=AmqpConsumerBindings(
+                exchange_name="{{ consumer.exchange_name }}",
+                binding_keys=(
+                {% for binding_key in consumer.binding_keys %}
+                    "{{ binding_key }}",
+                {% endfor %}
+                ),
+                queue_name="{{ consumer.queue_name }}",
+                is_auto_delete_enabled=None,
+                is_exclusive=None,
+                is_durable=None,
+                prefetch_count=None,
+            ),
+        )
+        {% endfor %}
+        {% else %}
+        pass
+        {% endif %}
+
     {% if app.consumers %}
         {% for consumer in app.consumers|sorted("name") %}
     @abc.abstractmethod
@@ -41,41 +73,6 @@ class {{ app.name|pascal_case }}ConsumerFacade(metaclass=abc.ABCMeta):
     {% else %}
     pass
 
-    {% endif %}
-{% endblock %}
-
-{% block functions %}
-def bind_{{ app.name|snake_case }}_consumers(
-        server: AmqpServerBindings,
-        consumers: AioPikaBasedAmqpController,
-        facade: {{ app.name|pascal_case }}ConsumerFacade,
-) -> None:
-    {% if app.consumers %}
-        {% for consumer in app.consumers|sorted("names") %}
-    consumers.bind_consumer(
-        decoder=PydanticMessageSerializer(
-            model={{ consumer.message.name|pascal_case }},
-        ),
-        consumer=CallableMessageConsumer(
-            consumer=facade.consume_{{ consumer.name|snake_case }},
-        ),
-        bindings=AmqpConsumerBindings(
-            exchange_name="{{ consumer.exchange_name }}",
-            binding_keys=(
-            {% for binding_key in consumer.binding_keys %}
-                "{{ binding_key }}",
-            {% endfor %}
-            ),
-            queue_name="{{ consumer.queue_name }}",
-            is_auto_delete_enabled=None,
-            is_exclusive=None,
-            is_durable=None,
-            prefetch_count=None,
-        ),
-    )
-        {% endfor %}
-    {% else %}
-    pass
     {% endif %}
 {% endblock %}
 {# @formatter:on #}

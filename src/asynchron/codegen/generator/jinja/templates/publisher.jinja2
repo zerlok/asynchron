@@ -18,7 +18,7 @@ from .message import (
 {% endblock %}
 
 {% block classes %}
-class {{ app.name|pascal_case }}PublisherProvider:
+class {{ app.name|pascal_case }}PublisherFacade:
     {% if app.description %}
     """{{ app.description }}"""
 
@@ -27,18 +27,11 @@ class {{ app.name|pascal_case }}PublisherProvider:
             self,
             controller: AioPikaBasedAmqpController,
     ) -> None:
-        self.__controller = controller
-
-    {% if app.publishers %}
+        {% if app.publishers %}
         {% for publisher in app.publishers|sorted("name") %}
-    @abc.abstractmethod
-    def provide_{{ publisher.name|snake_case }}_publisher(
-            self,
-    ) -> MessagePublisher[{{ publisher.message.name|pascal_case }}]:
-        """{{ publisher.description }}"""
-        return self.__controller.bind_publisher(
+        self.__{{ publisher.name|snake_case }}_publisher: MessagePublisher[{{ publisher.message.name|pascal_case }}] = controller.bind_publisher(
             encoder=PydanticMessageSerializer(
-                model={{ publisher.message.name|pascal_case }},
+                model={{ publisher.message.name|pascal_case }},  # type: ignore[misc]
             ),
             bindings=AmqpPublisherBindings(
                 exchange_name="{{ publisher.exchange_name }}",
@@ -47,10 +40,22 @@ class {{ app.name|pascal_case }}PublisherProvider:
                 prefetch_count=None,
             ),
         )
+        {% endfor %}
+        {% else %}
+        pass
+        {% endif %}
+
+    {% if app.publishers %}
+        {% for publisher in app.publishers|sorted("name") %}
+    async def publish_{{ publisher.name|snake_case }}(
+            self,
+            message: {{ publisher.message.name|pascal_case }},
+    ) -> None:
+            {% if publisher.description %}
+        """{{ publisher.description }}"""
+            {% endif %}
+        await self.__{{ publisher.name|snake_case }}_publisher.publish(message)
 
         {% endfor %}
-    {% else %}
-    pass
-
     {% endif %}
 {% endblock %}

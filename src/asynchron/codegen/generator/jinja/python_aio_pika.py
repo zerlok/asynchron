@@ -92,17 +92,20 @@ class ConsumerDef:
 
 
 @dataclass(frozen=True)
-class ManagerDef:
+class PublisherDef:
     name: str
     description: t.Optional[str]
+    message: MessageDef
+    exchange_name: str
+    routing_key: str
+    is_mandatory: t.Optional[bool]
 
 
 @dataclass(frozen=True)
 class ModuleDef:
-    description: t.Optional[str]
     python_path: str
     fs_path: Path
-    aliases: t.Mapping[str, str] = field(default_factory=dict)
+    description: t.Optional[str]
     imports: t.Sequence[str] = field(default_factory=tuple)
 
 
@@ -112,8 +115,8 @@ class AppDef:
     description: t.Optional[str]
     modules: t.Mapping[str, ModuleDef]
     consumers: t.Collection[ConsumerDef]
+    publishers: t.Collection[PublisherDef]
     messages: t.Collection[MessageDef]
-    manager: ManagerDef
 
 
 @dataclass(frozen=True)
@@ -157,24 +160,19 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
         self.__renderer = renderer or JinjaTemplateRenderer(self.__JINJA_TEMPLATES_DIR)
 
     def generate(self, config: AsyncAPIObject) -> t.Iterable[t.Tuple[Path, t.Iterable[str]]]:
-        app_messages: t.List[MessageDef] = []
-        app_consumers: t.List[ConsumerDef] = []
-        for op in self.__iter_amqp_publish_operations(config):
-            consumer, messages = self.__create_consumer_def(op)
-            app_consumers.append(consumer)
-            app_messages.extend(messages)
+        messages: t.Mapping[object, MessageDef] = {
+            channel_name: message
+            for channel_name, message in self.__iter_message_defs(config)
+        }
 
         app_name = self.__normalize_name(config.info.title)
         app = AppDef(
             name=app_name,
             description=config.info.description,
             modules=self.__get_app_modules(),
-            consumers=app_consumers,
-            messages=app_messages,
-            manager=ManagerDef(
-                name=config.info.title,
-                description=config.info.description,
-            ),
+            consumers=list(self.__iter_amqp_consumer_defs(config, messages)),
+            publishers=list(self.__iter_amqp_publisher_defs(config, messages)),
+            messages=list(messages.values()),
         )
 
         for module_name, module in app.modules.items():
@@ -192,99 +190,119 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
             name: define_module(name)
             for name in (
                 "__init__",
-                "__main__",
+                # "__main__",
                 "message",
                 "consumer",
                 "publisher",
             )
         }
 
-    def __iter_amqp_publish_operations(self, config: AsyncAPIObject) -> t.Iterable[AmqpConsumerOperation]:
-        for _, channels in config.channels:
-            for channel_name, channel in channels.items():
-                publish = as_(OperationObject, channel.publish)
-                channel_bindings = as_(ChannelBindingsObject, channel.bindings)
+    def __iter_message_defs(self, config: AsyncAPIObject) -> t.Iterable[t.Tuple[str, MessageDef]]:
+        for channel_name, channel, operation in config.iter_channel_operations():
+            # TODO: support message sequence
+            message = as_(MessageObject, operation.message)
+            if message is None:
+                continue
 
-                if publish is None or channel_bindings is None:
-                    continue
+            payload = as_(SchemaObject, message.payload)
+            if payload is None:
+                continue
 
-                operation_bindings = as_(OperationBindingsObject, publish.bindings)
-                if operation_bindings is None:
-                    continue
+            properties = payload.properties
+            if properties is None:
+                continue
 
-                amqp_operation_bindings = as_(AMQPBindingTrait.AMQPOperationBindingObject, operation_bindings.amqp)
-                amqp_channel_bindings = as_(AMQPBindingTrait.AMQPChannelBindingObject, channel_bindings.amqp)
-                if amqp_operation_bindings is None or amqp_channel_bindings is None:
-                    continue
-
-                message = as_(MessageObject, publish.message)
-                messages = as_sequence(MessageObject, publish.message)
-                if message is not None:
-                    messages = (message,)
-
-                if messages is None:
-                    continue
-
-                exchange = as_(AMQPBindingTrait.AMQPChannelBindingObject.Exchange, amqp_channel_bindings.exchange)
-                queue = as_(AMQPBindingTrait.AMQPChannelBindingObject.Queue, amqp_channel_bindings.queue)
-                binding_keys = amqp_operation_bindings.cc
-                if exchange is None or queue is None or binding_keys is None:
-                    continue
-
-                queue_name = as_(str, queue.name)
-                if queue_name is None:
-                    continue
-
-                yield AmqpConsumerOperation(
-                    name=self.__normalize_name(channel_name),
-                    channel=channel,
-                    operation=publish,
-                    messages=messages,
-                    exchange_name=exchange.name,
-                    exchange_type=exchange.type_,
-                    queue_name=queue_name,
-                    binding_keys=binding_keys,
-                    channel_binding=amqp_channel_bindings,
-                    operation_binding=amqp_operation_bindings,
-                )
-
-    def __normalize_name(self, value: str) -> str:
-        # re.compile(r"[^A-Za-z0-9_]")
-        x = re.sub(r"[^A-Za-z0-9_]+", "_", value)
-        x = stringcase.snakecase(x)
-        # x = re.sub(r"([a-z][A-Z])", lambda m: "_".join(m.group(1)).lower(), x)
-        x = re.sub(r"_+", "_", x)
-        x = re.sub(r"^_?(.*?)_$", "\1", x)
-        return x
-
-    def __join_name(self, values: t.Sequence[str]) -> str:
-        return "_".join(values)
-
-    def __create_consumer_def(self, operation: AmqpConsumerOperation) -> t.Tuple[ConsumerDef, t.Sequence[MessageDef]]:
-        messages = tuple(
-            MessageDef(
-                name=self.__join_name((operation.name, self.__normalize_name(message.title or "message"))),
+            yield channel_name, MessageDef(
+                name=self.__join_name((channel_name, message.title or "message")),
                 description=message.description,
                 fields={
                     self.__normalize_name(name): self.__get_field_def(
                         schema=schema,
                         alias=name,
-                        is_optional=not message.required or name in message.required,
+                        is_optional=not payload.required or name not in payload.required,
                     )
                     for name, schema in properties.items()
                 },
             )
-            for message, properties in self.__split_on_messages(operation.messages)
-        )
 
-        return ConsumerDef(
-            name=operation.name,
-            description=operation.channel.description,
-            exchange_name=operation.exchange_name,
-            queue_name=operation.queue_name,
-            binding_keys=operation.binding_keys,
-            message=messages[0],
-        ), messages
+    def __iter_amqp_operations(
+            self,
+            operations: t.Iterable[t.Tuple[str, ChannelItemObject, OperationObject]],
+    ) -> t.Iterable[t.Tuple[str, ChannelItemObject, OperationObject, AMQPBindingTrait.AMQPChannelBindingObject,
+                            AMQPBindingTrait.AMQPOperationBindingObject]]:
+        for channel_name, channel, operation in operations:
+            channel_bindings = as_(ChannelBindingsObject, channel.bindings)
+            if channel_bindings is None:
+                continue
+
+            operation_bindings = as_(OperationBindingsObject, operation.bindings)
+            if operation_bindings is None:
+                continue
+
+            amqp_channel_bindings = as_(AMQPBindingTrait.AMQPChannelBindingObject, channel_bindings.amqp)
+            amqp_operation_bindings = as_(AMQPBindingTrait.AMQPOperationBindingObject, operation_bindings.amqp)
+            if amqp_channel_bindings is None or amqp_operation_bindings is None:
+                continue
+
+            yield channel_name, channel, operation, amqp_channel_bindings, amqp_operation_bindings
+
+    def __iter_amqp_consumer_defs(
+            self,
+            config: AsyncAPIObject,
+            messages: t.Mapping[object, MessageDef],
+    ) -> t.Iterable[ConsumerDef]:
+        publishes = self.__iter_amqp_operations(config.iter_channel_publish_operations())
+
+        for channel_name, channel, publish, channel_bindings, operation_bindings in publishes:
+            exchange = as_(AMQPBindingTrait.AMQPChannelBindingObject.Exchange, channel_bindings.exchange)
+            queue = as_(AMQPBindingTrait.AMQPChannelBindingObject.Queue, channel_bindings.queue)
+            binding_keys = operation_bindings.cc
+            if exchange is None or queue is None or binding_keys is None:
+                continue
+
+            yield ConsumerDef(
+                name=self.__normalize_name(channel_name),
+                description=channel.description,
+                exchange_name=exchange.name,
+                queue_name=queue.name,
+                binding_keys=binding_keys,
+                message=messages[channel_name],
+            )
+
+    def __iter_amqp_publisher_defs(
+            self,
+            config: AsyncAPIObject,
+            messages: t.Mapping[object, MessageDef],
+    ) -> t.Iterable[PublisherDef]:
+        subscribes = self.__iter_amqp_operations(config.iter_channel_subscribe_operations())
+
+        for channel_name, channel, subscribe, channel_bindings, operation_bindings in subscribes:
+            exchange = as_(AMQPBindingTrait.AMQPChannelBindingObject.Exchange, channel_bindings.exchange)
+
+            binding_keys = operation_bindings.cc or []
+            routing_key = binding_keys[0] if len(binding_keys) == 1 else None
+
+            if exchange is None or routing_key is None:
+                continue
+
+            yield PublisherDef(
+                name=self.__normalize_name(channel_name),
+                description=channel.description,
+                exchange_name=exchange.name,
+                routing_key=routing_key,
+                message=messages[channel_name],
+                is_mandatory=operation_bindings.mandatory,
+            )
+
+    def __normalize_name(self, value: str) -> str:
+        x = re.sub(r"[^A-Za-z0-9_]+", "_", value)
+        x = stringcase.snakecase(x)
+        x = re.sub(r"_+", "_", x)
+        x = re.sub(r"^_?(.*?)_$", "\1", x)
+        return x
+
+    def __join_name(self, values: t.Sequence[str]) -> str:
+        return "_".join((self.__normalize_name(v) for v in values))
 
     def __split_on_messages(
             self,

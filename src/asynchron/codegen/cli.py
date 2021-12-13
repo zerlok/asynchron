@@ -98,17 +98,9 @@ class CLIContainer(DeclarativeContainer):
         settings=config_viewer_settings.provided,
     )
 
-    code_generator_project_name = Provider[str]()
-    code_generator_project_author = Callable(getuser)
-    code_generator_meta_info = Singleton(
-        AsyncApiCodeGeneratorMetaInfo,
-        generator_name="asynchron",
-        generator_link="https://github.com/zerlok/asynchron",
-        generator_started_at=now.provided,
-        config_path=config_path.provided,
-        project_name=code_generator_project_name.provided,
-        author=code_generator_project_author.provided,
-    )
+    # code_generator_project_name = Provider[str]()
+    # code_generator_project_author = Callable(getuser)
+    code_generator_meta_info = Provider[AsyncApiCodeGeneratorMetaInfo]()
     code_generator_impl: MappingValueSelector[str, AsyncApiCodeGenerator] = MappingValueSelector(
         {
             "python-aio-pika": Singleton(
@@ -176,10 +168,32 @@ def get_config(container: CLIContainer, pretty: bool, show_null: bool) -> None:
 @click.option("-p", "--project", type=str, default=Path.cwd().stem, )
 @click.option("-o", "--output-dir", type=click.Path(exists=False, path_type=Path), default=Path.cwd(), )
 @click.option("-d", "--dry-run", is_flag=True, default=False)
+@click.option("--enable-meta/--disable-meta", is_flag=True, default=True)
+@click.option("--allow-formatter/--ignore-formatter", is_flag=True, default=False)
+@click.option("--use-absolute-imports/--use-relative-imports", is_flag=True, default=True)
 @click.pass_obj
-def generate_code(container: CLIContainer, format: str, project: str, output_dir: Path, dry_run: bool) -> None:
+def generate_code(
+        container: CLIContainer,
+        format: str,
+        project: str,
+        output_dir: Path,
+        dry_run: bool,
+        enable_meta: bool,
+        allow_formatter: bool,
+        use_absolute_imports: bool,
+) -> None:
+    container.code_generator_meta_info.override(Object(AsyncApiCodeGeneratorMetaInfo(
+        generator_name="asynchron",
+        generator_link="https://github.com/zerlok/asynchron",
+        generator_started_at=container.now(),
+        config_path=container.config_path(),
+        project_name=project,
+        author=getuser(),
+        enable_meta_doc=enable_meta,
+        ignore_formatter=not allow_formatter,
+        use_absolute_imports=use_absolute_imports,
+    )))
     container.code_generator_format.override(Object(format))
-    container.code_generator_project_name.override(Object(project))
     container.code_writer_target_dir.override(Object(output_dir))
     container.code_writer_dry_run.override(Object(dry_run))
 

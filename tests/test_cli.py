@@ -97,10 +97,9 @@ class ConfigCases:
             config_json = json.load(fd)
 
         files = {
-            path: file_loader(path)
+            Path(path.parts[-1]): file_loader(path)
             for path in (
                 root / "generated" / "__init__.py",
-                root / "generated" / "__main__.py",
                 root / "generated" / "consumer.py",
                 root / "generated" / "message.py",
                 root / "generated" / "publisher.py",
@@ -177,6 +176,7 @@ class CliCases:
                 ),
                 args=(
                     "-f", str(config_path), "generate", "python-aio-pika", "-o", str(target_dir), "-p", project_name,
+                    "--disable-meta", "--ignore-formatter", "--use-relative-imports",
                 ),
             ),
             CliOutput(
@@ -206,17 +206,18 @@ def test_cli_output(
 
     assert result.stdout[:-1] == output.stdout
 
+
 # FIXME: fix code gen (clean output format)
-# @parametrize_with_cases(("input", "output",), (CliCases,), )
-# def test_cli_fs_changes(
-#         cli_runner: t.Callable[[CliInput], Result],
-#         input: CliInput,
-#         output: CliOutput,
-#         target_dir: Path,
-#         dir_files_loader: t.Callable[[Path], t.Mapping[Path, t.Sequence[str]]],
-# ) -> None:
-#     assert not dir_files_loader(target_dir)
-#
-#     cli_runner(input)
-#
-#     assert dir_files_loader(target_dir) == output.files_content
+@parametrize_with_cases(("input", "output",), (CliCases,), )
+def test_cli_fs_changes(
+        cli_runner: t.Callable[[CliInput], Result],
+        input: CliInput,
+        output: CliOutput,
+        target_dir: Path,
+        dir_files_loader: t.Callable[[Path], t.Mapping[Path, t.Sequence[str]]],
+) -> None:
+    assert not dir_files_loader(target_dir)
+
+    cli_runner(input)
+
+    assert dir_files_loader(target_dir) == output.files_content

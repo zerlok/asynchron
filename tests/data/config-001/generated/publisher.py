@@ -1,27 +1,26 @@
+# @formatter:off
 from asynchron.amqp.controller import AioPikaBasedAmqpController
 from asynchron.amqp.serializer.pydantic import PydanticMessageSerializer
 from asynchron.core.amqp import AmqpPublisherBindings
 from asynchron.core.publisher import MessagePublisher
+
 from .message import (
-    SensorTemperatureFahrenheitSensorReading,
+    SensorTemperatureFahrenheitMessage,
 )
 
 
-class TemperatureReadingsPublisherProvider:
+
+
+class TemperatureReadingsPublisherFacade:
     """Temperature Readings"""
 
     def __init__(
             self,
             controller: AioPikaBasedAmqpController,
     ) -> None:
-        self.__controller = controller
-
-    def provide_sensor_temperature_fahrenheit_publisher(
-            self,
-    ) -> MessagePublisher[SensorTemperatureFahrenheitSensorReading]:
-        return self.__controller.bind_publisher(
+        self.__sensor_temperature_fahrenheit_publisher: MessagePublisher[SensorTemperatureFahrenheitMessage] = controller.bind_publisher(
             encoder=PydanticMessageSerializer(
-                model=SensorTemperatureFahrenheitSensorReading,
+                model=SensorTemperatureFahrenheitMessage,  # type: ignore[misc]
             ),
             bindings=AmqpPublisherBindings(
                 exchange_name="events",
@@ -30,3 +29,17 @@ class TemperatureReadingsPublisherProvider:
                 prefetch_count=None,
             ),
         )
+
+    async def publish_sensor_temperature_fahrenheit(
+            self,
+            message: SensorTemperatureFahrenheitMessage,
+    ) -> None:
+        await self.__sensor_temperature_fahrenheit_publisher.publish(message)
+
+
+
+
+
+
+
+# @formatter:on

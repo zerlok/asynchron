@@ -6,6 +6,7 @@ import typing as t
 
 import aio_pika
 
+from asynchron.amqp.connector import AmqpConnector
 from asynchron.amqp.publisher.exchange import ExchangeMessagePublisher
 from asynchron.core.amqp import AmqpConsumerBindings, AmqpPublisherBindings
 from asynchron.core.consumer import (
@@ -30,13 +31,8 @@ T_co = t.TypeVar("T_co", covariant=True)
 class AioPikaBasedAmqpController(
     Controller[aio_pika.IncomingMessage, AmqpConsumerBindings, aio_pika.Message, AmqpPublisherBindings],
 ):
-    class DefaultConsumerFactory(
-        MessageConsumerFactory[MessageConsumer[aio_pika.IncomingMessage], aio_pika.IncomingMessage],
-    ):
-        def create_consumer(
-                self,
-                settings: MessageConsumer[aio_pika.IncomingMessage],
-        ) -> MessageConsumer[aio_pika.IncomingMessage]:
+    class DefaultConsumerFactory(MessageConsumerFactory[MessageConsumer[T], T]):
+        def create_consumer(self, settings: MessageConsumer[T]) -> MessageConsumer[T]:
             return settings
 
     class DefaultPublisherFactory(MessagePublisherFactory[MessagePublisher[T], T]):
@@ -45,20 +41,16 @@ class AioPikaBasedAmqpController(
 
     def __init__(
             self,
-            connection: aio_pika.Connection,
-            consumer_factory: t.Optional[MessageConsumerFactory[
-                MessageConsumer[aio_pika.IncomingMessage],
-                aio_pika.IncomingMessage,
-            ]] = None,
-            publisher_factory: t.Optional[MessagePublisherFactory[
-                MessagePublisher[T],
-                T,
-            ]] = None,
+            connector: AmqpConnector,
+            consumer_factory: t.Optional[MessageConsumerFactory[MessageConsumer[T], T]] = None,
+            publisher_factory: t.Optional[MessagePublisherFactory[MessagePublisher[T], T]] = None,
             default_mandatory: bool = True,
     ) -> None:
-        self.__connection = connection
-        self.__consumer_factory = consumer_factory or self.DefaultConsumerFactory()
-        self.__publisher_factory = publisher_factory or self.DefaultPublisherFactory()
+        self.__connector = connector
+        self.__consumer_factory: MessageConsumerFactory[MessageConsumer[T], T] \
+            = consumer_factory or self.DefaultConsumerFactory()
+        self.__publisher_factory: MessagePublisherFactory[MessagePublisher[T], T] \
+            = publisher_factory or self.DefaultPublisherFactory()
 
         self.__default_mandatory = default_mandatory
 
@@ -72,14 +64,12 @@ class AioPikaBasedAmqpController(
             consumer: MessageConsumer[T],
             bindings: AmqpConsumerBindings,
     ) -> MessageConsumer[aio_pika.IncomingMessage]:
-        bind_consumer = self.__consumer_factory.create_consumer(DecodedMessageConsumer(
+        result = self.__declared_consumers[bindings] = DecodedMessageConsumer(
             decoder=decoder,
-            consumer=consumer,
-        ))
+            consumer=self.__consumer_factory.create_consumer(consumer),
+        )
 
-        self.__declared_consumers[bindings] = bind_consumer
-
-        return bind_consumer
+        return result
 
     def bind_publisher(
             self,
@@ -90,34 +80,31 @@ class AioPikaBasedAmqpController(
             ExchangeMessagePublisher(bindings.routing_key,
                                      get_or_default(bindings.is_mandatory, self.__default_mandatory))
 
-        bind_publisher = self.__publisher_factory.create_publisher(EncodedMessagePublisher(
+        return self.__publisher_factory.create_publisher(EncodedMessagePublisher(
             encoder=encoder,
             publisher=exchange,
         ))
 
-        return bind_publisher
-
     async def start(self) -> None:
         for publisher_bindings, publisher in self.__declared_publishers.items():
-            channel = t.cast(aio_pika.Channel, await self.__connection.channel())
-            await channel.set_qos(prefetch_count=publisher_bindings.prefetch_count or 0)  # type: ignore[misc]
-
-            exchange = await channel.declare_exchange(publisher_bindings.exchange_name, publisher_bindings.exchange_type or "direct")
+            _, exchange = await self.__connector.create_exchange(
+                exchange_name=publisher_bindings.exchange_name,
+                exchange_type=publisher_bindings.exchange_type,
+                prefetch_count=publisher_bindings.prefetch_count,
+            )
             publisher.attach(exchange)
 
         for consumer_bindings, consumer in self.__declared_consumers.items():
-            channel = t.cast(aio_pika.Channel, await self.__connection.channel())
-            await channel.set_qos(prefetch_count=consumer_bindings.prefetch_count or 0)  # type: ignore[misc]
-
-            exchange = await channel.declare_exchange(consumer_bindings.exchange_name, consumer_bindings.exchange_type or "direct")
-            queue = await channel.declare_queue(consumer_bindings.queue_name or "")
-
-            for binding_key in consumer_bindings.binding_keys:
-                await queue.bind(exchange, binding_key)  # type: ignore[misc]
-
-            consumer_tag = await queue.consume(consumer.consume)
+            _, queue, consumer_tag = await self.__connector.create_consumer(
+                consumer=consumer.consume,
+                binding_keys=consumer_bindings.binding_keys,
+                exchange_name=consumer_bindings.exchange_name,
+                exchange_type=consumer_bindings.exchange_type,
+                queue_name=consumer_bindings.queue_name,
+                prefetch_count=consumer_bindings.prefetch_count,
+            )
             self.__consumer_tags[consumer_tag] = queue
 
     async def stop(self) -> None:
         for consumer_tag, queue in self.__consumer_tags.items():
-            await queue.cancel(consumer_tag)  # type: ignore[misc]
+            await self.__connector.remove_consumer(queue, consumer_tag)

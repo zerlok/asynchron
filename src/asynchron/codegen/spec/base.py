@@ -54,6 +54,8 @@ import typing as t
 
 from pydantic import AnyUrl, BaseModel, Field, HttpUrl
 
+from asynchron.strict_typing import as_
+
 T = t.TypeVar("T")
 T_co = t.TypeVar("T_co", covariant=True)
 
@@ -1353,6 +1355,29 @@ class AsyncAPIObject(_WithTagsField, _WithExternalDocsField, _WithSpecificationE
 
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
         return visitor.visit_async_api_object(self)
+
+    def iter_channels(self) -> t.Iterable[t.Tuple[str, ChannelItemObject]]:
+        for _, channels in self.channels:
+            for channel_name, channel in channels.items():
+                yield channel_name, channel
+
+    def iter_channel_publish_operations(self) -> t.Iterable[t.Tuple[str, ChannelItemObject, OperationObject]]:
+        for channel_name, channel in self.iter_channels():
+            if operation := as_(OperationObject, channel.publish):
+                yield channel_name, channel, operation
+
+    def iter_channel_subscribe_operations(self) -> t.Iterable[t.Tuple[str, ChannelItemObject, OperationObject]]:
+        for channel_name, channel in self.iter_channels():
+            if operation := as_(OperationObject, channel.subscribe):
+                yield channel_name, channel, operation
+
+    def iter_channel_operations(self) -> t.Iterable[t.Tuple[str, ChannelItemObject, OperationObject]]:
+        for channel_name, channel in self.iter_channels():
+            if operation := as_(OperationObject, channel.publish):
+                yield channel_name, channel, operation
+
+            if operation := as_(OperationObject, channel.subscribe):
+                yield channel_name, channel, operation
 
 
 # TODO: add string type and visit it

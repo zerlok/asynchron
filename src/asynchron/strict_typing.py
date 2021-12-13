@@ -2,6 +2,7 @@ __all__ = (
     "as_",
     "as_sequence",
     "as_mapping",
+    "as_async_context_manager",
     "get_or_default",
     "raise_not_exhaustive",
     "gather",
@@ -10,12 +11,16 @@ __all__ = (
 )
 
 import asyncio
+import functools as ft
+import inspect
 import typing as t
+from contextlib import asynccontextmanager
 
 T = t.TypeVar("T")
 K = t.TypeVar("K")
 V = t.TypeVar("V")
 F = t.TypeVar("F", bound=t.Callable[..., t.Optional[object]])  # type: ignore[misc]
+F0 = t.TypeVar("F0", bound=t.Callable[[], t.Optional[object]])
 
 
 def as_(type_: t.Type[T], obj: object) -> t.Optional[T]:
@@ -38,6 +43,53 @@ def as_mapping(key: t.Type[K], value: t.Type[V], obj: object) -> t.Optional[t.Ma
         return None
 
     return t.cast(t.Mapping[K, V], obj)
+
+
+def as_async_context_manager(type_: t.Type[T], func: object) -> t.Optional[t.AsyncContextManager[T]]:
+    if inspect.isasyncgenfunction(func):
+        asyncgen_func = asynccontextmanager(
+            t.cast(t.Callable[..., t.AsyncIterator[object]], func))  # type: ignore[misc]
+
+        @asynccontextmanager  # type: ignore[misc]
+        @ft.wraps(asyncgen_func)  # type: ignore[misc]
+        async def async_gen_func_wrapper(*args: object, **kwargs: object) -> t.AsyncIterator[T]:  # type: ignore[misc]
+            async with asyncgen_func(*args, **kwargs) as value:
+                if not isinstance(value, type_):
+                    raise ValueError()
+
+                yield value
+
+        return t.cast(t.AsyncContextManager[T], async_gen_func_wrapper)
+
+    if inspect.iscoroutinefunction(func):
+        coroutine_func = t.cast(t.Callable[..., t.Awaitable[object]], func)  # type: ignore[misc]
+
+        @asynccontextmanager  # type: ignore[misc]
+        @ft.wraps(coroutine_func)  # type: ignore[misc]
+        async def coroutine_func_wrapper(*args: object, **kwargs: object) -> t.AsyncIterator[T]:  # type: ignore[misc]
+            value = await coroutine_func(*args, **kwargs)
+            if not isinstance(value, type_):
+                raise ValueError()
+
+            yield value
+
+        return t.cast(t.AsyncContextManager[T], coroutine_func_wrapper)
+
+    if inspect.isfunction(func):
+        sync_func = t.cast(t.Callable[..., object], func)  # type: ignore[misc]
+
+        @asynccontextmanager  # type: ignore[misc]
+        @ft.wraps(sync_func)  # type: ignore[misc]
+        async def sync_func_wrapper(*args: object, **kwargs: object) -> t.AsyncIterator[T]:  # type: ignore[misc]
+            value = sync_func(*args, **kwargs)
+            if not isinstance(value, type_):
+                raise ValueError()
+
+            yield value
+
+        return t.cast(t.AsyncContextManager[T], sync_func_wrapper)
+
+    return None
 
 
 def get_or_default(value: t.Optional[T], default: T) -> T:

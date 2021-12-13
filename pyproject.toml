@@ -87,7 +87,7 @@ show_error_codes = true
 pretty = true
 
 warn_unused_configs = true
-exclude = "tests/data.*"
+#exclude = "tests/data.*"
 
 [[tool.mypy.overrides]]
 module = ["asynchron.providers"]
