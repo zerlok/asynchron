@@ -14,6 +14,7 @@ from asynchron.codegen.spec.visitor.referenced_descendants import (
     ReferencedSpecObject,
 )
 from asynchron.codegen.spec.walker.bfs_path import BFSPathWalker
+from asynchron.strict_typing import as_
 
 JsonReference = t.NewType("JsonReference", str)
 JsonPath = t.Sequence[t.Union[int, str]]
@@ -70,8 +71,8 @@ class ReferenceResolvingAsyncAPIObjectTransformer(AsyncApiConfigTransformer):
             value = path.value.value
             # FIXME: mypy can't infer the type of `value`
             #  error: Expression type contains "Any" (has type "Type[ReferenceObject]")  [misc]
-            if isinstance(value, ReferenceObject):  # type: ignore[misc]
-                yield JsonReference(value.ref), tuple(it.chain.from_iterable(part.ref for part in path.parts))
+            if ref_obj := as_(ReferenceObject, value):  # type: ignore[misc]
+                yield JsonReference(ref_obj.ref), tuple(it.chain.from_iterable(part.ref for part in path.parts))
 
     def __assign_json_value(self, cfg_json: JsonSerializable, json_path: JsonPath, value: JsonSerializable) -> None:
         target = cfg_json

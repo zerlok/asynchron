@@ -68,11 +68,11 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
     def visit_schema_object(self, obj: SchemaObject) -> t.Sequence[ReferencedSpecObject]:
         return _ReferencedSpecObjectListBuilder() \
             .add(("items",), obj.items) \
-            .add(("additional_properties",), obj.additional_properties) \
-            .add(("pattern_properties",), obj.pattern_properties) \
-            .add(("one_of",), obj.one_of) \
-            .add(("any_of",), obj.any_of) \
-            .add(("all_of",), obj.all_of) \
+            .add(("additionalProperties",), obj.additional_properties) \
+            .add(("patternProperties",), obj.pattern_properties) \
+            .add(("oneOf",), obj.one_of) \
+            .add(("anyOf",), obj.any_of) \
+            .add(("allOf",), obj.all_of) \
             .add(("properties",), obj.properties)
 
     def visit_external_documentation_object(

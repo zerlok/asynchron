@@ -255,10 +255,11 @@ class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
     # Implementation was adapted from
     # https://github.com/koxudaxi/datamodel-code-generator/blob/513988f6391497b3c272801cd0f52941ec0178cb/datamodel_code_generator/parser/jsonschema.py#L115
 
-    items: t.Optional[t.Union["SchemaObject", t.Sequence["SchemaObject"]]] = Field(
-        default=None,
-        alias="items",
-    )
+    items: t.Optional[t.Union[ReferenceObject, "SchemaObject", t.Sequence[t.Union[ReferenceObject, "SchemaObject"]]]] \
+        = Field(
+            default=None,
+            alias="items",
+        )
     unique_items: t.Optional[bool] = Field(
         default=None,
         alias="uniqueItems",
@@ -311,23 +312,23 @@ class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
         default=None,
         alias="exclusiveMinimum",
     )
-    additional_properties: t.Optional[t.Union["SchemaObject", bool]] = Field(
+    additional_properties: t.Optional[t.Union[ReferenceObject, "SchemaObject", bool]] = Field(
         default=None,
         alias="additionalProperties",
     )
-    pattern_properties: t.Optional[t.Mapping[str, "SchemaObject"]] = Field(
+    pattern_properties: t.Optional[t.Mapping[str, t.Union[ReferenceObject, "SchemaObject"]]] = Field(
         default=None,
         alias="patternProperties",
     )
-    one_of: t.Optional[t.Sequence["SchemaObject"]] = Field(
+    one_of: t.Optional[t.Sequence[t.Union[ReferenceObject, "SchemaObject"]]] = Field(
         default=None,
         alias="oneOf",
     )
-    any_of: t.Optional[t.Sequence["SchemaObject"]] = Field(
+    any_of: t.Optional[t.Sequence[t.Union[ReferenceObject, "SchemaObject"]]] = Field(
         default=None,
         alias="anyOf",
     )
-    all_of: t.Optional[t.Sequence["SchemaObject"]] = Field(
+    all_of: t.Optional[t.Sequence[t.Union[ReferenceObject, "SchemaObject"]]] = Field(
         default=None,
         alias="allOf",
     )
@@ -339,7 +340,7 @@ class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
         default=None,
         alias="writeOnly",
     )
-    properties: t.Optional[t.Mapping[str, "SchemaObject"]] = Field(
+    properties: t.Optional[t.Mapping[str, t.Union[ReferenceObject, "SchemaObject"]]] = Field(
         default=None,
         alias="properties",
     )
@@ -370,10 +371,6 @@ class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
     default: t.Optional[t.Any] = Field(
         default=None,
         alias="default",
-    )
-    ref: t.Optional[str] = Field(
-        alias="$ref",
-        regex=r"^#\S+$",
     )
     schema_: t.Optional[AnyUrl] = Field(
         default=None,
