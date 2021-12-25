@@ -12,8 +12,8 @@ from asynchron.amqp.connector import AmqpConnector
 from asynchron.core.amqp import AmqpServerBindings
 from asynchron.core.application import ApplicationBuilder
 from asynchron.core.controller import Runnable
-from .consumer import {{ app.name|pascal_case }}ConsumerFacade
-from .publisher import {{ app.name|pascal_case }}PublisherFacade
+from .consumer import {{ app.name|pascalcase }}ConsumerFacade
+from .publisher import {{ app.name|pascalcase }}PublisherFacade
 {% endblock %}
 
 {% block constants %}
@@ -28,8 +28,8 @@ def startup() -> Runnable:
             consumer_factory=None,
             publisher_factory=None,
     ) as controller:
-        publishers = {{ app.name|pascal_case }}PublisherFacade(controller)
-        consumers = {{ app.name|pascal_case }}ConsumerFacade(controller)
+        publishers = {{ app.name|pascalcase }}PublisherFacade(controller)
+        consumers = {{ app.name|pascalcase }}ConsumerFacade(controller)
 
         yield controller
 {% endblock %}

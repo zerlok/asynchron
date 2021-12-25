@@ -14,13 +14,13 @@ from asynchron.core.consumer import CallableMessageConsumer
 
 from .message import (
     {% for message in app.messages|sorted(attribute="name") %}
-    {{ message.name|pascal_case }},
+    {{ message.name|pascalcase }},
     {% endfor %}
 )
 {% endblock %}
 
 {% block classes %}
-class {{ app.name|pascal_case }}ConsumerFacade(metaclass=abc.ABCMeta):
+class {{ app.name|pascalcase }}ConsumerFacade(metaclass=abc.ABCMeta):
     {% if app.description %}
     """{{ app.description }}"""
 
@@ -33,10 +33,10 @@ class {{ app.name|pascal_case }}ConsumerFacade(metaclass=abc.ABCMeta):
         {% for consumer in app.consumers|sorted("names") %}
         controller.bind_consumer(
             decoder=PydanticMessageSerializer(
-                model={{ consumer.message.name|pascal_case }},  # type: ignore[misc]
+                model={{ consumer.message.name|pascalcase }},  # type: ignore[misc]
             ),
             consumer=CallableMessageConsumer(
-                consumer=self.consume_{{ consumer.name|snake_case }},
+                consumer=self.consume_{{ consumer.name|snakecase }},
             ),
             bindings=AmqpConsumerBindings(
                 exchange_name="{{ consumer.exchange_name }}",
@@ -60,9 +60,9 @@ class {{ app.name|pascal_case }}ConsumerFacade(metaclass=abc.ABCMeta):
     {% if app.consumers %}
         {% for consumer in app.consumers|sorted("name") %}
     @abc.abstractmethod
-    async def consume_{{ consumer.name|snake_case }}(
+    async def consume_{{ consumer.name|snakecase }}(
             self,
-            message: {{ consumer.message.name|pascal_case }},
+            message: {{ consumer.message.name|pascalcase }},
     ) -> None:
             {% if consumer.description %}
         """{{ consumer.description }}"""

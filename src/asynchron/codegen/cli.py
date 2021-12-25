@@ -25,7 +25,8 @@ from asynchron.codegen.spec.base import AsyncAPIObject
 from asynchron.codegen.spec.reader.json import JsonAsyncApiConfigReader
 from asynchron.codegen.spec.reader.transformer import AsyncApiConfigTransformingConfigReader
 from asynchron.codegen.spec.reader.yaml import YamlAsyncApiConfigReader
-from asynchron.codegen.spec.transformer.reference_resolver import ReferenceResolvingAsyncAPIObjectTransformer
+from asynchron.codegen.spec.transformer.json_reference_resolver import JsonReferenceResolvingTransformer
+from asynchron.codegen.spec.transformer.schema_object_title_normalizer import SchemaObjectTitleNormalizingTransformer
 from asynchron.codegen.spec.viewer.settings import AsyncApiConfigViewSettings
 from asynchron.codegen.spec.viewer.stream import AsyncApiStreamConfigViewer
 from asynchron.codegen.writer.file_system import AsyncApiFileSystemContentWriter
@@ -41,7 +42,8 @@ def _create_config_normalizers(
         *normalizers: AsyncApiConfigTransformer,
 ) -> t.Sequence[AsyncApiConfigTransformer]:
     return (
-        ReferenceResolvingAsyncAPIObjectTransformer(),
+        JsonReferenceResolvingTransformer(),
+        SchemaObjectTitleNormalizingTransformer(),
         *normalizers,
     )
 
@@ -61,7 +63,7 @@ class CLIContainer(DeclarativeContainer):
         name="stdout",
     )
 
-    click_context = Provider[click.Context]()
+    click_context = Callable(click.Context, command=click.Command(None))
     config_path = Provider[Path]()
     code_generator_format = Provider[str]()
     config_viewer_settings = Provider[AsyncApiConfigViewSettings]()

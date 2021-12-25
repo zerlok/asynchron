@@ -2,18 +2,18 @@
 {% extends "base/python_module.jinja2" %}
 
 {% macro render_python_type(type) -%}
-    {{ type.name }}
-    {%- if type.nested -%}
+    {{ type.path|join(".") }}
+    {%- if type.type_parameters -%}
         [
-        {%- for t in type.nested -%}
-            {{ render_python_type(t) }}
+        {%- for type_parameter in type.type_parameters -%}
+            {{ render_python_type(type_parameter) }}
             {%- if not loop.last %}, {% endif -%}
         {%- endfor -%}
         ]
     {%- endif -%}
 {%- endmacro %}
 
-{% macro render_pydantic_field(field) -%}
+{% macro render_field_info(field) -%}
     {%- if field.default
                 or field.alias
                 or field.title
@@ -84,27 +84,45 @@
     {%- endif %}
 {%- endmacro %}
 
+
+{% macro render_python_class_bases(bases) -%}
+    {% if bases -%}
+        (
+        {%- for base in bases -%}
+            {{ render_python_type(base) }}
+            {%- if not loop.last %}, {% endif -%}
+        {%- endfor -%}
+        )
+    {%- endif %}
+{%- endmacro %}
+
 {% block imports %}
-import typing
-
-{% for import in module.imports %}
-{{ import }}
-{% endfor %}
-
-from pydantic import BaseModel, Field
+    {% for import in imports|unique %}
+        {% if import.module_path|first != "builtins" %}
+            {% if import.path %}
+from {{ import.module_path|join(".") }} import {{ import.path|join(".") }}
+            {% else %}
+import {{ import.module_path|join(".") }}
+            {% endif %}
+        {% endif %}
+    {% endfor %}
 {% endblock %}
 
 {% block classes %}
-    {% for message in app.messages|sorted("name") %}
-class {{ message.name|pascal_case }}(BaseModel):
-        {% if message.descrition %}"""{{ message.description }}"""{% endif %}
+    {% for message in messages %}
+class {{ message.path|pascalcase|join("") }}{{ render_python_class_bases(message.bases) }}:
+        {% if message.descrition %}
+        """{{ message.description }}"""
+        {% endif %}
         {% if message.fields %}
-            {% for field_name, field in message.fields|items_sorted_by_keys %}
-    {{ field_name|snake_case }}: {{ render_python_type(field.type_) }} = {{ render_pydantic_field(field.info) }}
+            {% for field in message.fields|sorted(attribute="name") %}
+    {{ field.name|snakecase }}: {{ render_python_type(field.of_type) }} = {{ render_field_info(field.info) }}
             {% endfor %}
         {% else %}
     pass
         {% endif %}
+
+
     {% endfor %}
 {% endblock %}
 {# @formatter:on #}

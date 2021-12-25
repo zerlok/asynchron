@@ -60,6 +60,11 @@ T = t.TypeVar("T")
 T_co = t.TypeVar("T_co", covariant=True)
 
 
+class _BaseModel(BaseModel):
+    class Config:
+        allow_mutation = False
+
+
 class SpecObject(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
@@ -181,7 +186,7 @@ SecuritySchemeType = t.Literal["userPassword", "apiKey", "X509", "symmetricEncry
                                "gssapi"]
 
 
-class ReferenceObject(SpecObject, BaseModel):
+class ReferenceObject(SpecObject, _BaseModel):
     """
     A simple object to allow referencing other components in the specification, internally and externally. The
     Reference Object is defined by <a href="https://tools.ietf.org/html/draft-pbryan-zyp-json-ref-03">JSON
@@ -218,7 +223,7 @@ class SpecificationExtensionKey(StringRegexValidator, pattern=re.compile(r"^x-[A
     pass
 
 
-class _WithSpecificationExtension(BaseModel):
+class _WithSpecificationExtension(_BaseModel):
     """
     https://www.asyncapi.com/docs/specifications/v2.2.0#specificationExtensions
     """
@@ -230,7 +235,7 @@ class _WithSpecificationExtension(BaseModel):
     #     extra = Extra.allow
 
 
-class _WithDescriptionField(BaseModel):
+class _WithDescriptionField(_BaseModel):
     description: t.Optional[str] = Field(
         description="""A short description of the application. <a href="https://spec.commonmark.org/">CommonMark 
         syntax</a> can be used for rich text representation.""",
@@ -240,7 +245,7 @@ class _WithDescriptionField(BaseModel):
 SchemaObjectType = t.Literal["null", "boolean", "number", "string", "array", "object", "integer"]
 
 
-class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObject, BaseModel):
+class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObject, _BaseModel):
     """
     The Schema Object allows the definition of input and output data types. These types can be objects,
     but also primitives and arrays. This object is a superset of the JSON Schema Specification Draft 07. The empty
@@ -257,9 +262,9 @@ class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
 
     items: t.Optional[t.Union[ReferenceObject, "SchemaObject", t.Sequence[t.Union[ReferenceObject, "SchemaObject"]]]] \
         = Field(
-            default=None,
-            alias="items",
-        )
+        default=None,
+        alias="items",
+    )
     unique_items: t.Optional[bool] = Field(
         default=None,
         alias="uniqueItems",
@@ -332,7 +337,7 @@ class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
         default=None,
         alias="allOf",
     )
-    enum: t.Optional[t.Sequence[t.Union[int, str]]] = Field(
+    enum: t.Optional[t.Sequence[t.Union[ReferenceObject, "SchemaObject", t.Any]]] = Field(
         default=None,
         alias="enum",
     )
@@ -390,7 +395,7 @@ class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
 SchemaObject.update_forward_refs()
 
 
-class _WithBindingVersion(BaseModel):
+class _WithBindingVersion(_BaseModel):
     binding_version: t.Optional[str] = Field(
         alias="bindingVersion",
         description="""The version of this binding. If omitted, "latest" MUST be assumed.""",
@@ -402,15 +407,15 @@ class HTTPBindingTrait:
     https://github.com/asyncapi/bindings/blob/master/http/README.md
     """
 
-    class HTTPServerBindingObject(BaseModel):
+    class HTTPServerBindingObject(_BaseModel):
         """This object MUST NOT contain any properties. Its name is reserved for future use."""
         __root__: None
 
-    class HTTPChannelBindingObject(BaseModel):
+    class HTTPChannelBindingObject(_BaseModel):
         """This object MUST NOT contain any properties. Its name is reserved for future use."""
         __root__: None
 
-    class HTTPOperationBindingObject(_WithBindingVersion, BaseModel):
+    class HTTPOperationBindingObject(_WithBindingVersion, _BaseModel):
         type_: t.Literal["request", "response"] = Field(
             title="type",
             description="""Required. Type of operation. Its value MUST be either request or response.""",
@@ -426,7 +431,7 @@ class HTTPBindingTrait:
             type object and have a properties key.""",
         )
 
-    class HTTPMessageBindingObject(_WithBindingVersion, BaseModel):
+    class HTTPMessageBindingObject(_WithBindingVersion, _BaseModel):
         headers: t.Union[ReferenceObject, SchemaObject] = Field(
             description="""A Schema object containing the definitions for HTTP-specific headers. This schema MUST be 
             of type object and have a properties key.""",
@@ -440,11 +445,11 @@ class AMQPBindingTrait:
     https://github.com/asyncapi/bindings/tree/master/amqp/README.md
     """
 
-    class AMQPServerBindingObject(BaseModel):
+    class AMQPServerBindingObject(_BaseModel):
         """This object MUST NOT contain any properties. Its name is reserved for future use."""
         __root__: None
 
-    class AMQPChannelBindingObject(_WithBindingVersion, BaseModel):
+    class AMQPChannelBindingObject(_WithBindingVersion, _BaseModel):
         """
         This object contains information about the channel representation in AMQP.
         """
@@ -473,7 +478,7 @@ class AMQPBindingTrait:
                 ],
             }
 
-        class Exchange(BaseModel):
+        class Exchange(_BaseModel):
             name: str = Field(
                 max_length=255,
                 description="""The name of the exchange. It MUST NOT exceed 255 characters long.""",
@@ -494,7 +499,7 @@ class AMQPBindingTrait:
                 description="""The virtual host of the exchange. Defaults to /.""",
             )
 
-        class Queue(BaseModel):
+        class Queue(_BaseModel):
             name: t.Optional[str] = Field(
                 max_length=255,
                 description="""The name of the queue. It MUST NOT exceed 255 characters long.""",
@@ -526,7 +531,7 @@ class AMQPBindingTrait:
             description="""When is=queue, this object defines the queue properties.""",
         )
 
-    class AMQPOperationBindingObject(_WithBindingVersion, BaseModel):
+    class AMQPOperationBindingObject(_WithBindingVersion, _BaseModel):
         """This object contains information about the operation representation in AMQP."""
 
         class Config:
@@ -587,7 +592,7 @@ class AMQPBindingTrait:
             description="""Applies to: subscribe; Whether the consumer should ack the message or not.""",
         )
 
-    class AMQPMessageBindingObject(_WithBindingVersion, BaseModel):
+    class AMQPMessageBindingObject(_WithBindingVersion, _BaseModel):
         """This object contains information about the message representation in AMQP."""
 
         class Config:
@@ -611,7 +616,7 @@ class AMQPBindingTrait:
         )
 
 
-class ExternalDocumentationObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, BaseModel):
+class ExternalDocumentationObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, _BaseModel):
     url: AnyUrl = Field(
         description="""Required. The URL for the target documentation. Value MUST be in the format of a URL.""",
     )
@@ -620,14 +625,14 @@ class ExternalDocumentationObject(_WithDescriptionField, _WithSpecificationExten
         return visitor.visit_external_documentation_object(self)
 
 
-class _WithExternalDocsField(BaseModel):
+class _WithExternalDocsField(_BaseModel):
     external_docs: t.Optional[ExternalDocumentationObject] = Field(
         alias="externalDocs",
         description="""Additional external documentation for this tag.""",
     )
 
 
-class TagObject(_WithDescriptionField, _WithExternalDocsField, _WithSpecificationExtension, SpecObject, BaseModel):
+class TagObject(_WithDescriptionField, _WithExternalDocsField, _WithSpecificationExtension, SpecObject, _BaseModel):
     """
     Allows adding meta data to a single tag.
 
@@ -642,7 +647,7 @@ class TagObject(_WithDescriptionField, _WithExternalDocsField, _WithSpecificatio
         return visitor.visit_tag_object(self)
 
 
-class TagsObject(SpecObject, BaseModel):
+class TagsObject(SpecObject, _BaseModel):
     """
     A Tags object is a list of Tag Objects.
 
@@ -655,14 +660,14 @@ class TagsObject(SpecObject, BaseModel):
         return visitor.visit_tags_object(self)
 
 
-class _WithTagsField(BaseModel):
+class _WithTagsField(_BaseModel):
     tags: t.Optional[TagsObject] = Field(
         description="""A list of tags for API documentation control. Tags can be used for logical grouping of 
         operations.""",
     )
 
 
-class ContactObject(_WithSpecificationExtension, SpecObject, BaseModel):
+class ContactObject(_WithSpecificationExtension, SpecObject, _BaseModel):
     """
     Contact information for the exposed API.
 
@@ -684,7 +689,7 @@ class ContactObject(_WithSpecificationExtension, SpecObject, BaseModel):
         return visitor.visit_contact_object(self)
 
 
-class LicenseObject(_WithSpecificationExtension, SpecObject, BaseModel):
+class LicenseObject(_WithSpecificationExtension, SpecObject, _BaseModel):
     """
     License information for the exposed API.
 
@@ -702,7 +707,7 @@ class LicenseObject(_WithSpecificationExtension, SpecObject, BaseModel):
         return visitor.visit_license_object(self)
 
 
-class InfoObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, BaseModel):
+class InfoObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, _BaseModel):
     """
     The object provides metadata about the API. The metadata can be used by the clients if needed.
 
@@ -731,7 +736,7 @@ class InfoObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject,
         return visitor.visit_info_object(self)
 
 
-class ServerBindingsObject(_WithSpecificationExtension, SpecObject, BaseModel):
+class ServerBindingsObject(_WithSpecificationExtension, SpecObject, _BaseModel):
     """
     Map describing protocol-specific definitions for a server.
 
@@ -750,7 +755,7 @@ class ServerBindingsObject(_WithSpecificationExtension, SpecObject, BaseModel):
         return visitor.visit_server_bindings_object(self)
 
 
-class SecurityRequirementObject(SpecObject, BaseModel):
+class SecurityRequirementObject(SpecObject, _BaseModel):
     """
     Lists the required security schemes to execute this operation. The name used for each property MUST correspond to
     a security scheme declared in the Security Schemes under the Components Object. When a list of Security
@@ -771,7 +776,7 @@ class SecurityRequirementObject(SpecObject, BaseModel):
         return visitor.visit_security_requirement_object(self)
 
 
-class ServerVariableObject(_WithSpecificationExtension, _WithDescriptionField, SpecObject, BaseModel):
+class ServerVariableObject(_WithSpecificationExtension, _WithDescriptionField, SpecObject, _BaseModel):
     """
     An object representing a Server Variable for server URL template substitution.
 
@@ -794,7 +799,7 @@ class ServerVariableObject(_WithSpecificationExtension, _WithDescriptionField, S
         return visitor.visit_server_variable_object(self)
 
 
-class ServerObject(_WithSpecificationExtension, _WithDescriptionField, SpecObject, BaseModel):
+class ServerObject(_WithSpecificationExtension, _WithDescriptionField, SpecObject, _BaseModel):
     """
     An object representing a message broker, a server or any other kind of computer program capable of sending and/or
     receiving data. This object is used to capture details such as URIs, protocols and security configuration.
@@ -834,7 +839,7 @@ class ServerObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
         return visitor.visit_server_object(self)
 
 
-class ServersObject(SpecObject, BaseModel):
+class ServersObject(SpecObject, _BaseModel):
     """
     The Servers Object is a map of Server Objects.
 
@@ -861,7 +866,7 @@ class DefaultContentType(str, SpecObject):
         return visitor.visit_default_content_type(self)
 
 
-class CorrelationIdObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, BaseModel):
+class CorrelationIdObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, _BaseModel):
     """
     An object that specifies an identifier at design time that can used for message tracing and correlation. For
     specifying and computing the location of a Correlation ID, a runtime expression is used.
@@ -877,7 +882,7 @@ class CorrelationIdObject(_WithDescriptionField, _WithSpecificationExtension, Sp
         return visitor.visit_correlation_id_object(self)
 
 
-class MessageBindingsObject(_WithSpecificationExtension, SpecObject, BaseModel):
+class MessageBindingsObject(_WithSpecificationExtension, SpecObject, _BaseModel):
     """
     Map describing protocol-specific definitions for a message.
 
@@ -894,7 +899,7 @@ class MessageBindingsObject(_WithSpecificationExtension, SpecObject, BaseModel):
         return visitor.visit_message_bindings_object(self)
 
 
-class MessageExampleObject(_WithSpecificationExtension, SpecObject, BaseModel):
+class MessageExampleObject(_WithSpecificationExtension, SpecObject, _BaseModel):
     """
     Message Example Object represents an example of a Message Object and MUST contain either headers and/or payload
     fields.
@@ -920,7 +925,7 @@ class MessageExampleObject(_WithSpecificationExtension, SpecObject, BaseModel):
 
 class MessageTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDocsField, SpecObject,
                          _WithSpecificationExtension,
-                         BaseModel):
+                         _BaseModel):
     """
     Describes a trait that MAY be applied to a Message Object. This object MAY contain any property from the Message
     Object, except payload and traits. If you're looking to apply traits to an operation, see the Operation Trait
@@ -968,7 +973,7 @@ class MessageTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDoc
         return visitor.visit_message_trait_object(self)
 
 
-class MessageObject(MessageTraitObject, SpecObject, BaseModel):
+class MessageObject(MessageTraitObject, SpecObject, _BaseModel):
     """
     Describes a message received on a given channel and operation.
 
@@ -981,7 +986,7 @@ class MessageObject(MessageTraitObject, SpecObject, BaseModel):
         return visitor.visit_message_object(self)
 
 
-class OperationBindingsObject(_WithSpecificationExtension, SpecObject, BaseModel):
+class OperationBindingsObject(_WithSpecificationExtension, SpecObject, _BaseModel):
     """
     Map describing protocol-specific definitions for an operation.
 
@@ -1000,7 +1005,7 @@ class OperationBindingsObject(_WithSpecificationExtension, SpecObject, BaseModel
 
 class OperationTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDocsField, SpecObject,
                            _WithSpecificationExtension,
-                           BaseModel):
+                           _BaseModel):
     """
     Describes a trait that MAY be applied to an Operation Object. This object MAY contain any property from the
     Operation Object, except message and traits. If you're looking to apply traits to a message, see the Message
@@ -1028,7 +1033,7 @@ class OperationTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalD
         return visitor.visit_operation_trait_object(self)
 
 
-class OperationObject(OperationTraitObject, SpecObject, BaseModel):
+class OperationObject(OperationTraitObject, SpecObject, _BaseModel):
     """
     Describes a publish or a subscribe operation. This provides a place to document how and why messages are sent and
     received. For example, an operation might describe a chat application use case where a user sends a text message
@@ -1053,7 +1058,7 @@ class OperationObject(OperationTraitObject, SpecObject, BaseModel):
         return visitor.visit_operation_object(self)
 
 
-class ParameterObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, BaseModel):
+class ParameterObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, _BaseModel):
     """
     Describes a parameter included in a channel name.
 
@@ -1074,7 +1079,7 @@ class ParameterObject(_WithDescriptionField, _WithSpecificationExtension, SpecOb
         return visitor.visit_parameter_object(self)
 
 
-class ParametersObject(SpecObject, BaseModel):
+class ParametersObject(SpecObject, _BaseModel):
     """
     Describes a map of parameters included in a channel name. This map MUST contain all the parameters used in the
     parent channel name. The key represents the name of the parameter. It MUST match the parameter name used in the
@@ -1089,7 +1094,7 @@ class ParametersObject(SpecObject, BaseModel):
         return visitor.visit_parameters_object(self)
 
 
-class ChannelBindingsObject(_WithSpecificationExtension, SpecObject, BaseModel):
+class ChannelBindingsObject(_WithSpecificationExtension, SpecObject, _BaseModel):
     """
     Map describing protocol-specific definitions for a channel.
 
@@ -1104,7 +1109,7 @@ class ChannelBindingsObject(_WithSpecificationExtension, SpecObject, BaseModel):
         return visitor.visit_channel_bindings_object(self)
 
 
-class ChannelItemObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, BaseModel):
+class ChannelItemObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, _BaseModel):
     """
     Describes the operations available on a single channel.
 
@@ -1139,7 +1144,7 @@ class ChannelItemObject(_WithDescriptionField, _WithSpecificationExtension, Spec
         return visitor.visit_channel_item_object(self)
 
 
-class ChannelsObject(SpecObject, BaseModel):
+class ChannelsObject(SpecObject, _BaseModel):
     """
     Holds the relative paths to the individual channel and their operations. Channel paths are relative to servers.
     Channels are also known as "topics", "routing keys", "event types" or "paths".
@@ -1153,7 +1158,7 @@ class ChannelsObject(SpecObject, BaseModel):
         return visitor.visit_channels_object(self)
 
 
-class OAuthFlowObject(SpecObject, BaseModel):
+class OAuthFlowObject(SpecObject, _BaseModel):
     """
     Configuration details for a supported OAuth Flow
 
@@ -1182,7 +1187,7 @@ class OAuthFlowObject(SpecObject, BaseModel):
         return visitor.visit_oauth_flow_object(self)
 
 
-class OAuthFlowsObject(_WithSpecificationExtension, SpecObject, BaseModel):
+class OAuthFlowsObject(_WithSpecificationExtension, SpecObject, _BaseModel):
     """
     Allows configuration of the supported OAuth Flows.
 
@@ -1208,7 +1213,7 @@ class OAuthFlowsObject(_WithSpecificationExtension, SpecObject, BaseModel):
         return visitor.visit_oauth_flows_object(self)
 
 
-class SecuritySchemeObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, BaseModel):
+class SecuritySchemeObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, _BaseModel):
     """
     Defines a security scheme that can be used by the operations. Supported schemes are:
         * User/Password.
@@ -1261,7 +1266,7 @@ class SecuritySchemeObject(_WithDescriptionField, _WithSpecificationExtension, S
         return visitor.visit_security_scheme_object(self)
 
 
-class ComponentsObject(_WithSpecificationExtension, SpecObject, BaseModel):
+class ComponentsObject(_WithSpecificationExtension, SpecObject, _BaseModel):
     """
     Holds a set of reusable objects for different aspects of the AsyncAPI specification. All objects defined within
     the components object will have no effect on the API unless they are explicitly referenced from properties
@@ -1315,7 +1320,7 @@ class ComponentsObject(_WithSpecificationExtension, SpecObject, BaseModel):
         return visitor.visit_components_object(self)
 
 
-class AsyncAPIObject(_WithTagsField, _WithExternalDocsField, _WithSpecificationExtension, SpecObject, BaseModel):
+class AsyncAPIObject(_WithTagsField, _WithExternalDocsField, _WithSpecificationExtension, SpecObject, _BaseModel):
     """
     This is the root document object for the API specification. It combines resource listing and API declaration
     together into one document.

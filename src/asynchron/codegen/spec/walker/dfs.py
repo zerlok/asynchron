@@ -1,5 +1,5 @@
 __all__ = (
-    "BFSWalker",
+    "DFSWalker",
 )
 
 import typing as t
@@ -9,7 +9,7 @@ from asynchron.codegen.spec.walker.base import DescendantsGetter, Walker
 T = t.TypeVar("T")
 
 
-class BFSWalker(t.Generic[T], Walker[T, T]):
+class DFSWalker(t.Generic[T], Walker[T, T]):
 
     def __init__(
             self,
@@ -20,10 +20,11 @@ class BFSWalker(t.Generic[T], Walker[T, T]):
     def walk(self, start: T) -> t.Iterator[T]:
         yield start
 
-        queue: t.List[T] = list(self.__descendants_getter(start))
+        stack: t.List[T] = list(self.__descendants_getter(start))
 
-        while queue:
-            item = queue.pop(0)
+        while stack:
+            item = stack.pop()
             yield item
 
-            queue.extend(self.__descendants_getter(item))
+            for sub_item in reversed(self.__descendants_getter(item)):
+                stack.insert(0, sub_item)

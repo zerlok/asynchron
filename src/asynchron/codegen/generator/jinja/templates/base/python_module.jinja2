@@ -16,7 +16,11 @@ Author          {{ meta.author }}
 """
 
 {% endif %}
-{% block imports %}{% endblock %}
+{% block imports %}
+{% for import in module.requires|unique|sorted(attribute="path") %}
+import {{ import.path|join(".") }}{% if import.alias %}as {{ import.alias }}{% endif %}
+{% endfor %}
+{% endblock %}
 
 
 {% block constants %}{% endblock %}

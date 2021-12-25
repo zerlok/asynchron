@@ -73,6 +73,7 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
             .add(("oneOf",), obj.one_of) \
             .add(("anyOf",), obj.any_of) \
             .add(("allOf",), obj.all_of) \
+            .add(("enum",), obj.enum) \
             .add(("properties",), obj.properties)
 
     def visit_external_documentation_object(

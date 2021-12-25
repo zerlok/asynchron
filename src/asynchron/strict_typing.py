@@ -8,6 +8,7 @@ __all__ = (
     "gather",
     "gather_with_errors",
     "FuncWrapper",
+    "SerializableObject",
 )
 
 import asyncio
@@ -111,3 +112,9 @@ async def gather_with_errors(coros: t.Iterable[t.Awaitable[T]]) -> t.Sequence[t.
 
 class FuncWrapper(t.Protocol[F]):
     def __call__(self, func: F) -> F: ...  # type: ignore[misc]
+
+
+class SerializableObject(t.Protocol):
+    def __getitem__(self, item: t.Union[int, str]) -> "SerializableObject": ...
+
+    def __setitem__(self, item: t.Union[int, str], value: "SerializableObject") -> "SerializableObject": ...
