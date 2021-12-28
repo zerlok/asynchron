@@ -11,15 +11,7 @@ from dataclasses import replace
 from pydantic.fields import FieldInfo
 
 from asynchron.codegen.spec.base import SchemaObject
-from asynchron.codegen.spec.type_definition import (
-    ClassDef,
-    EnumDef,
-    Expr,
-    InlineEnumDef,
-    TypeDef,
-    TypeImportDef,
-    TypeRef,
-)
+from asynchron.codegen.spec.type_definition import (ClassDef, EnumDef, Expr, InlineEnumDef, ModuleDef, TypeDef, TypeRef)
 from asynchron.strict_typing import as_, as_mapping, as_sequence, raise_not_exhaustive
 
 
@@ -30,56 +22,71 @@ class SchemaObjectBasedTypeDefGenerator(metaclass=abc.ABCMeta):
 
 
 class SchemaObjectBasedPythonTypeDefGenerator(SchemaObjectBasedTypeDefGenerator):
+    __BUILTINS_MODULE: t.Final[ModuleDef] = ModuleDef(("builtins",))
+    __TYPING_MODULE: t.Final[ModuleDef] = ModuleDef(("typing",))
+    __DATETIME_MODULE: t.Final[ModuleDef] = ModuleDef(("datetime",))
+    __UUID_MODULE: t.Final[ModuleDef] = ModuleDef(("uuid",))
+
     __SCALAR_PYTHON_TYPES_BY_JSON_TYPE_AND_FORMAT: t.Final[
         t.Mapping[t.Optional[str], t.Mapping[t.Optional[str], t.Optional[TypeDef]]]
     ] = {
         None: None,
-        "null": {None: ClassDef(("None",), modules=(TypeImportDef((), ("builtins",), ),), )},
-        "boolean": {None: ClassDef(("bool",), modules=(TypeImportDef((), ("builtins",), ),), )},
-        "integer": {None: ClassDef(("int",), modules=(TypeImportDef((), ("builtins",), ),), )},
+        "null": {
+            None: ClassDef(("None",), module=__BUILTINS_MODULE, ),
+        },
+        "boolean": {
+            None: ClassDef(("bool",), module=__BUILTINS_MODULE, ),
+        },
+        "integer": {
+            None: ClassDef(("int",), module=__BUILTINS_MODULE, ),
+        },
         "number": {
             None: ClassDef(
                 path=(),
-                type_parameters=(ClassDef(("int",), modules=(TypeImportDef((), ("builtins",), ),), ),
-                                 ClassDef(("float",), modules=(TypeImportDef((), ("builtins",), ),), ),),
-                bases=(ClassDef(("typing", "Union"), modules=(TypeImportDef((), ("typing",), ),)),),
+                type_parameters=(
+                    ClassDef(("int",), module=__BUILTINS_MODULE, ),
+                    ClassDef(("float",), module=__BUILTINS_MODULE, ),
+                ),
+                bases=(ClassDef(("Union",), module=__TYPING_MODULE, ),),
             ),
         },
         "string": {
-            None: ClassDef(("str",), modules=(TypeImportDef((), ("builtins",), ),), ),
-            "byte": ClassDef(("bytes",), modules=(TypeImportDef((), ("builtins",), ),), ),
-            "date": ClassDef(("datetime", "date",), modules=(TypeImportDef((), ("datetime", "datetime"), ),)),
-            "time": ClassDef(("datetime", "time",), modules=(TypeImportDef((), ("datetime", "datetime"), ),)),
-            "date-time": ClassDef(("datetime", "datetime",), modules=(TypeImportDef((), ("datetime", "datetime"), ),)),
-            "uuid": ClassDef(("uuid", "UUID",), modules=(TypeImportDef((), ("uuid",)),), ),
-            "uri": ClassDef(("str",), modules=(TypeImportDef((), ("builtins",), ),), ),
+            None: ClassDef(("str",), module=__BUILTINS_MODULE, ),
+            "byte": ClassDef(("bytes",), module=__BUILTINS_MODULE, ),
+            "date": ClassDef(("date",), module=__DATETIME_MODULE, ),
+            "time": ClassDef(("time",), module=__DATETIME_MODULE, ),
+            "date-time": ClassDef(("datetime",), module=__DATETIME_MODULE, ),
+            "uuid": ClassDef(("UUID",), module=__UUID_MODULE, ),
+            "uri": ClassDef(("str",), module=__BUILTINS_MODULE, ),
         },
     }
 
     def get_type_def_from_json_schema(self, schema: SchemaObject) -> t.Optional[TypeDef]:
-        scalar_formats = self.__SCALAR_PYTHON_TYPES_BY_JSON_TYPE_AND_FORMAT.get(schema.type_) or {}
-        if scalar_type_def := scalar_formats.get(schema.format_):
-            return scalar_type_def
+        scalar_defs_by_format = self.__SCALAR_PYTHON_TYPES_BY_JSON_TYPE_AND_FORMAT.get(schema.type_) or {}
+        if formatted_scalar_type_def := scalar_defs_by_format.get(schema.format_):
+            return formatted_scalar_type_def
 
-        return None
+        return scalar_defs_by_format.get(None)
 
 
 class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator):
+    __TYPING_MODULE: t.Final[ModuleDef] = ModuleDef(("typing",))
+    __PYDANTIC_MODULE: t.Final[ModuleDef] = ModuleDef(("pydantic",))
+    __ENUM_MODULE: t.Final[ModuleDef] = ModuleDef(("enum",))
+
     __DEFAULT_SCALAR_GENERATOR: t.Final[SchemaObjectBasedTypeDefGenerator] = SchemaObjectBasedPythonTypeDefGenerator()
-    __DEFAULT_ANY: t.Final[TypeDef] = ClassDef(("typing", "Any",), modules=(TypeImportDef((), ("typing",), ),))
-    __DEFAULT_OBJECT: t.Final[TypeDef] = ClassDef(("pydantic", "BaseModel",),
-                                                  modules=(TypeImportDef((), ("pydantic",), ),))
-    __DEFAULT_ARRAY: t.Final[TypeDef] = ClassDef(("typing", "Sequence",), modules=(TypeImportDef((), ("typing",), ),))
-    __DEFAULT_SET: t.Final[TypeDef] = ClassDef(("typing", "Collection",), modules=(TypeImportDef((), ("typing",), ),))
-    __DEFAULT_OPTIONAL: t.Final[TypeDef] = ClassDef(("typing", "Optional",),
-                                                    modules=(TypeImportDef((), ("typing",), ),))
-    __DEFAULT_UNION: t.Final[TypeDef] = ClassDef(("typing", "Union",), modules=(TypeImportDef((), ("typing",), ),))
-    __DEFAULT_ENUM: t.Final[TypeDef] = ClassDef(("enum", "Enum",), modules=(TypeImportDef((), ("enum",), ),))
-    __DEFAULT_INLINE_ENUM: t.Final[TypeDef] = ClassDef(("typing", "Literal",),
-                                                       modules=(TypeImportDef((), ("typing",), ),))
+    __DEFAULT_ANY: t.Final[TypeDef] = ClassDef(("Any",), module=__TYPING_MODULE, )
+    __DEFAULT_OBJECT: t.Final[TypeDef] = ClassDef(("BaseModel",), module=__PYDANTIC_MODULE, )
+    __DEFAULT_ARRAY: t.Final[TypeDef] = ClassDef(("Sequence",), module=__TYPING_MODULE, )
+    __DEFAULT_SET: t.Final[TypeDef] = ClassDef(("Collection",), module=__TYPING_MODULE, )
+    __DEFAULT_OPTIONAL: t.Final[TypeDef] = ClassDef(("Optional",), module=__TYPING_MODULE, )
+    __DEFAULT_UNION: t.Final[TypeDef] = ClassDef(("Union",), module=__TYPING_MODULE, )
+    __DEFAULT_ENUM: t.Final[TypeDef] = ClassDef(("Enum",), module=__ENUM_MODULE, )
+    __DEFAULT_INLINE_ENUM: t.Final[TypeDef] = ClassDef(("Literal",), module=__TYPING_MODULE, )
 
     def __init__(
             self,
+            name_generator: t.Optional[t.Callable[[SchemaObject, SchemaObject], str]] = None,
             scalar_generator: t.Optional[SchemaObjectBasedTypeDefGenerator] = None,
             any_class_def: t.Optional[TypeDef] = None,
             object_class_def: t.Optional[TypeDef] = None,
@@ -132,7 +139,7 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
         return TypeRef(self.__get_path(parent, schema), schema)
 
     def __get_optional(self, type_def: TypeDef) -> TypeDef:
-        return ClassDef((), type_parameters=(type_def,), bases=(self.__optional_class_def,))
+        return ClassDef((*type_def.path, "optional",), type_parameters=(type_def,), bases=(self.__optional_class_def,))
 
     def __get_union(
             self,
@@ -290,12 +297,6 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
             references: t.Mapping[TypeRef, TypeDef],
     ) -> TypeDef:
         if class_def := as_(ClassDef, type_def):
-            if not class_def.type_parameters and len(class_def.bases) == 1 and not class_def.fields:
-                class_def = class_def.bases[0]
-
-            elif len(class_def.bases) == 1 and not class_def.fields:
-                class_def = replace(class_def, path=self.__resolve_references(class_def.bases[0], references).path)
-
             return replace(
                 class_def,
                 type_parameters=tuple(
@@ -338,3 +339,6 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
 
         else:
             raise_not_exhaustive(type(type_def), type_def)
+
+    def __generate_name(self, parent: SchemaObject, child: SchemaObject) -> str:
+        return "_".join((parent.title, child.title))

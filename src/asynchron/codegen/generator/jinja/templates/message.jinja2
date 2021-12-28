@@ -1,8 +1,24 @@
 {# @formatter:off #}
 {% extends "base/python_module.jinja2" %}
 
+{% macro render_python_type_name(type) -%}
+    {%- if type.module and type.module.path and type.module.path != ("builtins",) -%}
+        {%- if type.module.alias -%}
+            {{ type.module.alias }}
+        {%- else -%}
+            {{ type.module.path|join(".") }}
+        {%- endif -%}
+        .
+    {%- endif -%}
+    {%- if type.module -%}
+        {{ type.path|join(".") }}
+    {%- else -%}
+        {{ type.path|pascalcase|join("") }}
+    {%- endif -%}
+{%- endmacro %}
+
 {% macro render_python_type(type) -%}
-    {{ type.path|join(".") }}
+    {{ render_python_type_name(type) }}
     {%- if type.type_parameters -%}
         [
         {%- for type_parameter in type.type_parameters -%}
@@ -37,14 +53,15 @@
         {% if field.alias %}
         alias="{{ field.alias }}",
         {% endif %}
-        {% if field.title %}
-        title="""{{ field.title }}""",
-        {% endif %}
+{#        {% if field.title %}#}
+{#        title="""{{ field.title }}""",#}
+{#        {% endif %}#}
         {% if field.description %}
         description="""{{ field.description }}""",
         {% endif %}
-{#            {% if field.const %}const={{ field.const }},
-{% endif %}#}
+{#        {% if field.const %}#}
+{#        const={{ field.const }},#}
+{#        {% endif %}#}
         {% if field.gt %}
         gt={{ field.gt }},
         {% endif %}
@@ -98,26 +115,27 @@
 
 {% block imports %}
     {% for import in imports|unique %}
-        {% if import.module_path|first != "builtins" %}
-            {% if import.path %}
-from {{ import.module_path|join(".") }} import {{ import.path|join(".") }}
-            {% else %}
-import {{ import.module_path|join(".") }}
-            {% endif %}
+        {% if import.path != ("builtins",) %}
+import {{ import.path|join(".") }}{% if import.alias %} as {{ import.alias }}{% endif %}
+
         {% endif %}
     {% endfor %}
 {% endblock %}
 
 {% block classes %}
-    {% for message in messages %}
-class {{ message.path|pascalcase|join("") }}{{ render_python_class_bases(message.bases) }}:
-        {% if message.descrition %}
-        """{{ message.description }}"""
+    {% for class in classes %}
+class {{ class.path|pascalcase|join("") }}{{ render_python_class_bases(class.bases) }}:
+        {% if class.descrition %}
+    """{{ class.description }}"""
         {% endif %}
-        {% if message.fields %}
-            {% for field in message.fields|sorted(attribute="name") %}
+        {% if class.fields %}
+            {% for field in class.fields|sorted(attribute="name") %}
     {{ field.name|snakecase }}: {{ render_python_type(field.of_type) }} = {{ render_field_info(field.info) }}
             {% endfor %}
+{#        {% elif class.literals %}#}
+{#            {% for literal in class.literals %}#}
+{#    {{ literal.name|constcase }} = {{ literal.expr.value }}#}
+{#            {% endfor %}#}
         {% else %}
     pass
         {% endif %}

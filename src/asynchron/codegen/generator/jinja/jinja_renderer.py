@@ -24,6 +24,7 @@ class JinjaTemplateRenderer:
         self.__jinja_env.filters.update({
             "snakecase": self.__convert_to_snakecase,
             "pascalcase": self.__convert_to_pascalcase,
+            "constcase": self.__convert_to_constcase,
             "find": self.__find,
             "sorted": self.__iter_sorted,
             "items_sorted_by_keys": self.__iter_items_sorted_by_keys,
@@ -45,6 +46,12 @@ class JinjaTemplateRenderer:
             return (stringcase.pascalcase(str(item)) for item in value)
 
         return stringcase.pascalcase(str(value))
+
+    def __convert_to_constcase(self, value: object) -> object:
+        if not isinstance(value, str) and isinstance(value, t.Iterable):
+            return (stringcase.constcase(str(item)) for item in value)
+
+        return stringcase.constcase(str(value))
 
     def __iter_unique(self, items: object) -> t.Iterable[object]:
         if isinstance(items, t.Iterable):

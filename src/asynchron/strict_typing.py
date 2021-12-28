@@ -5,6 +5,7 @@ __all__ = (
     "as_async_context_manager",
     "get_or_default",
     "raise_not_exhaustive",
+    "to_sequence",
     "gather",
     "gather_with_errors",
     "FuncWrapper",
@@ -100,6 +101,13 @@ def get_or_default(value: t.Optional[T], default: T) -> T:
 def raise_not_exhaustive(*args: t.NoReturn) -> t.NoReturn:
     """A helper to make an exhaustiveness check on python expression. See: https://github.com/python/mypy/issues/5818"""
     raise RuntimeError("Not exhaustive expression", *args)
+
+
+def to_sequence(value: t.Optional[T]) -> t.Sequence[T]:
+    if value is None:
+        return ()
+
+    return (value,)
 
 
 async def gather(coros: t.Iterable[t.Awaitable[T]]) -> t.Sequence[T]:

@@ -2,7 +2,7 @@ __all__ = (
     "TypeDef",
     "Expr",
     "TypeRef",
-    "TypeImportDef",
+    "ModuleDef",
     "ClassDef",
     "InlineEnumDef",
     "EnumDef",
@@ -39,14 +39,6 @@ class Expr:
 
 
 @dataclass(frozen=True)
-class TypeImportDef(TypeDef):
-    module_path: t.Sequence[str]
-
-    def accept_visitor(self, visitor: "TypeDefVisitor[T]") -> T:
-        return visitor.visit_import_def(self)
-
-
-@dataclass(frozen=True)
 class TypeRef(TypeDef):
     schema: SchemaObject
 
@@ -58,6 +50,14 @@ class TypeRef(TypeDef):
 
 
 @dataclass(frozen=True)
+class ModuleDef(TypeDef):
+    alias: t.Optional[str] = None
+
+    def accept_visitor(self, visitor: "TypeDefVisitor[T]") -> T:
+        return visitor.visit_module_def(self)
+
+
+@dataclass(frozen=True)
 class ClassDef(TypeDef):
     @dataclass(frozen=True)
     class FieldDef:
@@ -65,8 +65,8 @@ class ClassDef(TypeDef):
         of_type: TypeDef
         info: FieldInfo
 
+    module: t.Optional[ModuleDef] = Field(default=None)
     type_parameters: t.Sequence[TypeDef] = Field(default_factory=tuple)
-    modules: t.Sequence[TypeImportDef] = Field(default_factory=tuple)
     bases: t.Sequence[TypeDef] = Field(default_factory=tuple)
     fields: t.Sequence[FieldDef] = Field(default_factory=tuple)
     description: t.Optional[str] = Field(default=None)
@@ -78,7 +78,7 @@ class ClassDef(TypeDef):
 @dataclass(frozen=True)
 class InlineEnumDef(TypeDef):
     literals: t.Sequence[Expr]
-    modules: t.Sequence[TypeImportDef] = Field(default_factory=tuple)
+    module: t.Optional[ModuleDef] = Field(default=None)
     bases: t.Sequence[TypeDef] = Field(default_factory=tuple)
 
     def accept_visitor(self, visitor: "TypeDefVisitor[T]") -> T:
@@ -93,7 +93,7 @@ class EnumDef(TypeDef):
         value: Expr
 
     literals: t.Sequence[LiteralDef]
-    modules: t.Sequence[TypeImportDef] = Field(default_factory=tuple)
+    module: t.Optional[ModuleDef] = Field(default=None)
     bases: t.Sequence[TypeDef] = Field(default_factory=tuple)
     description: t.Optional[str] = Field(default=None)
 
@@ -107,7 +107,7 @@ class TypeDefVisitor(t.Generic[T_co], metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def visit_import_def(self, obj: TypeImportDef) -> T_co:
+    def visit_module_def(self, obj: ModuleDef) -> T_co:
         raise NotImplementedError
 
     @abc.abstractmethod
