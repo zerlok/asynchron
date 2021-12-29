@@ -17,22 +17,40 @@ Author          {{ meta.author }}
 
 {% endif %}
 {% block imports %}
-{% for import in module.requires|unique|sorted(attribute="path") %}
-import {{ import.path|join(".") }}{% if import.alias %}as {{ import.alias }}{% endif %}
-{% endfor %}
+    {% for import in imports|unique|sorted("path") %}
+        {% if import.path != ("builtins",) %}
+import {{ import.path|join(".") }}{% if import.alias %} as {{ import.alias }}{% endif %}
+
+        {% endif %}
+    {% endfor %}
 {% endblock %}
 
 
-{% block constants %}{% endblock %}
+{% block constants %}
+    {% for constant in constants|unique|sorted("path") %}
+{{ constant.path|constcase|join("") }} = {{ constant.expr.value }}
+    {% endfor %}
+{% endblock %}
 
 
-{% block classes %}{% endblock %}
+{% block classes %}
+    {% for class in classes|unique|sorted("path") %}
+class {{ class.path|pascalcase|join("") }}:
+    pass
+    {% endfor %}
+{% endblock %}
 
 
-{% block functions %}{% endblock %}
+{% block functions %}
+    {% for function in functions|unique|sorted("path") %}
+def {{ function.path|snakecase|join("") }}():
+    raise NotImplementedError
+    {% endfor %}
+{% endblock %}
 
 
-{% block main %}{% endblock %}
+{% block main %}
+{% endblock %}
 
 
 {% if meta.ignore_formatter %}

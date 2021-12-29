@@ -31,7 +31,11 @@ class JinjaTemplateRenderer:
             "datetime_iso": self.__convert_datetime_to_iso_format,
         })
 
-    def render(self, name: str, context: t.Mapping[str, object]) -> t.Iterable[str]:
+    def render(
+            self,
+            name: str,
+            context: t.Mapping[str, object],
+    ) -> t.Iterable[str]:
         jinja_template = self.__jinja_env.get_template(f"{name}.jinja2")
         return jinja_template.stream(**context)
 

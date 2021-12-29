@@ -11,7 +11,7 @@ from dataclasses import replace
 from pydantic.fields import FieldInfo
 
 from asynchron.codegen.spec.base import SchemaObject
-from asynchron.codegen.spec.type_definition import (ClassDef, EnumDef, Expr, InlineEnumDef, ModuleDef, TypeDef, TypeRef)
+from asynchron.codegen.spec.type_definition import ClassDef, EnumDef, Expr, InlineEnumDef, ModuleDef, TypeDef, TypeRef
 from asynchron.strict_typing import as_, as_mapping, as_sequence, raise_not_exhaustive
 
 
@@ -77,6 +77,7 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
     __DEFAULT_SCALAR_GENERATOR: t.Final[SchemaObjectBasedTypeDefGenerator] = SchemaObjectBasedPythonTypeDefGenerator()
     __DEFAULT_ANY: t.Final[TypeDef] = ClassDef(("Any",), module=__TYPING_MODULE, )
     __DEFAULT_OBJECT: t.Final[TypeDef] = ClassDef(("BaseModel",), module=__PYDANTIC_MODULE, )
+    __DEFAULT_FIELD_INFO: t.Final[TypeDef] = ClassDef(("Field",), module=__PYDANTIC_MODULE, )
     __DEFAULT_ARRAY: t.Final[TypeDef] = ClassDef(("Sequence",), module=__TYPING_MODULE, )
     __DEFAULT_SET: t.Final[TypeDef] = ClassDef(("Collection",), module=__TYPING_MODULE, )
     __DEFAULT_OPTIONAL: t.Final[TypeDef] = ClassDef(("Optional",), module=__TYPING_MODULE, )
@@ -86,7 +87,6 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
 
     def __init__(
             self,
-            name_generator: t.Optional[t.Callable[[SchemaObject, SchemaObject], str]] = None,
             scalar_generator: t.Optional[SchemaObjectBasedTypeDefGenerator] = None,
             any_class_def: t.Optional[TypeDef] = None,
             object_class_def: t.Optional[TypeDef] = None,

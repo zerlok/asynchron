@@ -36,6 +36,26 @@ class SpecObjectWithPathWalker(Walker[SpecObject, t.Tuple[SpecObjectPath, SpecOb
             visitor=visitor,
         )
 
+    @classmethod
+    def create_dfs_pre_ordering(
+            cls,
+            visitor: t.Optional[SpecObjectVisitor[t.Sequence[ReferencedSpecObject]]] = None,
+    ) -> "SpecObjectWithPathWalker":
+        return cls(
+            walker_factory=PathWalker.create_dfs_pre_ordering,
+            visitor=visitor,
+        )
+
+    @classmethod
+    def create_dfs_post_ordering(
+            cls,
+            visitor: t.Optional[SpecObjectVisitor[t.Sequence[ReferencedSpecObject]]] = None,
+    ) -> "SpecObjectWithPathWalker":
+        return cls(
+            walker_factory=PathWalker.create_dfs_post_ordering,
+            visitor=visitor,
+        )
+    
     def __init__(
             self,
             walker_factory: DescendantsWalkerFactory[ReferencedSpecObject, Path[ReferencedSpecObject]],

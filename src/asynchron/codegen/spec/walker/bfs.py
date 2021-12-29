@@ -5,6 +5,7 @@ __all__ = (
 import typing as t
 
 from asynchron.codegen.spec.walker.base import DescendantsGetter, Walker
+from asynchron.data_structure import Queue
 
 T = t.TypeVar("T")
 
@@ -18,12 +19,9 @@ class BFSWalker(t.Generic[T], Walker[T, T]):
         self.__descendants_getter = descendants_getter
 
     def walk(self, start: T) -> t.Iterator[T]:
-        yield start
+        queue = Queue(start)
 
-        queue: t.List[T] = list(self.__descendants_getter(start))
-
-        while queue:
-            item = queue.pop(0)
+        for item in queue:
             yield item
 
-            queue.extend(self.__descendants_getter(item))
+            queue.push(*self.__descendants_getter(item))

@@ -29,75 +29,75 @@
     {%- endif -%}
 {%- endmacro %}
 
-{% macro render_field_info(field) -%}
-    {%- if field.default
-                or field.alias
-                or field.title
-                or field.description
-                or field.const
-                or field.gt
-                or field.ge
-                or field.lt
-                or field.le
-                or field.multiple_of
-                or field.min_items
-                or field.max_items
-                or field.min_length
-                or field.max_length
-                or field.allow_mutation
-                or field.regex -%}
-    Field(
-        {% if field.default %}
-        default={{ field.default|python_expr }},
+{% macro render_field_info(field_info_class, info) -%}
+    {%- if info.default
+                or info.alias
+                or info.title
+                or info.description
+                or info.const
+                or info.gt
+                or info.ge
+                or info.lt
+                or info.le
+                or info.multiple_of
+                or info.min_items
+                or info.max_items
+                or info.min_length
+                or info.max_length
+                or info.allow_mutation
+                or info.regex -%}
+    pydantic.Field(
+        {% if info.default %}
+        default={{ info.default|python_expr }},
         {% endif %}
-        {% if field.alias %}
-        alias="{{ field.alias }}",
+        {% if info.alias %}
+        alias="{{ info.alias }}",
         {% endif %}
 {#        {% if field.title %}#}
 {#        title="""{{ field.title }}""",#}
 {#        {% endif %}#}
-        {% if field.description %}
-        description="""{{ field.description }}""",
+        {% if info.description %}
+        description="""{{ info.description }}""",
         {% endif %}
 {#        {% if field.const %}#}
 {#        const={{ field.const }},#}
 {#        {% endif %}#}
-        {% if field.gt %}
-        gt={{ field.gt }},
+        {% if info.gt %}
+        gt={{ info.gt }},
         {% endif %}
-        {% if field.ge %}
-        ge={{ field.ge }},
+        {% if info.ge %}
+        ge={{ info.ge }},
         {% endif %}
-        {% if field.lt %}
-        lt={{ field.lt }},
+        {% if info.lt %}
+        lt={{ info.lt }},
         {% endif %}
-        {% if field.le %}
-        le={{ field.le }},
+        {% if info.le %}
+        le={{ info.le }},
         {% endif %}
-        {% if field.multiple_of %}
-        multiple_of={{ field.multiple_of }},
+        {% if info.multiple_of %}
+        multiple_of={{ info.multiple_of }},
         {% endif %}
-        {% if field.min_items %}
-        min_items={{ field.min_items }},
+        {% if info.min_items %}
+        min_items={{ info.min_items }},
         {% endif %}
-        {% if field.max_items %}
-        max_items={{ field.max_items }},
+        {% if info.max_items %}
+        max_items={{ info.max_items }},
         {% endif %}
-        {% if field.min_length %}
-        min_length={{ field.min_length }},
+        {% if info.min_length %}
+        min_length={{ info.min_length }},
         {% endif %}
-        {% if field.max_length %}
-        max_length={{ field.max_length }},
+        {% if info.max_length %}
+        max_length={{ info.max_length }},
         {% endif %}
-        {% if field.allow_mutation %}
-        allow_mutation={{ field.allow_mutation|python_expr }},
+        {% if info.allow_mutation %}
+        allow_mutation={{ info.allow_mutation|python_expr }},
         {% endif %}
-        {% if field.regex %}
-        regex=r"""{{ field.regex }}""",
+        {% if info.regex %}
+        regex=r"""{{ info.regex }}""",
         {% endif %}
     )
     {%- else -%}
-        Field()
+    pydantic.Field()
     {%- endif %}
 {%- endmacro %}
 
@@ -114,7 +114,7 @@
 {%- endmacro %}
 
 {% block imports %}
-    {% for import in imports|unique %}
+    {% for import in imports %}
         {% if import.path != ("builtins",) %}
 import {{ import.path|join(".") }}{% if import.alias %} as {{ import.alias }}{% endif %}
 
@@ -130,7 +130,7 @@ class {{ class.path|pascalcase|join("") }}{{ render_python_class_bases(class.bas
         {% endif %}
         {% if class.fields %}
             {% for field in class.fields|sorted(attribute="name") %}
-    {{ field.name|snakecase }}: {{ render_python_type(field.of_type) }} = {{ render_field_info(field.info) }}
+    {{ field.name|snakecase }}: {{ render_python_type(field.of_type) }} = {{ render_field_info(field_info_class, field.info) }}
             {% endfor %}
 {#        {% elif class.literals %}#}
 {#            {% for literal in class.literals %}#}

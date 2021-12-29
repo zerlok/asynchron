@@ -21,14 +21,18 @@ from asynchron.codegen.app import (
 )
 from asynchron.codegen.generator.jinja.python_aio_pika import JinjaBasedPythonAioPikaCodeGenerator
 from asynchron.codegen.info import AsyncApiCodeGeneratorMetaInfo
-from asynchron.codegen.spec.base import AsyncAPIObject
+from asynchron.codegen.spec.base import AsyncAPIObject, SpecObject
 from asynchron.codegen.spec.reader.json import JsonAsyncApiConfigReader
 from asynchron.codegen.spec.reader.transformer import AsyncApiConfigTransformingConfigReader
 from asynchron.codegen.spec.reader.yaml import YamlAsyncApiConfigReader
 from asynchron.codegen.spec.transformer.json_reference_resolver import JsonReferenceResolvingTransformer
-from asynchron.codegen.spec.transformer.schema_object_title_normalizer import SchemaObjectTitleNormalizingTransformer
+from asynchron.codegen.spec.transformer.schema_object_title_normalizer import (
+    SpecObjectTitleNormalizer,
+    SpecObjectTransformer,
+)
 from asynchron.codegen.spec.viewer.settings import AsyncApiConfigViewSettings
 from asynchron.codegen.spec.viewer.stream import AsyncApiStreamConfigViewer
+from asynchron.codegen.spec.walker.spec_object_path import SpecObjectPath
 from asynchron.codegen.writer.file_system import AsyncApiFileSystemContentWriter
 from asynchron.codegen.writer.stream import AsyncApiStreamContentWriter
 from asynchron.providers import MappingValueSelector
@@ -41,10 +45,14 @@ def _load_config_source(path: Path, click_context: click.Context) -> t.TextIO:
 def _create_config_normalizers(
         *normalizers: AsyncApiConfigTransformer,
 ) -> t.Sequence[AsyncApiConfigTransformer]:
+    @SpecObjectTransformer
+    def transformer(path: SpecObjectPath, obj: SpecObject) -> SpecObject:
+        return obj.accept_visitor(SpecObjectTitleNormalizer(path))
+
     return (
-        JsonReferenceResolvingTransformer(),
-        SchemaObjectTitleNormalizingTransformer(),
+        transformer,
         *normalizers,
+        JsonReferenceResolvingTransformer(),
     )
 
 

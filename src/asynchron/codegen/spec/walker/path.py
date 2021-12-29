@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from asynchron.codegen.spec.walker.base import DescendantsGetter, DescendantsWalkerFactory, Walker
 from asynchron.codegen.spec.walker.bfs import BFSWalker
-from asynchron.codegen.spec.walker.dfs import DFSWalker
+from asynchron.codegen.spec.walker.dfs import DFSPPostOrderingWalker, DFSPreOrderingWalker, DFSWalker
 
 T = t.TypeVar("T")
 
@@ -40,6 +40,20 @@ class PathWalker(t.Generic[T], Walker[T, Path[T]]):
             descendants_getter: DescendantsGetter[T],
     ) -> "PathWalker[T]":
         return cls(DFSWalker, descendants_getter)
+
+    @classmethod
+    def create_dfs_pre_ordering(
+            cls,
+            descendants_getter: DescendantsGetter[T],
+    ) -> "PathWalker[T]":
+        return cls(DFSPreOrderingWalker, descendants_getter)
+
+    @classmethod
+    def create_dfs_post_ordering(
+            cls,
+            descendants_getter: DescendantsGetter[T],
+    ) -> "PathWalker[T]":
+        return cls(DFSPPostOrderingWalker, descendants_getter)
 
     def __init__(
             self,
