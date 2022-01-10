@@ -12,7 +12,7 @@ from asynchron.codegen.spec.type_definition import (
     TypeDefVisitor,
     ModuleDef, TypeRef,
 )
-from asynchron.strict_typing import to_sequence
+from asynchron.strict_typing import make_sequence_of_not_none
 
 
 class TypeDefDescendantsVisitor(TypeDefVisitor[t.Sequence[TypeDef]]):
@@ -24,24 +24,24 @@ class TypeDefDescendantsVisitor(TypeDefVisitor[t.Sequence[TypeDef]]):
         return ()
 
     def visit_class_def(self, obj: ClassDef) -> t.Sequence[TypeDef]:
-        return [
+        return make_sequence_of_not_none(
             *obj.type_parameters,
             *obj.bases,
-            *to_sequence(obj.module),
             *(
                 field.of_type
                 for field in obj.fields
             ),
-        ]
+            obj.module,
+        )
 
     def visit_inline_enum_def(self, obj: InlineEnumDef) -> t.Sequence[TypeDef]:
-        return [
+        return make_sequence_of_not_none(
             *obj.bases,
-            *to_sequence(obj.module),
-        ]
+            obj.module,
+        )
 
     def visit_enum_def(self, obj: EnumDef) -> t.Sequence[TypeDef]:
-        return [
+        return make_sequence_of_not_none(
             *obj.bases,
-            *to_sequence(obj.module),
-        ]
+            obj.module,
+        )

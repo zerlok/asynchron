@@ -3,11 +3,11 @@ import abc
 
 from asynchron.amqp.controller import AioPikaBasedAmqpController
 from asynchron.amqp.serializer.pydantic import PydanticMessageSerializer
-from asynchron.core.amqp import AmqpConsumerBindings, AmqpServerBindings
+from asynchron.core.amqp import AmqpConsumerBindings
 from asynchron.core.consumer import CallableMessageConsumer
 
 from .message import (
-    SensorTemperatureFahrenheitMessage,
+    SensorReading,
 )
 
 
@@ -22,7 +22,7 @@ class TemperatureReadingsConsumerFacade(metaclass=abc.ABCMeta):
     ) -> None:
         controller.bind_consumer(
             decoder=PydanticMessageSerializer(
-                model=SensorTemperatureFahrenheitMessage,  # type: ignore[misc]
+                model=SensorReading,  # type: ignore[misc]
             ),
             consumer=CallableMessageConsumer(
                 consumer=self.consume_sensor_temperature_fahrenheit,
@@ -43,7 +43,7 @@ class TemperatureReadingsConsumerFacade(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def consume_sensor_temperature_fahrenheit(
             self,
-            message: SensorTemperatureFahrenheitMessage,
+            message: SensorReading,
     ) -> None:
         raise NotImplementedError
 

@@ -99,7 +99,9 @@ class SpecObjectTitleNormalizer(SpecObjectVisitor[SpecObject]):
         return obj
 
     def visit_info_object(self, obj: InfoObject) -> InfoObject:
-        return obj
+        return obj.copy(update={
+            "title": self.__normalize_name(obj.title),
+        })
 
     def visit_server_bindings_object(self, obj: ServerBindingsObject) -> ServerBindingsObject:
         return obj
@@ -156,6 +158,11 @@ class SpecObjectTitleNormalizer(SpecObjectVisitor[SpecObject]):
         return obj
 
     def visit_channels_object(self, obj: ChannelsObject) -> ChannelsObject:
+        # TODO: remove commented code, it breaks the config
+        # return obj.copy(update={"__root__": {
+        #     self.__normalize_name(key): value
+        #     for key, value in obj.__root__.items()
+        # }})
         return obj
 
     def visit_oauth_flow_object(self, obj: OAuthFlowObject) -> OAuthFlowObject:
@@ -175,7 +182,7 @@ class SpecObjectTitleNormalizer(SpecObjectVisitor[SpecObject]):
 
     def __normalize_name(self, *values: str) -> str:
         result = re.sub(r"[^A-Za-z0-9_]+", "_", "_".join(values))
-        result = stringcase.snakecase(result)
+        result = stringcase.snakecase(result) # type: ignore[misc]
         result = re.sub(r"_+", "_", result)
         result = re.sub(r"^_?(.*?)_$", "\1", result)
 

@@ -4,7 +4,6 @@ __all__ = (
 
 import functools as ft
 import typing as t
-from dataclasses import dataclass, is_dataclass
 
 from pydantic import BaseModel
 
@@ -19,8 +18,9 @@ class SerializableObjectModifier:
             serializer: t.Optional[t.Callable[[object], SerializableObject]] = None,
             deserializer: t.Optional[t.Callable[[T, SerializableObject], T]] = None,
     ) -> None:
-        self.__serializer = serializer or self.__serialize_object
-        self.__deserializer = deserializer or self.__deserialize_object
+        self.__serializer: t.Callable[[object], SerializableObject] = serializer or self.__serialize_object
+        self.__deserializer: t.Callable[[T, SerializableObject], T] = deserializer or t.cast(
+            t.Callable[[T, SerializableObject], T], self.__deserialize_object)
 
     def replace(
             self,
@@ -46,6 +46,8 @@ class SerializableObjectModifier:
 
         return changed_target
 
+    # TODO: fix Type of decorated function contains type "Any" ("Callable[..., SerializableObject]")  [misc]
+    #         def __serialize_json_serializable_object(
     @ft.singledispatchmethod
     def __serialize_object(self, obj: object) -> SerializableObject:
         raise TypeError("Unsupported value type", type(obj), obj)
@@ -68,7 +70,7 @@ class SerializableObjectModifier:
         return t.cast(SerializableObject, obj.dict(by_alias=True, exclude_none=True))
 
     @ft.singledispatchmethod
-    def __deserialize_object(self, source: T, obj: SerializableObject) -> T:
+    def __deserialize_object(self, source: object, obj: SerializableObject) -> object:
         raise TypeError("Unsupported value type", type(source), obj)
 
     @__deserialize_object.register(type(None))
@@ -80,11 +82,11 @@ class SerializableObjectModifier:
     @__deserialize_object.register(dict)
     def __deserialize_json_serializable_object(
             self,
-            source: T,
+            source: object,
             obj: SerializableObject,
-    ) -> T:
-        return t.cast(T, obj)
+    ) -> object:
+        return obj
 
-    @__deserialize_object.register(BaseModel)
+    @__deserialize_object.register(BaseModel)  # type: ignore[misc]
     def __deserialize_pydantic_model(self, source: BaseModel, obj: SerializableObject) -> BaseModel:
         return source.__class__.parse_obj(obj)

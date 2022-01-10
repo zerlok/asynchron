@@ -12,6 +12,7 @@ __all__ = (
     "SecuritySchemeType",
     "SpecObject",
     "ReferenceObject",
+    "SchemaObjectType",
     "SchemaObject",
     "HTTPBindingTrait",
     "AMQPBindingTrait",

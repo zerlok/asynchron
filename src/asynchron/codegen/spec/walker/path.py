@@ -32,28 +32,28 @@ class PathWalker(t.Generic[T], Walker[T, Path[T]]):
             cls,
             descendants_getter: DescendantsGetter[T],
     ) -> "PathWalker[T]":
-        return cls(BFSWalker, descendants_getter)
+        return cls(BFSWalker.create, descendants_getter)
 
     @classmethod
     def create_dfs(
             cls,
             descendants_getter: DescendantsGetter[T],
     ) -> "PathWalker[T]":
-        return cls(DFSWalker, descendants_getter)
+        return cls(DFSWalker.create, descendants_getter)
 
     @classmethod
     def create_dfs_pre_ordering(
             cls,
             descendants_getter: DescendantsGetter[T],
     ) -> "PathWalker[T]":
-        return cls(DFSPreOrderingWalker, descendants_getter)
+        return cls(DFSPreOrderingWalker.create, descendants_getter)
 
     @classmethod
     def create_dfs_post_ordering(
             cls,
             descendants_getter: DescendantsGetter[T],
     ) -> "PathWalker[T]":
-        return cls(DFSPPostOrderingWalker, descendants_getter)
+        return cls(DFSPPostOrderingWalker.create, descendants_getter)
 
     def __init__(
             self,

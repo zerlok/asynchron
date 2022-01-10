@@ -16,12 +16,7 @@ from dataclasses import dataclass, field as Field
 from pydantic.fields import FieldInfo
 
 from asynchron.codegen.spec.base import SchemaObject
-
-# from pydantic.dataclasses import dataclass
-# from pydantic.fields import Field
-
-T = t.TypeVar("T")
-T_co = t.TypeVar("T_co", covariant=True)
+from asynchron.strict_typing import T, T_co
 
 
 @dataclass(frozen=True)

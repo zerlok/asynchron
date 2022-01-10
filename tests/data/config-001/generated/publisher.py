@@ -5,7 +5,7 @@ from asynchron.core.amqp import AmqpPublisherBindings
 from asynchron.core.publisher import MessagePublisher
 
 from .message import (
-    SensorTemperatureFahrenheitMessage,
+    SensorReading,
 )
 
 
@@ -18,9 +18,9 @@ class TemperatureReadingsPublisherFacade:
             self,
             controller: AioPikaBasedAmqpController,
     ) -> None:
-        self.__sensor_temperature_fahrenheit_publisher: MessagePublisher[SensorTemperatureFahrenheitMessage] = controller.bind_publisher(
+        self.__sensor_temperature_fahrenheit_publisher: MessagePublisher[SensorReading] = controller.bind_publisher(
             encoder=PydanticMessageSerializer(
-                model=SensorTemperatureFahrenheitMessage,  # type: ignore[misc]
+                model=SensorReading,  # type: ignore[misc]
             ),
             bindings=AmqpPublisherBindings(
                 exchange_name="events",
@@ -32,7 +32,7 @@ class TemperatureReadingsPublisherFacade:
 
     async def publish_sensor_temperature_fahrenheit(
             self,
-            message: SensorTemperatureFahrenheitMessage,
+            message: SensorReading,
     ) -> None:
         await self.__sensor_temperature_fahrenheit_publisher.publish(message)
 

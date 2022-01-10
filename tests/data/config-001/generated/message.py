@@ -1,22 +1,22 @@
 # @formatter:off
+import pydantic
 import typing
 
 
-from pydantic import BaseModel, Field
 
 
-
-
-class SensorTemperatureFahrenheitMessage(BaseModel):
-    base_unit: typing.Optional[typing.Literal["CELSIUS", "FAHRENHEIT"]] = Field(
+class SensorReading(pydantic.BaseModel):
+    base_unit: typing.Optional[typing.Literal['CELSIUS', 'FAHRENHEIT']] = pydantic.Field(
         alias="baseUnit",
     )
-    sensor_id: typing.Optional[str] = Field(
+    sensor_id: typing.Optional[str] = pydantic.Field(
         alias="sensorId",
     )
-    temperature: typing.Optional[typing.Union[int, float]] = Field(
+    temperature: typing.Optional[typing.Union[int, float]] = pydantic.Field(
         alias="temperature",
     )
+
+
 
 
 

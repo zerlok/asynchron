@@ -7,9 +7,7 @@ __all__ = (
 import abc
 import typing as t
 
-T = t.TypeVar("T")
-T_contra = t.TypeVar("T_contra", contravariant=True)
-T_co = t.TypeVar("T_co", covariant=True)
+from asynchron.strict_typing import T, T_co, T_contra
 
 
 class Walker(t.Generic[T_contra, T_co], metaclass=abc.ABCMeta):
@@ -18,9 +16,5 @@ class Walker(t.Generic[T_contra, T_co], metaclass=abc.ABCMeta):
         raise NotImplementedError
 
 
-class DescendantsGetter(t.Protocol[T]):
-    def __call__(self, item: T) -> t.Sequence[T]: ...
-
-
-class DescendantsWalkerFactory(t.Generic[T_contra, T_co]):
-    def __call__(self, descendants_getter: DescendantsGetter[T_contra]) -> Walker[T_contra, T_co]: ...
+DescendantsGetter = t.Callable[[T], t.Sequence[T]]
+DescendantsWalkerFactory = t.Callable[[DescendantsGetter[T_contra]], Walker[T_contra, T_co]]

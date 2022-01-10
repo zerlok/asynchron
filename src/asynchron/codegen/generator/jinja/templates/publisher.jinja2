@@ -2,17 +2,14 @@
 {% extends "base/python_module.jinja2" %}
 
 {% block imports %}
-{% for import in module.imports %}
-{{ import }}
-{% endfor %}
 from asynchron.amqp.controller import AioPikaBasedAmqpController
 from asynchron.amqp.serializer.pydantic import PydanticMessageSerializer
 from asynchron.core.amqp import AmqpPublisherBindings
 from asynchron.core.publisher import MessagePublisher
 
 from .message import (
-    {% for message in app.messages|sorted(attribute="name") %}
-    {{ message.name|pascalcase }},
+    {% for publisher in app.publishers|sorted("name") %}
+    {{ publisher.message.path|pascalcase }},
     {% endfor %}
 )
 {% endblock %}
@@ -29,9 +26,9 @@ class {{ app.name|pascalcase }}PublisherFacade:
     ) -> None:
         {% if app.publishers %}
         {% for publisher in app.publishers|sorted("name") %}
-        self.__{{ publisher.name|snakecase }}_publisher: MessagePublisher[{{ publisher.message.name|pascalcase }}] = controller.bind_publisher(
+        self.__{{ publisher.name|snakecase }}_publisher: MessagePublisher[{{ publisher.message.path|pascalcase }}] = controller.bind_publisher(
             encoder=PydanticMessageSerializer(
-                model={{ publisher.message.name|pascalcase }},  # type: ignore[misc]
+                model={{ publisher.message.path|pascalcase }},  # type: ignore[misc]
             ),
             bindings=AmqpPublisherBindings(
                 exchange_name="{{ publisher.exchange_name }}",
@@ -49,7 +46,7 @@ class {{ app.name|pascalcase }}PublisherFacade:
         {% for publisher in app.publishers|sorted("name") %}
     async def publish_{{ publisher.name|snakecase }}(
             self,
-            message: {{ publisher.message.name|pascalcase }},
+            message: {{ publisher.message.path|pascalcase }},
     ) -> None:
             {% if publisher.description %}
         """{{ publisher.description }}"""

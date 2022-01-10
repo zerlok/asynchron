@@ -2,19 +2,16 @@
 {% extends "base/python_module.jinja2" %}
 
 {% block imports %}
-{% for import in module.imports %}
-{{ import }}
-{% endfor %}
 import abc
 
 from asynchron.amqp.controller import AioPikaBasedAmqpController
 from asynchron.amqp.serializer.pydantic import PydanticMessageSerializer
-from asynchron.core.amqp import AmqpConsumerBindings, AmqpServerBindings
+from asynchron.core.amqp import AmqpConsumerBindings
 from asynchron.core.consumer import CallableMessageConsumer
 
 from .message import (
-    {% for message in app.messages|sorted(attribute="name") %}
-    {{ message.name|pascalcase }},
+    {% for consumer in app.consumers|sorted("name") %}
+    {{ consumer.message.path|pascalcase }},
     {% endfor %}
 )
 {% endblock %}
@@ -30,10 +27,10 @@ class {{ app.name|pascalcase }}ConsumerFacade(metaclass=abc.ABCMeta):
             controller: AioPikaBasedAmqpController,
     ) -> None:
         {% if app.consumers %}
-        {% for consumer in app.consumers|sorted("names") %}
+        {% for consumer in app.consumers|sorted("name") %}
         controller.bind_consumer(
             decoder=PydanticMessageSerializer(
-                model={{ consumer.message.name|pascalcase }},  # type: ignore[misc]
+                model={{ consumer.message.path|pascalcase }},  # type: ignore[misc]
             ),
             consumer=CallableMessageConsumer(
                 consumer=self.consume_{{ consumer.name|snakecase }},
@@ -62,7 +59,7 @@ class {{ app.name|pascalcase }}ConsumerFacade(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def consume_{{ consumer.name|snakecase }}(
             self,
-            message: {{ consumer.message.name|pascalcase }},
+            message: {{ consumer.message.path|pascalcase }},
     ) -> None:
             {% if consumer.description %}
         """{{ consumer.description }}"""

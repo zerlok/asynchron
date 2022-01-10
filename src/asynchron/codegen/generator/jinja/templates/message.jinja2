@@ -2,22 +2,23 @@
 {% extends "base/python_module.jinja2" %}
 
 {% macro render_python_type_name(type) -%}
-    {%- if type.module and type.module.path and type.module.path != ("builtins",) -%}
-        {%- if type.module.alias -%}
-            {{ type.module.alias }}
-        {%- else -%}
-            {{ type.module.path|join(".") }}
-        {%- endif -%}
-        .
-    {%- endif -%}
     {%- if type.module -%}
+        {%- if type.module.path and type.module.path != ("builtins",) -%}
+            {%- if type.module.alias -%}
+                {{ type.module.alias }}
+            {%- else -%}
+                {{ type.module.path|join(".") }}
+            {%- endif -%}
+            .
+        {%- endif -%}
         {{ type.path|join(".") }}
     {%- else -%}
-        {{ type.path|pascalcase|join("") }}
+        {{ type.path|pascalcase }}
     {%- endif -%}
 {%- endmacro %}
 
 {% macro render_python_type(type) -%}
+    {%- if not is_inline_enum_def(type) -%}
     {{ render_python_type_name(type) }}
     {%- if type.type_parameters -%}
         [
@@ -26,6 +27,9 @@
             {%- if not loop.last %}, {% endif -%}
         {%- endfor -%}
         ]
+    {%- endif -%}
+    {%- else -%}
+    {{ render_python_type_name(type.bases[0]) }}[{{ type.literals|map(attribute="value")|join(", ") }}]
     {%- endif -%}
 {%- endmacro %}
 
@@ -113,18 +117,9 @@
     {%- endif %}
 {%- endmacro %}
 
-{% block imports %}
-    {% for import in imports %}
-        {% if import.path != ("builtins",) %}
-import {{ import.path|join(".") }}{% if import.alias %} as {{ import.alias }}{% endif %}
-
-        {% endif %}
-    {% endfor %}
-{% endblock %}
-
 {% block classes %}
     {% for class in classes %}
-class {{ class.path|pascalcase|join("") }}{{ render_python_class_bases(class.bases) }}:
+class {{ class.path|pascalcase }}{{ render_python_class_bases(class.bases) }}:
         {% if class.descrition %}
     """{{ class.description }}"""
         {% endif %}

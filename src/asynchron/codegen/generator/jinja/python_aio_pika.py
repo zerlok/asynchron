@@ -69,7 +69,7 @@ class AppDef:
     modules: t.Collection[ModuleDef]
     consumers: t.Collection[ConsumerDef]
     publishers: t.Collection[PublisherDef]
-    messages: t.Sequence[TypeDef]
+    type_defs: t.Sequence[TypeDef]
 
 
 class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
@@ -90,18 +90,19 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
         app_consumers = list(self.__iter_amqp_consumer_defs(config, channel_messages))
         app_publishers = list(self.__iter_amqp_publisher_defs(config, channel_messages))
         app_modules = list(self.__iter_app_modules(config))
+        app_type_defs = list(self.__get_app_type_defs_ordered_by_dependency(channel_messages.values()))
 
         app = AppDef(
-            name="application",
+            name=config.info.title,
             description=config.info.description,
             modules=app_modules,
             consumers=app_consumers,
             publishers=app_publishers,
-            messages=self.__get_message_class_defs_ordered_by_dependency(channel_messages.values()),
+            type_defs=app_type_defs,
         )
 
         for module, render_context in self.__iter_rendering_modules(app):
-            module_path = Path(*module.path, ".py")
+            module_path = Path(*module.path[:-1], f"{module.path[-1]}.py")
 
             stream = self.__renderer.render(
                 name=module.path[-1],
@@ -143,12 +144,11 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
             if payload is None:
                 continue
 
-            channel_message_name = message.title or channel_name
             message_def = self.__message_def_generator.get_type_def_from_json_schema(payload)
             if message_def is None:
                 continue
 
-            yield channel_message_name, message_def
+            yield channel_name.replace("/", "_"), message_def
 
     def __iter_amqp_operations(
             self,
@@ -169,7 +169,7 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
             if amqp_channel_bindings is None or amqp_operation_bindings is None:
                 continue
 
-            yield channel_name, channel, operation, amqp_channel_bindings, amqp_operation_bindings
+            yield channel_name.replace("/", "_"), channel, operation, amqp_channel_bindings, amqp_operation_bindings
 
     def __iter_amqp_consumer_defs(
             self,
@@ -221,7 +221,7 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
                 message=channel_message,
             )
 
-    def __get_message_class_defs_ordered_by_dependency(
+    def __get_app_type_defs_ordered_by_dependency(
             self,
             message_defs: t.Collection[TypeDef],
     ) -> t.Sequence[TypeDef]:
@@ -234,11 +234,7 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
         def walker(value: TypeDef) -> t.Sequence[TypeDef]:
             return value.accept_visitor(type_def_walking_visitor)
 
-        type_def_normalizer = TypeDefTransformingVisitor(
-            TypeDefNestingVisitor(
-                SingleBaseInheritanceClassDefReplacingVisitor(),
-            ),
-        )
+        type_def_normalizer = TypeDefSimplifier()
 
         visited: t.Set[TypeDef] = set()
         result: t.List[TypeDef] = []
@@ -267,40 +263,46 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
             "meta": self.__meta,
         }
 
-        for module, context in (
-                (
-                        ModuleDef(
-                            path=("__init__",),
-                        ),
-                        {},
+        settings: t.Collection[t.Tuple[ModuleDef, t.Mapping[str, object]]] = [
+            (
+                ModuleDef(
+                    path=("__init__",),
                 ),
-                (
-                        ModuleDef(
-                            path=("consumer",),
-                        ),
-                        {},
+                {},
+            ),
+            (
+                ModuleDef(
+                    path=("consumer",),
                 ),
-                (
-                        ModuleDef(
-                            path=("publisher",),
-                        ),
-                        {},
+                {},
+            ),
+            (
+                ModuleDef(
+                    path=("publisher",),
                 ),
-                (
-                        ModuleDef(
-                            path=("message",),
-                        ),
-                        {
-                            "imports": list(self.__iter_module_defs(app.messages)),
-                            "classes": list(self.__iter_class_defs(app.messages)),
-                        },
+                {},
+            ),
+            (
+                ModuleDef(
+                    path=("message",),
                 ),
-        ):
+                {
+                    "imports": list(self.__iter_module_defs(app.type_defs)),
+                    "classes": list(self.__iter_class_defs(app.type_defs)),
+                    "is_inline_enum_def": self.__is_inline_enum_def,
+                },
+            ),
+        ]
+
+        for module, context in settings:
             yield module, {
                 **base_context,
                 "module": module,
                 **context,
             }
+
+    def __is_inline_enum_def(self, value: object) -> bool:
+        return isinstance(value, InlineEnumDef)
 
 
 class TypeDefTransformingVisitor(TypeDefVisitor[TypeDef]):
@@ -382,7 +384,7 @@ class TypeDefNestingVisitor(TypeDefVisitor[t.Sequence[TypeDef]]):
         return self.__visit_sequentially(obj)
 
     def __visit_sequentially(self, obj: TypeDef) -> t.Sequence[TypeDef]:
-        result = (obj,)
+        result: t.Sequence[TypeDef] = (obj,)
 
         for visitor in self.__visitors:
             result = [
@@ -413,10 +415,52 @@ class SingleBaseInheritanceClassDefReplacingVisitor(TypeDefVisitor[t.Sequence[Ty
         return (obj,)
 
     def visit_inline_enum_def(self, obj: InlineEnumDef) -> t.Sequence[TypeDef]:
+        # if obj.literals and len(obj.bases) == 1 and isinstance(obj.bases[0], ClassDef):
+        #     c = obj.bases[0]
+        #     return (replace(c, path=c.path, ),)
+
         return (obj,)
 
     def visit_enum_def(self, obj: EnumDef) -> t.Sequence[TypeDef]:
         return (obj,)
+
+
+class TypeDefSimplifier(TypeDefVisitor[TypeDef]):
+
+    def visit_type_reference(self, obj: TypeRef) -> TypeDef:
+        return obj
+
+    def visit_module_def(self, obj: ModuleDef) -> TypeDef:
+        return obj
+
+    def visit_class_def(self, obj: ClassDef) -> TypeDef:
+        if len(obj.bases) == 1 and not obj.fields:
+            base = obj.bases[0]
+
+            if isinstance(base, (ClassDef, InlineEnumDef)):
+                if not obj.type_parameters:
+                    if base.module is None:
+                        return replace(base, path=obj.path).accept_visitor(self)
+
+                    else:
+                        return base.accept_visitor(self)
+
+                else:
+                    return replace(base, type_parameters=obj.type_parameters).accept_visitor(self)
+
+        return replace(obj, type_parameters=tuple(tp.accept_visitor(self) for tp in obj.type_parameters),
+                       bases=tuple(base.accept_visitor(self) for base in obj.bases),
+                       module=obj.module.accept_visitor(self) if obj.module is not None else None,
+                       fields=tuple(replace(field, of_type=field.of_type.accept_visitor(self)) for field in obj.fields),
+                       )
+
+    def visit_inline_enum_def(self, obj: InlineEnumDef) -> TypeDef:
+        return replace(obj, bases=tuple(base.accept_visitor(self) for base in obj.bases),
+                       module=obj.module.accept_visitor(self) if obj.module is not None else None)
+
+    def visit_enum_def(self, obj: EnumDef) -> TypeDef:
+        return replace(obj, bases=tuple(base.accept_visitor(self) for base in obj.bases),
+                       module=obj.module.accept_visitor(self) if obj.module is not None else None)
 
 
 class ImportedClassDefOmittingVisitor(TypeDefVisitor[t.Sequence[TypeDef]]):

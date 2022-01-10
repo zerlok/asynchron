@@ -12,6 +12,10 @@ T = t.TypeVar("T")
 
 class BFSWalker(t.Generic[T], Walker[T, T]):
 
+    @classmethod
+    def create(cls, getter: DescendantsGetter[T]) -> "BFSWalker[T]":
+        return cls(getter)
+
     def __init__(
             self,
             descendants_getter: DescendantsGetter[T],

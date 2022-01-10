@@ -39,21 +39,21 @@ class JinjaTemplateRenderer:
         jinja_template = self.__jinja_env.get_template(f"{name}.jinja2")
         return jinja_template.stream(**context)
 
-    def __convert_to_snakecase(self, value: object) -> object:
+    def __convert_to_snakecase(self, value: object) -> str:
         if not isinstance(value, str) and isinstance(value, t.Iterable):
-            return (stringcase.snakecase(str(item)) for item in value)
+            return "_".join(stringcase.snakecase(str(item)) for item in value)
 
         return stringcase.snakecase(str(value))
 
-    def __convert_to_pascalcase(self, value: object) -> object:
+    def __convert_to_pascalcase(self, value: object) -> str:
         if not isinstance(value, str) and isinstance(value, t.Iterable):
-            return (stringcase.pascalcase(str(item)) for item in value)
+            return "".join(stringcase.pascalcase(str(item)) for item in value)
 
         return stringcase.pascalcase(str(value))
 
-    def __convert_to_constcase(self, value: object) -> object:
+    def __convert_to_constcase(self, value: object) -> str:
         if not isinstance(value, str) and isinstance(value, t.Iterable):
-            return (stringcase.constcase(str(item)) for item in value)
+            return "_".join(stringcase.constcase(str(item)) for item in value)
 
         return stringcase.constcase(str(value))
 
@@ -66,6 +66,8 @@ class JinjaTemplateRenderer:
             for item in items:
                 if getattr(item, attribute, None) == value:
                     return item
+
+        return None
 
     def __iter_sorted(self, values: object, attribute: str) -> t.Iterable[object]:
         if isinstance(values, t.Iterable):

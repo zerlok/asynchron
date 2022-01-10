@@ -10,9 +10,9 @@ from dataclasses import replace
 
 from pydantic.fields import FieldInfo
 
-from asynchron.codegen.spec.base import SchemaObject
+from asynchron.codegen.spec.base import SchemaObject, SchemaObjectType
 from asynchron.codegen.spec.type_definition import ClassDef, EnumDef, Expr, InlineEnumDef, ModuleDef, TypeDef, TypeRef
-from asynchron.strict_typing import as_, as_mapping, as_sequence, raise_not_exhaustive
+from asynchron.strict_typing import as_, as_mapping, as_sequence, make_sequence_of_not_none, raise_not_exhaustive
 
 
 class SchemaObjectBasedTypeDefGenerator(metaclass=abc.ABCMeta):
@@ -28,9 +28,8 @@ class SchemaObjectBasedPythonTypeDefGenerator(SchemaObjectBasedTypeDefGenerator)
     __UUID_MODULE: t.Final[ModuleDef] = ModuleDef(("uuid",))
 
     __SCALAR_PYTHON_TYPES_BY_JSON_TYPE_AND_FORMAT: t.Final[
-        t.Mapping[t.Optional[str], t.Mapping[t.Optional[str], t.Optional[TypeDef]]]
+        t.Mapping[str, t.Mapping[t.Optional[str], t.Optional[TypeDef]]]
     ] = {
-        None: None,
         "null": {
             None: ClassDef(("None",), module=__BUILTINS_MODULE, ),
         },
@@ -62,8 +61,34 @@ class SchemaObjectBasedPythonTypeDefGenerator(SchemaObjectBasedTypeDefGenerator)
     }
 
     def get_type_def_from_json_schema(self, schema: SchemaObject) -> t.Optional[TypeDef]:
-        scalar_defs_by_format = self.__SCALAR_PYTHON_TYPES_BY_JSON_TYPE_AND_FORMAT.get(schema.type_) or {}
-        if formatted_scalar_type_def := scalar_defs_by_format.get(schema.format_):
+        type_, format_ = schema.type_, schema.format_
+
+        if type_ is None:
+            return None
+
+        elif isinstance(type_, str):
+            return self.__get_type_def_from_json_schema_type(type_, format_)
+
+        else:
+            return ClassDef(
+                path=("union",),
+                type_parameters=make_sequence_of_not_none(*(
+                    self.__get_type_def_from_json_schema_type(sub_type, format_)
+                    for sub_type in type_
+                )),
+                bases=(ClassDef(("Union",), module=self.__TYPING_MODULE, ),),
+            )
+
+    def __get_type_def_from_json_schema_type(
+            self,
+            type_: t.Optional[str],
+            format_: t.Optional[str],
+    ) -> t.Optional[TypeDef]:
+        if type_ is None:
+            return None
+
+        scalar_defs_by_format = self.__SCALAR_PYTHON_TYPES_BY_JSON_TYPE_AND_FORMAT.get(type_) or {}
+        if formatted_scalar_type_def := scalar_defs_by_format.get(format_):
             return formatted_scalar_type_def
 
         return scalar_defs_by_format.get(None)
@@ -163,7 +188,7 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
             schema: SchemaObject,
             is_optional: bool,
     ) -> ClassDef.FieldDef:
-        field_type_def = self.__get_type_ref(root_path, schema)
+        field_type_def: TypeDef = self.__get_type_ref(root_path, schema)
         if is_optional:
             field_type_def = self.__get_optional(field_type_def)
 
@@ -221,7 +246,7 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
 
         elif schema.type_ == "array":
             if element_schema := as_(SchemaObject, schema.items):
-                element_def = self.__get_type_ref(path, element_schema)
+                element_def: TypeDef = self.__get_type_ref(path, element_schema)
 
             elif element_schemas := as_sequence(SchemaObject, schema.items):
                 element_def = self.__get_union(path, "items", element_schemas)
@@ -269,6 +294,7 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
         while queue:
             type_def = queue.pop(0)
 
+            # TODO: make a visitor
             if class_def := as_(ClassDef, type_def):
                 queue.extend(class_def.type_parameters)
                 queue.extend(class_def.bases)
@@ -286,8 +312,12 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
             elif as_(TypeRef, type_def):
                 pass
 
+            elif as_(ModuleDef, type_def):
+                pass
+
             else:
-                raise_not_exhaustive(type(type_def), type_def)
+                raise RuntimeError
+                # raise_not_exhaustive(type(type_def), type_def)
 
             yield type_def
 
@@ -296,6 +326,7 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
             type_def: TypeDef,
             references: t.Mapping[TypeRef, TypeDef],
     ) -> TypeDef:
+        # TODO: make a visitor
         if class_def := as_(ClassDef, type_def):
             return replace(
                 class_def,
@@ -337,8 +368,9 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
         elif type_ref := as_(TypeRef, type_def):
             return self.__resolve_references(references[type_ref], references)
 
-        else:
-            raise_not_exhaustive(type(type_def), type_def)
+        elif module_def := as_(ModuleDef, type_def):
+            return module_def
 
-    def __generate_name(self, parent: SchemaObject, child: SchemaObject) -> str:
-        return "_".join((parent.title, child.title))
+        else:
+            raise RuntimeError
+            # raise_not_exhaustive(type(type_def), type_def)

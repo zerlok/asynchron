@@ -13,6 +13,9 @@ T = t.TypeVar("T")
 
 
 class DFSPreOrderingWalker(t.Generic[T], Walker[T, T]):
+    @classmethod
+    def create(cls, getter: DescendantsGetter[T]) -> "DFSPreOrderingWalker[T]":
+        return cls(getter)
 
     def __init__(
             self,
@@ -30,6 +33,10 @@ class DFSPreOrderingWalker(t.Generic[T], Walker[T, T]):
 
 
 class DFSPPostOrderingWalker(t.Generic[T], Walker[T, T]):
+
+    @classmethod
+    def create(cls, getter: DescendantsGetter[T]) -> "DFSPPostOrderingWalker[T]":
+        return cls(getter)
 
     def __init__(
             self,

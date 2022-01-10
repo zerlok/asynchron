@@ -7,7 +7,7 @@ from asynchron.core.amqp import AmqpServerBindings
 from asynchron.core.application import ApplicationBuilder
 from asynchron.core.controller import Runnable
 from generated.consumer import TemperatureReadingsConsumerFacade
-from generated.message import SensorTemperatureFahrenheitMessage
+from generated.message import SensorReading
 from generated.publisher import TemperatureReadingsPublisherFacade
 
 builder = ApplicationBuilder()
@@ -20,9 +20,9 @@ class TemperatureReadingsConsumerFacadeImpl(TemperatureReadingsConsumerFacade):
 
     async def consume_sensor_temperature_fahrenheit(
             self,
-            message: SensorTemperatureFahrenheitMessage,
+            message: SensorReading,
     ) -> None:
-        await self.__publishers.publish_sensor_temperature_fahrenheit(SensorTemperatureFahrenheitMessage(
+        await self.__publishers.publish_sensor_temperature_fahrenheit(SensorReading(
             baseUnit=message.base_unit,
             sensorId=message.sensor_id,
             temperature=message.temperature,

@@ -28,14 +28,14 @@ import {{ import.path|join(".") }}{% if import.alias %} as {{ import.alias }}{% 
 
 {% block constants %}
     {% for constant in constants|unique|sorted("path") %}
-{{ constant.path|constcase|join("") }} = {{ constant.expr.value }}
+{{ constant.path|constcase }} = {{ constant.expr.value }}
     {% endfor %}
 {% endblock %}
 
 
 {% block classes %}
     {% for class in classes|unique|sorted("path") %}
-class {{ class.path|pascalcase|join("") }}:
+class {{ class.path|pascalcase }}:
     pass
     {% endfor %}
 {% endblock %}
@@ -43,7 +43,7 @@ class {{ class.path|pascalcase|join("") }}:
 
 {% block functions %}
     {% for function in functions|unique|sorted("path") %}
-def {{ function.path|snakecase|join("") }}():
+def {{ function.path|snakecase }}():
     raise NotImplementedError
     {% endfor %}
 {% endblock %}
