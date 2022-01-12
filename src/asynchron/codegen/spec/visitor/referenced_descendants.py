@@ -67,6 +67,7 @@ class ReferencedDescendantSpecObjectVisitor(SpecObjectVisitor[t.Sequence[Referen
 
     def visit_schema_object(self, obj: SchemaObject) -> t.Sequence[ReferencedSpecObject]:
         return _ReferencedSpecObjectListBuilder() \
+            .add(("prefixItems",), obj.prefix_items) \
             .add(("items",), obj.items) \
             .add(("additionalProperties",), obj.additional_properties) \
             .add(("patternProperties",), obj.pattern_properties) \

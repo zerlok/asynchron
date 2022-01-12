@@ -59,14 +59,14 @@ class SerializableObjectModifier:
     @__serialize_object.register(str)
     @__serialize_object.register(list)
     @__serialize_object.register(dict)
-    def __serialize_json_serializable_object(
+    def __serialize_json_serializable_object(  # type: ignore[misc]
             self,
             obj: object,
     ) -> SerializableObject:
         return t.cast(SerializableObject, obj)
 
     @__serialize_object.register(BaseModel)
-    def __serialize_pydantic_model(self, obj: BaseModel) -> SerializableObject:
+    def __serialize_pydantic_model(self, obj: BaseModel) -> SerializableObject:  # type: ignore[misc]
         return t.cast(SerializableObject, obj.dict(by_alias=True, exclude_none=True))
 
     @ft.singledispatchmethod
@@ -80,7 +80,7 @@ class SerializableObjectModifier:
     @__deserialize_object.register(str)
     @__deserialize_object.register(list)
     @__deserialize_object.register(dict)
-    def __deserialize_json_serializable_object(
+    def __deserialize_json_serializable_object(  # type: ignore[misc]
             self,
             source: object,
             obj: SerializableObject,

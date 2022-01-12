@@ -83,8 +83,13 @@ class MainFooComponentsSchemasFooPropertiesNestedObjectProp(pydantic.BaseModel):
     )
 
 
-class MainFooComponentsSchemasFooPropertiesStr2nestedObjectMappingProp:
-    pass
+class MainFooComponentsSchemasFooPropertiesStr2nestedObjectMappingPropComponentsSchemasFooPropertiesStr2nestedObjectMappingPropAdditionalProperties(pydantic.BaseModel):
+    one: typing.Optional[typing.Union[int, float]] = pydantic.Field(
+        alias="one",
+    )
+    two: typing.Optional[str] = pydantic.Field(
+        alias="two",
+    )
 
 
 class MainFoo(pydantic.BaseModel):
@@ -148,7 +153,7 @@ class MainFoo(pydantic.BaseModel):
     required_str_prop: str = pydantic.Field(
         alias="requiredStrProp",
     )
-    str2nested_object_mapping_prop: typing.Optional[typing.Mapping[str, MainFooComponentsSchemasFooPropertiesStr2nestedObjectMappingProp]] = pydantic.Field(
+    str2nested_object_mapping_prop: typing.Optional[typing.Mapping[str, MainFooComponentsSchemasFooPropertiesStr2nestedObjectMappingPropComponentsSchemasFooPropertiesStr2nestedObjectMappingPropAdditionalProperties]] = pydantic.Field(
         alias="str2nestedObjectMappingProp",
     )
     str2str_mapping_prop: typing.Optional[typing.Mapping[str, str]] = pydantic.Field(

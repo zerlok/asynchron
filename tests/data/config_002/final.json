@@ -238,11 +238,30 @@
               "tuple2NumberStrProp": {
                 "items": false,
                 "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
                 "type": "array"
               },
               "tuple3NumberStrNumberProp": {
                 "items": false,
                 "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
                 "type": "array"
               },
               "uuidProp": {
@@ -480,11 +499,30 @@
               "tuple2NumberStrProp": {
                 "items": false,
                 "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
                 "type": "array"
               },
               "tuple3NumberStrNumberProp": {
                 "items": false,
                 "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
                 "type": "array"
               },
               "uuidProp": {
@@ -718,11 +756,30 @@
             "tuple2NumberStrProp": {
               "items": false,
               "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ],
               "type": "array"
             },
             "tuple3NumberStrNumberProp": {
               "items": false,
               "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ],
               "type": "array"
             },
             "uuidProp": {
@@ -951,11 +1008,30 @@
           "tuple2NumberStrProp": {
             "items": false,
             "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
             "type": "array"
           },
           "tuple3NumberStrNumberProp": {
             "items": false,
             "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
             "type": "array"
           },
           "uuidProp": {

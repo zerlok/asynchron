@@ -27,6 +27,10 @@ class SchemaObjectBasedPythonTypeDefGenerator(SchemaObjectBasedTypeDefGenerator)
     __DATETIME_MODULE: t.Final[ModuleDef] = ModuleDef(("datetime",))
     __UUID_MODULE: t.Final[ModuleDef] = ModuleDef(("uuid",))
 
+    __INT_TYPE = ClassDef(("int",), module=__BUILTINS_MODULE, )
+    __FLOAT_TYPE = ClassDef(("float",), module=__BUILTINS_MODULE, )
+    __UNION_TYPE = ClassDef(("Union",), module=__TYPING_MODULE, )
+
     __SCALAR_PYTHON_TYPES_BY_JSON_TYPE_AND_FORMAT: t.Final[
         t.Mapping[str, t.Mapping[t.Optional[str], t.Optional[TypeDef]]]
     ] = {
@@ -37,17 +41,21 @@ class SchemaObjectBasedPythonTypeDefGenerator(SchemaObjectBasedTypeDefGenerator)
             None: ClassDef(("bool",), module=__BUILTINS_MODULE, ),
         },
         "integer": {
-            None: ClassDef(("int",), module=__BUILTINS_MODULE, ),
+            None: __INT_TYPE,
         },
         "number": {
             None: ClassDef(
                 path=(),
                 type_parameters=(
-                    ClassDef(("int",), module=__BUILTINS_MODULE, ),
-                    ClassDef(("float",), module=__BUILTINS_MODULE, ),
+                    __INT_TYPE,
+                    __FLOAT_TYPE,
                 ),
-                bases=(ClassDef(("Union",), module=__TYPING_MODULE, ),),
+                bases=(__UNION_TYPE,),
             ),
+            "int": __INT_TYPE,
+            "integer": __INT_TYPE,
+            "float": __FLOAT_TYPE,
+            "double": __FLOAT_TYPE,
         },
         "string": {
             None: ClassDef(("str",), module=__BUILTINS_MODULE, ),
@@ -76,7 +84,7 @@ class SchemaObjectBasedPythonTypeDefGenerator(SchemaObjectBasedTypeDefGenerator)
                     self.__get_type_def_from_json_schema_type(sub_type, format_)
                     for sub_type in type_
                 )),
-                bases=(ClassDef(("Union",), module=self.__TYPING_MODULE, ),),
+                bases=(self.__UNION_TYPE,),
             )
 
     def __get_type_def_from_json_schema_type(
@@ -95,6 +103,7 @@ class SchemaObjectBasedPythonTypeDefGenerator(SchemaObjectBasedTypeDefGenerator)
 
 
 class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator):
+    __BUILTINS_MODULE: t.Final[ModuleDef] = ModuleDef(("builtins",))
     __TYPING_MODULE: t.Final[ModuleDef] = ModuleDef(("typing",))
     __PYDANTIC_MODULE: t.Final[ModuleDef] = ModuleDef(("pydantic",))
     __ENUM_MODULE: t.Final[ModuleDef] = ModuleDef(("enum",))
@@ -103,8 +112,11 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
     __DEFAULT_ANY: t.Final[TypeDef] = ClassDef(("Any",), module=__TYPING_MODULE, )
     __DEFAULT_OBJECT: t.Final[TypeDef] = ClassDef(("BaseModel",), module=__PYDANTIC_MODULE, )
     __DEFAULT_FIELD_INFO: t.Final[TypeDef] = ClassDef(("Field",), module=__PYDANTIC_MODULE, )
+    __DEFAULT_MAPPING: t.Final[TypeDef] = ClassDef(("Mapping",), module=__TYPING_MODULE, )
+    __DEFAULT_MAPPING_KEY: t.Final[TypeDef] = ClassDef(("str",), module=__BUILTINS_MODULE, )
     __DEFAULT_ARRAY: t.Final[TypeDef] = ClassDef(("Sequence",), module=__TYPING_MODULE, )
     __DEFAULT_SET: t.Final[TypeDef] = ClassDef(("Collection",), module=__TYPING_MODULE, )
+    __DEFAULT_TUPLE: t.Final[TypeDef] = ClassDef(("Tuple",), module=__TYPING_MODULE, )
     __DEFAULT_OPTIONAL: t.Final[TypeDef] = ClassDef(("Optional",), module=__TYPING_MODULE, )
     __DEFAULT_UNION: t.Final[TypeDef] = ClassDef(("Union",), module=__TYPING_MODULE, )
     __DEFAULT_ENUM: t.Final[TypeDef] = ClassDef(("Enum",), module=__ENUM_MODULE, )
@@ -115,8 +127,10 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
             scalar_generator: t.Optional[SchemaObjectBasedTypeDefGenerator] = None,
             any_class_def: t.Optional[TypeDef] = None,
             object_class_def: t.Optional[TypeDef] = None,
+            mapping_class_def: t.Optional[TypeDef] = None,
             array_class_def: t.Optional[TypeDef] = None,
             set_class_def: t.Optional[TypeDef] = None,
+            tuple_class_def: t.Optional[TypeDef] = None,
             optional_class_def: t.Optional[TypeDef] = None,
             union_class_def: t.Optional[TypeDef] = None,
             enum_class_def: t.Optional[TypeDef] = None,
@@ -125,8 +139,10 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
         self.__scalar_generator = scalar_generator or self.__DEFAULT_SCALAR_GENERATOR
         self.__any_class_def = any_class_def or self.__DEFAULT_ANY
         self.__object_class_def = object_class_def or self.__DEFAULT_OBJECT
+        self.__mapping_class_def = mapping_class_def or self.__DEFAULT_MAPPING
         self.__array_class_def = array_class_def or self.__DEFAULT_ARRAY
         self.__set_class_def = set_class_def or self.__DEFAULT_SET
+        self.__tuple_class_def = tuple_class_def or self.__DEFAULT_TUPLE
         self.__optional_class_def = optional_class_def or self.__DEFAULT_OPTIONAL
         self.__union_class_def = union_class_def or self.__DEFAULT_UNION
         self.__enum_class_def = enum_class_def or self.__DEFAULT_ENUM
@@ -155,7 +171,7 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
         if title := schema.title:
             return title
 
-        raise ValueError()
+        raise ValueError(schema)
 
     def __get_path(self, parent: t.Sequence[str], schema: SchemaObject) -> t.Sequence[str]:
         return *parent, self.__get_name(schema)
@@ -233,32 +249,75 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
         if part_schemas := as_sequence(SchemaObject, schema.one_of):
             bases.append(self.__get_union(path, "alternatives", part_schemas))
 
-        if properties := as_mapping(str, SchemaObject, schema.properties):
-            required_field_names = set(schema.required or ())
-            bases.append(ClassDef(
-                path=(*path, "object"),
-                bases=(self.__object_class_def,),
-                fields=tuple(
-                    self.__get_field_def(path, field_name, field_schema, field_name not in required_field_names)
-                    for field_name, field_schema in properties.items()
-                ),
-            ))
+        if schema.type_ == "object":
+            if properties := as_mapping(str, SchemaObject, schema.properties):
+                required_field_names = set(schema.required or ())
+                bases.append(ClassDef(
+                    path=(*path, "object"),
+                    bases=(self.__object_class_def,),
+                    fields=tuple(
+                        self.__get_field_def(path, field_name, field_schema, field_name not in required_field_names)
+                        for field_name, field_schema in properties.items()
+                    ),
+                ))
+
+            if pattern_properties := as_mapping(str, SchemaObject, schema.pattern_properties):
+                # TODO: t.Mapping[regex($key), $value]
+                raise NotImplementedError
+
+            if as_(bool, schema.additional_properties):
+                bases.append(ClassDef(
+                    path=(*path, "mapping"),
+                    bases=(self.__mapping_class_def,),
+                    type_parameters=(self.__DEFAULT_MAPPING_KEY, self.__any_class_def,),
+                ))
+
+            elif additional_properties := as_(SchemaObject, schema.additional_properties):
+                bases.append(ClassDef(
+                    path=(*path, "mapping"),
+                    bases=(self.__mapping_class_def,),
+                    type_parameters=(self.__DEFAULT_MAPPING_KEY, self.__get_type_ref(path, additional_properties)),
+                ))
 
         elif schema.type_ == "array":
-            if element_schema := as_(SchemaObject, schema.items):
-                element_def: TypeDef = self.__get_type_ref(path, element_schema)
+            if schema.items is not False:
+                if element_schema := as_(SchemaObject, schema.items):
+                    element_def: TypeDef = self.__get_type_ref(path, element_schema)
 
-            elif element_schemas := as_sequence(SchemaObject, schema.items):
-                element_def = self.__get_union(path, "items", element_schemas)
+                elif element_schemas := as_sequence(SchemaObject, schema.items):
+                    element_def = self.__get_union(path, "items", element_schemas)
+
+                else:
+                    element_def = self.__any_class_def
+
+                bases.append(ClassDef(
+                    path=(*path, "array"),
+                    type_parameters=(element_def,),
+                    bases=(self.__array_class_def,) if not schema.unique_items else (self.__set_class_def,),
+                ))
+
+            elif schema.items is False and not schema.unique_items:
+                if prefix_items := as_sequence(SchemaObject, schema.prefix_items):
+                    # if min_items := as_(int, schema.min_items):
+                    #     raise NotImplementedError
+                    #
+                    # if max_items := as_(int, schema.max_items):
+                    #     raise NotImplementedError
+
+                    bases.append(ClassDef(
+                        path=(*path, "tuple"),
+                        type_parameters=tuple(
+                            self.__get_type_ref(path, item_schema)
+                            for item_schema in prefix_items
+                        ),
+                        bases=(self.__tuple_class_def,),
+                    ))
+
+                else:
+                    raise NotImplementedError
 
             else:
-                element_def = self.__any_class_def
-
-            bases.append(ClassDef(
-                path=(*path, "array"),
-                type_parameters=(element_def,),
-                bases=(self.__array_class_def,) if not schema.unique_items else (self.__set_class_def,),
-            ))
+                raise NotImplementedError
 
         elif literal_schemas := as_sequence(SchemaObject, schema.enum):
             bases.append(EnumDef(

@@ -38,6 +38,11 @@ from asynchron.codegen.writer.stream import AsyncApiStreamContentWriter
 from asynchron.providers import MappingValueSelector
 
 
+@SpecObjectTransformer
+def normalize_spec_object_title(path: SpecObjectPath, obj: SpecObject) -> SpecObject:
+    return obj.accept_visitor(SpecObjectTitleNormalizer(path))
+
+
 def _load_config_source(path: Path, click_context: click.Context) -> t.TextIO:
     return click_context.with_resource(closing(path.open("r")))
 
@@ -45,12 +50,7 @@ def _load_config_source(path: Path, click_context: click.Context) -> t.TextIO:
 def _create_config_normalizers(
         *normalizers: AsyncApiConfigTransformer,
 ) -> t.Sequence[AsyncApiConfigTransformer]:
-    @SpecObjectTransformer
-    def transformer(path: SpecObjectPath, obj: SpecObject) -> SpecObject:
-        return obj.accept_visitor(SpecObjectTitleNormalizer(path))
-
     return (
-        transformer,
         *normalizers,
         JsonReferenceResolvingTransformer(),
     )
@@ -192,6 +192,7 @@ def generate_code(
         allow_formatter: bool,
         use_absolute_imports: bool,
 ) -> None:
+    container.config_transformers.add_args(normalize_spec_object_title)
     container.code_generator_meta_info.override(Object(AsyncApiCodeGeneratorMetaInfo(
         generator_name="asynchron",
         generator_link="https://github.com/zerlok/asynchron",

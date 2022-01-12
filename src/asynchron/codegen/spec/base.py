@@ -261,6 +261,11 @@ class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
     # Implementation was adapted from
     # https://github.com/koxudaxi/datamodel-code-generator/blob/513988f6391497b3c272801cd0f52941ec0178cb/datamodel_code_generator/parser/jsonschema.py#L115
 
+    prefix_items: t.Optional[t.Union[bool, ReferenceObject, "SchemaObject", t.Sequence[t.Union[ReferenceObject, "SchemaObject"]]]] \
+        = Field(
+        default=None,
+        alias="prefixItems",
+    )
     items: t.Optional[t.Union[bool, ReferenceObject, "SchemaObject", t.Sequence[t.Union[ReferenceObject, "SchemaObject"]]]] \
         = Field(
         default=None,
