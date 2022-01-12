@@ -86,12 +86,13 @@ def dir_files_loader(file_loader: t.Callable[[Path], str]) -> t.Callable[[Path],
 
 
 class ConfigCases:
-    def case_config_001(
+    def load_config_dir(
             self,
+            name: str,
             data_dir: Path,
             file_loader: t.Callable[[Path], str],
     ) -> t.Tuple[Path, t.Any, t.Mapping[Path, t.Sequence[str]], str]:
-        root = data_dir / "config-001"
+        root = data_dir / name
 
         with (root / "final.json").open("r") as fd:
             config_json = json.load(fd)
@@ -106,7 +107,21 @@ class ConfigCases:
             )
         }
 
-        return root / "asyncapi.yaml", config_json, files, "config_001"
+        return root / "asyncapi.yaml", config_json, files, name
+
+    def case_config_001(
+            self,
+            data_dir: Path,
+            file_loader: t.Callable[[Path], str],
+    ) -> t.Tuple[Path, t.Any, t.Mapping[Path, t.Sequence[str]], str]:
+        return self.load_config_dir("config_001", data_dir, file_loader)
+
+    def case_config_002(
+            self,
+            data_dir: Path,
+            file_loader: t.Callable[[Path], str],
+    ) -> t.Tuple[Path, t.Any, t.Mapping[Path, t.Sequence[str]], str]:
+        return self.load_config_dir("config_002", data_dir, file_loader)
 
 
 class CurrentTimeCases:

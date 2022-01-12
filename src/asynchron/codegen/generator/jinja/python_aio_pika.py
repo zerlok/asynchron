@@ -2,16 +2,19 @@ __all__ = (
     "JinjaBasedPythonAioPikaCodeGenerator",
 )
 
-import re
+import itertools as it
 import typing as t
-from dataclasses import dataclass, field
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import stringcase  # type: ignore
-from pydantic.fields import FieldInfo
 
 from asynchron.codegen.app import AsyncApiCodeGenerator
-from asynchron.codegen.generator.jinja.renderer import JinjaTemplateRenderer
+from asynchron.codegen.generator.jinja.jinja_renderer import JinjaTemplateRenderer
+from asynchron.codegen.generator.schema_object_based_type_definition import (
+    SchemaObjectBasedPythonModelDefGenerator,
+    SchemaObjectBasedTypeDefGenerator,
+)
 from asynchron.codegen.info import AsyncApiCodeGeneratorMetaInfo
 from asynchron.codegen.spec.base import (
     AMQPBindingTrait,
@@ -21,7 +24,18 @@ from asynchron.codegen.spec.base import (
     OperationBindingsObject, OperationObject,
     SchemaObject,
 )
-from asynchron.strict_typing import as_, as_sequence
+from asynchron.codegen.spec.type_definition import (
+    ClassDef,
+    EnumDef,
+    InlineEnumDef,
+    ModuleDef,
+    TypeDef,
+    TypeDefVisitor,
+    TypeRef,
+)
+from asynchron.codegen.spec.visitor.type_def_descendants import TypeDefDescendantsVisitor
+from asynchron.codegen.spec.walker.dfs import DFSPPostOrderingWalker
+from asynchron.strict_typing import as_
 
 K = t.TypeVar("K", bound=t.Hashable)
 V = t.TypeVar("V")
@@ -29,63 +43,10 @@ T = t.TypeVar("T")
 
 
 @dataclass(frozen=True)
-class TypeDef:
-    name: str
-    nested: t.Sequence["TypeDef"] = field(default_factory=tuple)
-
-
-class TypeTraits:
-    ANY: t.Final[TypeDef] = TypeDef("typing.Any")
-    NONE: t.Final[TypeDef] = TypeDef("None")
-    BOOL: t.Final[TypeDef] = TypeDef("bool")
-    INT: t.Final[TypeDef] = TypeDef("int")
-    FLOAT: t.Final[TypeDef] = TypeDef("float")
-    NUMBER: t.Final[TypeDef] = TypeDef("typing.Union", (INT, FLOAT,))
-    STR: t.Final[TypeDef] = TypeDef("str")
-
-    @classmethod
-    def create_optional(cls, type_: TypeDef) -> TypeDef:
-        return TypeDef("typing.Optional", (type_,))
-
-    @classmethod
-    def create_union(cls, options: t.Iterable[TypeDef]) -> TypeDef:
-        return TypeDef("typing.Union", tuple(options))
-
-    @classmethod
-    def create_literal(cls, options: t.Iterable[t.Union[int, str]]) -> TypeDef:
-        return TypeDef(f"""typing.Literal["{'", "'.join(str(option) for option in options)}"]""")
-
-    @classmethod
-    def create_collection(cls, item: TypeDef) -> TypeDef:
-        return TypeDef("typing.Collection", (item,))
-
-    @classmethod
-    def create_sequence(cls, item: TypeDef) -> TypeDef:
-        return TypeDef("typing.Sequence", (item,))
-
-    @classmethod
-    def create_mapping(cls, key: TypeDef, value: TypeDef) -> TypeDef:
-        return TypeDef("typing.Mapping", (key, value,))
-
-
-@dataclass(frozen=True)
-class MessageFieldDef:
-    type_: TypeDef
-    info: FieldInfo
-
-
-@dataclass(frozen=True)
-class MessageDef:
-    name: str
-    description: t.Optional[str]
-    fields: t.Mapping[str, MessageFieldDef]
-
-
-@dataclass(frozen=True)
 class ConsumerDef:
     name: str
     description: t.Optional[str]
-    message: MessageDef
+    message: TypeDef
     exchange_name: str
     queue_name: t.Optional[str]
     binding_keys: t.Collection[str]
@@ -95,57 +56,20 @@ class ConsumerDef:
 class PublisherDef:
     name: str
     description: t.Optional[str]
-    message: MessageDef
+    message: TypeDef
     exchange_name: str
     routing_key: str
     is_mandatory: t.Optional[bool]
 
 
 @dataclass(frozen=True)
-class ModuleDef:
-    python_path: str
-    fs_path: Path
-    description: t.Optional[str]
-    imports: t.Sequence[str] = field(default_factory=tuple)
-
-
-@dataclass(frozen=True)
 class AppDef:
     name: str
     description: t.Optional[str]
-    modules: t.Mapping[str, ModuleDef]
+    modules: t.Collection[ModuleDef]
     consumers: t.Collection[ConsumerDef]
     publishers: t.Collection[PublisherDef]
-    messages: t.Collection[MessageDef]
-
-
-@dataclass(frozen=True)
-class AmqpConsumerOperation:
-    name: str
-    channel: ChannelItemObject
-    operation: OperationObject
-    messages: t.Sequence[MessageObject]
-    exchange_name: str
-    exchange_type: str
-    queue_name: str
-    binding_keys: t.Collection[str]
-
-    channel_binding: AMQPBindingTrait.AMQPChannelBindingObject
-    operation_binding: AMQPBindingTrait.AMQPOperationBindingObject
-
-
-@dataclass(frozen=True)
-class AmqpPublisherOperation:
-    name: str
-    channel: ChannelItemObject
-    operation: OperationObject
-    messages: t.Sequence[MessageObject]
-    exchange_name: str
-    exchange_type: str
-    routing_key: str
-
-    channel_binding: AMQPBindingTrait.AMQPChannelBindingObject
-    operation_binding: AMQPBindingTrait.AMQPOperationBindingObject
+    type_defs: t.Sequence[TypeDef]
 
 
 class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
@@ -154,50 +78,62 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
     def __init__(
             self,
             meta: AsyncApiCodeGeneratorMetaInfo,
+            message_def_generator: t.Optional[SchemaObjectBasedTypeDefGenerator] = None,
             renderer: t.Optional[JinjaTemplateRenderer] = None,
     ) -> None:
         self.__meta = meta
-        self.__renderer = renderer or JinjaTemplateRenderer(self.__JINJA_TEMPLATES_DIR)
+        self.__message_def_generator = message_def_generator or SchemaObjectBasedPythonModelDefGenerator()
+        self.__renderer = renderer or JinjaTemplateRenderer.from_template_root_dir(self.__JINJA_TEMPLATES_DIR)
 
     def generate(self, config: AsyncAPIObject) -> t.Iterable[t.Tuple[Path, t.Iterable[str]]]:
-        messages: t.Mapping[object, MessageDef] = {
-            channel_name: message
-            for channel_name, message in self.__iter_message_defs(config)
-        }
+        channel_messages: t.Dict[str, TypeDef] = dict(self.__iter_message_defs(config))
+        app_consumers = list(self.__iter_amqp_consumer_defs(config, channel_messages))
+        app_publishers = list(self.__iter_amqp_publisher_defs(config, channel_messages))
+        app_modules = list(self.__iter_app_modules(config))
+        app_type_defs = list(self.__get_app_type_defs_ordered_by_dependency(channel_messages.values()))
 
-        app_name = self.__normalize_name(config.info.title)
         app = AppDef(
-            name=app_name,
+            name=config.info.title,
             description=config.info.description,
-            modules=self.__get_app_modules(),
-            consumers=list(self.__iter_amqp_consumer_defs(config, messages)),
-            publishers=list(self.__iter_amqp_publisher_defs(config, messages)),
-            messages=list(messages.values()),
+            modules=app_modules,
+            consumers=app_consumers,
+            publishers=app_publishers,
+            type_defs=app_type_defs,
         )
 
-        for module_name, module in app.modules.items():
-            yield module.fs_path, self.__renderer.render(name=module_name, module=module, app=app, meta=self.__meta)
+        for module, render_context in self.__iter_rendering_modules(app):
+            module_path = Path(*module.path[:-1], f"{module.path[-1]}.py")
 
-    def __get_app_modules(self) -> t.Mapping[str, ModuleDef]:
-        def define_module(name: str) -> ModuleDef:
-            return ModuleDef(
-                python_path=f"{self.__meta.project_name}.{name}" if self.__meta.use_absolute_imports else f".{name}",
-                description=None,
-                fs_path=Path(f"{name}.py"),
+            stream = self.__renderer.render(
+                name=module.path[-1],
+                context=render_context,
             )
 
-        return {
-            name: define_module(name)
-            for name in (
-                "__init__",
-                # "__main__",
-                "message",
-                "consumer",
-                "publisher",
-            )
-        }
+            yield module_path, stream
 
-    def __iter_message_defs(self, config: AsyncAPIObject) -> t.Iterable[t.Tuple[str, MessageDef]]:
+    def __iter_app_modules(
+            self,
+            config: AsyncAPIObject,
+    ) -> t.Iterable[ModuleDef]:
+        return (
+            ModuleDef(
+                path=("__init__",),
+            ),
+            ModuleDef(
+                path=("consumer",),
+            ),
+            ModuleDef(
+                path=("publisher",),
+            ),
+            ModuleDef(
+                path=("message",),
+            ),
+        )
+
+    def __iter_message_defs(
+            self,
+            config: AsyncAPIObject,
+    ) -> t.Iterable[t.Tuple[str, TypeDef]]:
         for channel_name, channel, operation in config.iter_channel_operations():
             # TODO: support message sequence
             message = as_(MessageObject, operation.message)
@@ -208,22 +144,11 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
             if payload is None:
                 continue
 
-            properties = payload.properties
-            if properties is None:
+            message_def = self.__message_def_generator.get_type_def_from_json_schema(payload)
+            if message_def is None:
                 continue
 
-            yield channel_name, MessageDef(
-                name=self.__join_name((channel_name, message.title or "message")),
-                description=message.description,
-                fields={
-                    self.__normalize_name(name): self.__get_field_def(
-                        schema=schema,
-                        alias=name,
-                        is_optional=not payload.required or name not in payload.required,
-                    )
-                    for name, schema in properties.items()
-                },
-            )
+            yield channel_name.replace("/", "_"), message_def
 
     def __iter_amqp_operations(
             self,
@@ -244,12 +169,12 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
             if amqp_channel_bindings is None or amqp_operation_bindings is None:
                 continue
 
-            yield channel_name, channel, operation, amqp_channel_bindings, amqp_operation_bindings
+            yield channel_name.replace("/", "_"), channel, operation, amqp_channel_bindings, amqp_operation_bindings
 
     def __iter_amqp_consumer_defs(
             self,
             config: AsyncAPIObject,
-            messages: t.Mapping[object, MessageDef],
+            messages: t.Mapping[str, TypeDef],
     ) -> t.Iterable[ConsumerDef]:
         publishes = self.__iter_amqp_operations(config.iter_channel_publish_operations())
 
@@ -260,19 +185,20 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
             if exchange is None or queue is None or binding_keys is None:
                 continue
 
+            channel_message = messages[channel_name]
             yield ConsumerDef(
-                name=self.__normalize_name(channel_name),
+                name=channel_name,
                 description=channel.description,
                 exchange_name=exchange.name,
                 queue_name=queue.name,
                 binding_keys=binding_keys,
-                message=messages[channel_name],
+                message=channel_message,
             )
 
     def __iter_amqp_publisher_defs(
             self,
             config: AsyncAPIObject,
-            messages: t.Mapping[object, MessageDef],
+            messages: t.Mapping[str, TypeDef],
     ) -> t.Iterable[PublisherDef]:
         subscribes = self.__iter_amqp_operations(config.iter_channel_subscribe_operations())
 
@@ -285,145 +211,280 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
             if exchange is None or routing_key is None:
                 continue
 
+            channel_message = messages[channel_name]
             yield PublisherDef(
-                name=self.__normalize_name(channel_name),
+                name=channel_name,
                 description=channel.description,
                 exchange_name=exchange.name,
                 routing_key=routing_key,
-                message=messages[channel_name],
                 is_mandatory=operation_bindings.mandatory,
+                message=channel_message,
             )
 
-    def __normalize_name(self, value: str) -> str:
-        x = re.sub(r"[^A-Za-z0-9_]+", "_", value)
-        x = stringcase.snakecase(x)
-        x = re.sub(r"_+", "_", x)
-        x = re.sub(r"^_?(.*?)_$", "\1", x)
-        return x
-
-    def __join_name(self, values: t.Sequence[str]) -> str:
-        return "_".join((self.__normalize_name(v) for v in values))
-
-    def __split_on_messages(
+    def __get_app_type_defs_ordered_by_dependency(
             self,
-            messages: t.Collection[MessageObject],
-    ) -> t.Iterable[t.Tuple[SchemaObject, t.Mapping[str, SchemaObject]]]:
-        for message in messages:
-            payload = as_(SchemaObject, message.payload)
-            if payload is None:
-                continue
+            message_defs: t.Collection[TypeDef],
+    ) -> t.Sequence[TypeDef]:
+        type_def_walking_visitor = TypeDefNestingVisitor(
+            TypeDefDescendantsVisitor(),
+            ImportedClassDefOmittingVisitor(),
+        )
 
-            properties = payload.properties
-            if properties is None:
-                continue
+        @DFSPPostOrderingWalker
+        def walker(value: TypeDef) -> t.Sequence[TypeDef]:
+            return value.accept_visitor(type_def_walking_visitor)
 
-            yield payload, properties
+        type_def_normalizer = TypeDefSimplifier()
 
-            # TODO: build messages from nested objects
-            # visited = {}
-            # stack: t.List[t.Tuple[t.Sequence[str], SchemaObject]] = [((), payload)]
-            # while stack:
-            #     path, info = stack.pop(0)
-            #
-            #     if isinstance(info.items, SchemaObject):
-            #         stack.append(((*path, "item",), info.items,))
-            #
-            #     elif isinstance(info.items, t.Sequence):
-            #         for subinfo in info.items:
-            #             stack.append(((*path, subinfo.title or "item",), subinfo,))
-            #
-            #     if info.all_of is not None:
-            #         for subinfo in info.all_of:
-            #             stack.append(((*path, subinfo.title or "item",), subinfo,))
-            #
-            #     if info.any_of is not None:
-            #         for subinfo in info.any_of:
-            #             stack.append(((*path, subinfo.title or "item",), subinfo,))
-            #
-            #     if info.one_of is not None:
-            #         for subinfo in info.one_of:
-            #             stack.append(((*path, subinfo.title or "item",), subinfo,))
-            #
-            #     for name, subinfo in (info.properties or {}).items():
-            #         if subinfo.type_ == "object" and subinfo.properties is not None:
-            #             stack.append(((*path, subinfo.title or "value",), subinfo,))
-            #             # visited[(*path, "Item",)] = info
-            #
-            # print(stack)
+        visited: t.Set[TypeDef] = set()
+        result: t.List[TypeDef] = []
 
-    def __get_field_def(
+        for message_def in message_defs:
+            for normalized_message_def in walker.walk(message_def.accept_visitor(type_def_normalizer)):
+                if normalized_message_def not in visited:
+                    visited.add(normalized_message_def)
+                    result.append(normalized_message_def)
+
+        return result
+
+    def __iter_module_defs(self, values: t.Iterable[TypeDef]) -> t.Iterable[ModuleDef]:
+        for value in values:
+            if module_def := as_(ModuleDef, value):
+                yield module_def
+
+    def __iter_class_defs(self, values: t.Iterable[TypeDef]) -> t.Iterable[ClassDef]:
+        for value in values:
+            if class_def := as_(ClassDef, value):
+                yield class_def
+
+    def __iter_rendering_modules(self, app: AppDef) -> t.Iterable[t.Tuple[ModuleDef, t.Mapping[str, object]]]:
+        base_context = {
+            "app": app,
+            "meta": self.__meta,
+        }
+
+        settings: t.Collection[t.Tuple[ModuleDef, t.Mapping[str, object]]] = [
+            (
+                ModuleDef(
+                    path=("__init__",),
+                ),
+                {},
+            ),
+            (
+                ModuleDef(
+                    path=("consumer",),
+                ),
+                {},
+            ),
+            (
+                ModuleDef(
+                    path=("publisher",),
+                ),
+                {},
+            ),
+            (
+                ModuleDef(
+                    path=("message",),
+                ),
+                {
+                    "imports": list(self.__iter_module_defs(app.type_defs)),
+                    "classes": list(self.__iter_class_defs(app.type_defs)),
+                    "is_inline_enum_def": self.__is_inline_enum_def,
+                },
+            ),
+        ]
+
+        for module, context in settings:
+            yield module, {
+                **base_context,
+                "module": module,
+                **context,
+            }
+
+    def __is_inline_enum_def(self, value: object) -> bool:
+        return isinstance(value, InlineEnumDef)
+
+
+class TypeDefTransformingVisitor(TypeDefVisitor[TypeDef]):
+    def __init__(
             self,
-            schema: SchemaObject,
-            alias: t.Optional[str] = None,
-            is_optional: bool = False,
-    ) -> MessageFieldDef:
-        field_type = self.__get_field_type(schema)
-        if is_optional:
-            field_type = TypeTraits.create_optional(field_type)
+            transformer: TypeDefVisitor[t.Sequence[TypeDef]],
+    ) -> None:
+        self.__transformer = transformer
 
-        return MessageFieldDef(
-            type_=field_type,
-            info=FieldInfo(
-                default=schema.default,
-                alias=alias,
-                title=schema.title,
-                description=schema.description,
-                const=None,
-                gt=schema.exclusive_minimum,
-                ge=schema.minimum,
-                lt=schema.exclusive_maximum,
-                le=schema.maximum,
-                multiple_of=schema.multiple_of,
-                min_items=schema.min_items,
-                max_items=schema.max_items,
-                min_length=schema.min_length,
-                max_length=schema.max_length,
-                allow_mutation=False,
-                regex=schema.pattern,
+    def visit_type_reference(self, obj: TypeRef) -> TypeDef:
+        return obj
+
+    def visit_module_def(self, obj: ModuleDef) -> TypeDef:
+        return obj
+
+    def visit_class_def(self, obj: ClassDef) -> TypeDef:
+        return replace(
+            obj,
+            module=self.__get_optional_first_transformed(obj.module),
+            type_parameters=self.__chain_transformed(obj.type_parameters),
+            bases=self.__chain_transformed(obj.bases),
+            fields=tuple(
+                replace(field, of_type=self.__get_first_transformed(field.of_type))
+                for field in obj.fields
             ),
         )
 
-    def __get_field_type(self, value: t.Optional[SchemaObject]) -> TypeDef:
+    def visit_inline_enum_def(self, obj: InlineEnumDef) -> TypeDef:
+        return replace(
+            obj,
+            module=self.__get_optional_first_transformed(obj.module),
+            bases=self.__chain_transformed(obj.bases),
+        )
+
+    def visit_enum_def(self, obj: EnumDef) -> TypeDef:
+        return replace(
+            obj,
+            module=self.__get_optional_first_transformed(obj.module),
+            bases=self.__chain_transformed(obj.bases),
+        )
+
+    def __get_first_transformed(self, value: TypeDef) -> TypeDef:
+        return value.accept_visitor(self).accept_visitor(self.__transformer)[0]
+
+    def __get_optional_first_transformed(self, value: t.Optional[TypeDef]) -> t.Optional[TypeDef]:
         if value is None:
-            return TypeTraits.ANY
+            return None
 
-        if value.type_ == "null":
-            result = TypeTraits.NONE
+        result = value.accept_visitor(self).accept_visitor(self.__transformer)
+        if not result:
+            return None
 
-        elif value.type_ == "boolean":
-            result = TypeTraits.BOOL
+        return result[0]
 
-        elif value.type_ == "number":
-            result = TypeTraits.NUMBER
+    def __chain_transformed(self, values: t.Sequence[TypeDef]) -> t.Sequence[TypeDef]:
+        return tuple(it.chain.from_iterable(
+            value.accept_visitor(self).accept_visitor(self.__transformer)
+            for value in values
+        ))
 
-        elif value.type_ == "integer":
-            result = TypeTraits.INT
 
-        elif value.type_ == "string":
-            result = TypeTraits.STR
+class TypeDefNestingVisitor(TypeDefVisitor[t.Sequence[TypeDef]]):
+    def __init__(self, *visitors: TypeDefVisitor[t.Sequence[TypeDef]]) -> None:
+        self.__visitors = visitors
 
-        elif value.type_ == "array":
-            assert isinstance(value.items, SchemaObject)
-            item = self.__get_field_type(value.items)
+    def visit_type_reference(self, obj: TypeRef) -> t.Sequence[TypeDef]:
+        return self.__visit_sequentially(obj)
 
-            if value.unique_items:
-                result = TypeTraits.create_collection(item)
-            else:
-                result = TypeTraits.create_sequence(item)
+    def visit_module_def(self, obj: ModuleDef) -> t.Sequence[TypeDef]:
+        return self.__visit_sequentially(obj)
 
-        elif value.type_ == "object":
-            result = TypeTraits.create_mapping(TypeTraits.STR, TypeTraits.ANY)
+    def visit_class_def(self, obj: ClassDef) -> t.Sequence[TypeDef]:
+        return self.__visit_sequentially(obj)
 
-        elif options := as_sequence(SchemaObject, value.type_):
-            result = TypeTraits.create_union(self.__get_field_type(option) for option in options)
+    def visit_inline_enum_def(self, obj: InlineEnumDef) -> t.Sequence[TypeDef]:
+        return self.__visit_sequentially(obj)
 
-        elif value.enum is not None:
-            result = TypeTraits.create_literal(value.enum)
+    def visit_enum_def(self, obj: EnumDef) -> t.Sequence[TypeDef]:
+        return self.__visit_sequentially(obj)
 
-        else:
-            raise ValueError(value)
+    def __visit_sequentially(self, obj: TypeDef) -> t.Sequence[TypeDef]:
+        result: t.Sequence[TypeDef] = (obj,)
 
-        # if value.nullable:
-        #     result = TypeTraits.create_optional(result)
+        for visitor in self.__visitors:
+            result = [
+                new_value
+                for value in result
+                for new_value in value.accept_visitor(visitor)
+            ]
 
-        return result
+        return tuple(result)
+
+
+class SingleBaseInheritanceClassDefReplacingVisitor(TypeDefVisitor[t.Sequence[TypeDef]]):
+
+    def visit_type_reference(self, obj: TypeRef) -> t.Sequence[TypeDef]:
+        return (obj,)
+
+    def visit_module_def(self, obj: ModuleDef) -> t.Sequence[TypeDef]:
+        return (obj,)
+
+    def visit_class_def(self, obj: ClassDef) -> t.Sequence[TypeDef]:
+        if not obj.type_parameters and len(obj.bases) == 1 and not obj.fields:
+            return (obj.bases[0],)
+
+        elif len(obj.bases) == 1 and not obj.fields and isinstance(obj.bases[0], ClassDef):
+            c = obj.bases[0]
+            return (replace(c, type_parameters=obj.type_parameters),)
+
+        return (obj,)
+
+    def visit_inline_enum_def(self, obj: InlineEnumDef) -> t.Sequence[TypeDef]:
+        # if obj.literals and len(obj.bases) == 1 and isinstance(obj.bases[0], ClassDef):
+        #     c = obj.bases[0]
+        #     return (replace(c, path=c.path, ),)
+
+        return (obj,)
+
+    def visit_enum_def(self, obj: EnumDef) -> t.Sequence[TypeDef]:
+        return (obj,)
+
+
+class TypeDefSimplifier(TypeDefVisitor[TypeDef]):
+
+    def visit_type_reference(self, obj: TypeRef) -> TypeDef:
+        return obj
+
+    def visit_module_def(self, obj: ModuleDef) -> TypeDef:
+        return obj
+
+    def visit_class_def(self, obj: ClassDef) -> TypeDef:
+        if len(obj.bases) == 1 and not obj.fields:
+            base = obj.bases[0]
+
+            if isinstance(base, (ClassDef, InlineEnumDef)):
+                if not obj.type_parameters:
+                    if base.module is None:
+                        return replace(base, path=obj.path).accept_visitor(self)
+
+                    else:
+                        return base.accept_visitor(self)
+
+                else:
+                    return replace(base, type_parameters=obj.type_parameters).accept_visitor(self)
+
+        return replace(obj, type_parameters=tuple(tp.accept_visitor(self) for tp in obj.type_parameters),
+                       bases=tuple(base.accept_visitor(self) for base in obj.bases),
+                       module=obj.module.accept_visitor(self) if obj.module is not None else None,
+                       fields=tuple(replace(field, of_type=field.of_type.accept_visitor(self)) for field in obj.fields),
+                       )
+
+    def visit_inline_enum_def(self, obj: InlineEnumDef) -> TypeDef:
+        return replace(obj, bases=tuple(base.accept_visitor(self) for base in obj.bases),
+                       module=obj.module.accept_visitor(self) if obj.module is not None else None)
+
+    def visit_enum_def(self, obj: EnumDef) -> TypeDef:
+        return replace(obj, bases=tuple(base.accept_visitor(self) for base in obj.bases),
+                       module=obj.module.accept_visitor(self) if obj.module is not None else None)
+
+
+class ImportedClassDefOmittingVisitor(TypeDefVisitor[t.Sequence[TypeDef]]):
+
+    def visit_type_reference(self, obj: TypeRef) -> t.Sequence[TypeDef]:
+        return (obj,)
+
+    def visit_module_def(self, obj: ModuleDef) -> t.Sequence[TypeDef]:
+        return (obj,)
+
+    def visit_class_def(self, obj: ClassDef) -> t.Sequence[TypeDef]:
+        if module := obj.module:
+            return (*it.chain.from_iterable(tp.accept_visitor(self) for tp in obj.type_parameters), module,)
+
+        return (obj,)
+
+    def visit_inline_enum_def(self, obj: InlineEnumDef) -> t.Sequence[TypeDef]:
+        if module := obj.module:
+            return (module,)
+
+        return (obj,)
+
+    def visit_enum_def(self, obj: EnumDef) -> t.Sequence[TypeDef]:
+        if module := obj.module:
+            return (module,)
+
+        return (obj,)

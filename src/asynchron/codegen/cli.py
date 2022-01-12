@@ -21,16 +21,26 @@ from asynchron.codegen.app import (
 )
 from asynchron.codegen.generator.jinja.python_aio_pika import JinjaBasedPythonAioPikaCodeGenerator
 from asynchron.codegen.info import AsyncApiCodeGeneratorMetaInfo
-from asynchron.codegen.spec.base import AsyncAPIObject
+from asynchron.codegen.spec.base import AsyncAPIObject, SpecObject
 from asynchron.codegen.spec.reader.json import JsonAsyncApiConfigReader
 from asynchron.codegen.spec.reader.transformer import AsyncApiConfigTransformingConfigReader
 from asynchron.codegen.spec.reader.yaml import YamlAsyncApiConfigReader
-from asynchron.codegen.spec.transformer.reference_resolver import ReferenceResolvingAsyncAPIObjectTransformer
+from asynchron.codegen.spec.transformer.json_reference_resolver import JsonReferenceResolvingTransformer
+from asynchron.codegen.spec.transformer.schema_object_title_normalizer import (
+    SpecObjectTitleNormalizer,
+    SpecObjectTransformer,
+)
 from asynchron.codegen.spec.viewer.settings import AsyncApiConfigViewSettings
 from asynchron.codegen.spec.viewer.stream import AsyncApiStreamConfigViewer
+from asynchron.codegen.spec.walker.spec_object_path import SpecObjectPath
 from asynchron.codegen.writer.file_system import AsyncApiFileSystemContentWriter
 from asynchron.codegen.writer.stream import AsyncApiStreamContentWriter
 from asynchron.providers import MappingValueSelector
+
+
+@SpecObjectTransformer
+def normalize_spec_object_title(path: SpecObjectPath, obj: SpecObject) -> SpecObject:
+    return obj.accept_visitor(SpecObjectTitleNormalizer(path))
 
 
 def _load_config_source(path: Path, click_context: click.Context) -> t.TextIO:
@@ -41,8 +51,8 @@ def _create_config_normalizers(
         *normalizers: AsyncApiConfigTransformer,
 ) -> t.Sequence[AsyncApiConfigTransformer]:
     return (
-        ReferenceResolvingAsyncAPIObjectTransformer(),
         *normalizers,
+        JsonReferenceResolvingTransformer(),
     )
 
 
@@ -61,7 +71,7 @@ class CLIContainer(DeclarativeContainer):
         name="stdout",
     )
 
-    click_context = Provider[click.Context]()
+    click_context = Callable(click.Context, command=click.Command(None))
     config_path = Provider[Path]()
     code_generator_format = Provider[str]()
     config_viewer_settings = Provider[AsyncApiConfigViewSettings]()
@@ -182,6 +192,7 @@ def generate_code(
         allow_formatter: bool,
         use_absolute_imports: bool,
 ) -> None:
+    container.config_transformers.add_args(normalize_spec_object_title)
     container.code_generator_meta_info.override(Object(AsyncApiCodeGeneratorMetaInfo(
         generator_name="asynchron",
         generator_link="https://github.com/zerlok/asynchron",

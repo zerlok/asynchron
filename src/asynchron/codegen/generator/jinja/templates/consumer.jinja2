@@ -2,25 +2,22 @@
 {% extends "base/python_module.jinja2" %}
 
 {% block imports %}
-{% for import in module.imports %}
-{{ import }}
-{% endfor %}
 import abc
 
 from asynchron.amqp.controller import AioPikaBasedAmqpController
 from asynchron.amqp.serializer.pydantic import PydanticMessageSerializer
-from asynchron.core.amqp import AmqpConsumerBindings, AmqpServerBindings
+from asynchron.core.amqp import AmqpConsumerBindings
 from asynchron.core.consumer import CallableMessageConsumer
 
 from .message import (
-    {% for message in app.messages|sorted(attribute="name") %}
-    {{ message.name|pascal_case }},
+    {% for consumer in app.consumers|sorted("name") %}
+    {{ consumer.message.path|pascalcase }},
     {% endfor %}
 )
 {% endblock %}
 
 {% block classes %}
-class {{ app.name|pascal_case }}ConsumerFacade(metaclass=abc.ABCMeta):
+class {{ app.name|pascalcase }}ConsumerFacade(metaclass=abc.ABCMeta):
     {% if app.description %}
     """{{ app.description }}"""
 
@@ -30,13 +27,13 @@ class {{ app.name|pascal_case }}ConsumerFacade(metaclass=abc.ABCMeta):
             controller: AioPikaBasedAmqpController,
     ) -> None:
         {% if app.consumers %}
-        {% for consumer in app.consumers|sorted("names") %}
+        {% for consumer in app.consumers|sorted("name") %}
         controller.bind_consumer(
             decoder=PydanticMessageSerializer(
-                model={{ consumer.message.name|pascal_case }},  # type: ignore[misc]
+                model={{ consumer.message.path|pascalcase }},  # type: ignore[misc]
             ),
             consumer=CallableMessageConsumer(
-                consumer=self.consume_{{ consumer.name|snake_case }},
+                consumer=self.consume_{{ consumer.name|snakecase }},
             ),
             bindings=AmqpConsumerBindings(
                 exchange_name="{{ consumer.exchange_name }}",
@@ -60,9 +57,9 @@ class {{ app.name|pascal_case }}ConsumerFacade(metaclass=abc.ABCMeta):
     {% if app.consumers %}
         {% for consumer in app.consumers|sorted("name") %}
     @abc.abstractmethod
-    async def consume_{{ consumer.name|snake_case }}(
+    async def consume_{{ consumer.name|snakecase }}(
             self,
-            message: {{ consumer.message.name|pascal_case }},
+            message: {{ consumer.message.path|pascalcase }},
     ) -> None:
             {% if consumer.description %}
         """{{ consumer.description }}"""

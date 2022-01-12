@@ -2,23 +2,20 @@
 {% extends "base/python_module.jinja2" %}
 
 {% block imports %}
-{% for import in module.imports %}
-{{ import }}
-{% endfor %}
 from asynchron.amqp.controller import AioPikaBasedAmqpController
 from asynchron.amqp.serializer.pydantic import PydanticMessageSerializer
 from asynchron.core.amqp import AmqpPublisherBindings
 from asynchron.core.publisher import MessagePublisher
 
 from .message import (
-    {% for message in app.messages|sorted(attribute="name") %}
-    {{ message.name|pascal_case }},
+    {% for publisher in app.publishers|sorted("name") %}
+    {{ publisher.message.path|pascalcase }},
     {% endfor %}
 )
 {% endblock %}
 
 {% block classes %}
-class {{ app.name|pascal_case }}PublisherFacade:
+class {{ app.name|pascalcase }}PublisherFacade:
     {% if app.description %}
     """{{ app.description }}"""
 
@@ -29,9 +26,9 @@ class {{ app.name|pascal_case }}PublisherFacade:
     ) -> None:
         {% if app.publishers %}
         {% for publisher in app.publishers|sorted("name") %}
-        self.__{{ publisher.name|snake_case }}_publisher: MessagePublisher[{{ publisher.message.name|pascal_case }}] = controller.bind_publisher(
+        self.__{{ publisher.name|snakecase }}_publisher: MessagePublisher[{{ publisher.message.path|pascalcase }}] = controller.bind_publisher(
             encoder=PydanticMessageSerializer(
-                model={{ publisher.message.name|pascal_case }},  # type: ignore[misc]
+                model={{ publisher.message.path|pascalcase }},  # type: ignore[misc]
             ),
             bindings=AmqpPublisherBindings(
                 exchange_name="{{ publisher.exchange_name }}",
@@ -47,14 +44,14 @@ class {{ app.name|pascal_case }}PublisherFacade:
 
     {% if app.publishers %}
         {% for publisher in app.publishers|sorted("name") %}
-    async def publish_{{ publisher.name|snake_case }}(
+    async def publish_{{ publisher.name|snakecase }}(
             self,
-            message: {{ publisher.message.name|pascal_case }},
+            message: {{ publisher.message.path|pascalcase }},
     ) -> None:
             {% if publisher.description %}
         """{{ publisher.description }}"""
             {% endif %}
-        await self.__{{ publisher.name|snake_case }}_publisher.publish(message)
+        await self.__{{ publisher.name|snakecase }}_publisher.publish(message)
 
         {% endfor %}
     {% endif %}

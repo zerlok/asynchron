@@ -28,7 +28,7 @@ jobs:
           poetry-version: 1.1.11
       - name: Install dependencies
         run: |
-          poetry install --no-root
+          poetry install -E aio-pika -E codegen --no-root
       - name: Perform typing check
         run: |
           poetry run mypy

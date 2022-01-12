@@ -1,0 +1,192 @@
+asyncapi: "2.0.0"
+info:
+  title: Complex schema objects
+  description: This configuration contains complex schema objects to test pydantic model codegen
+  version: "0.1.0"
+channels:
+  foo:
+    subscribe:
+      bindings:
+        amqp:
+          cc:
+            - foo
+      message:
+        $ref: "#/components/messages/FooMessage"
+    publish:
+      bindings:
+        amqp:
+          cc:
+            - foo
+      message:
+        $ref: "#/components/messages/FooMessage"
+    bindings:
+      amqp:
+        is: routingKey
+        queue:
+          name: foo
+          autoDelete: true
+        exchange:
+          name: foo
+          type: topic
+          autoDelete: true
+components:
+  schemas:
+    Foo:
+      title: MainFoo
+      type: object
+      properties:
+        boolProp:
+          type: boolean
+        intProp:
+          type: integer
+        numberProp:
+          type: number
+        intNumberProp:
+          type: number
+          format: integer
+        floatNumberProp:
+          type: number
+          format: float
+        strProp:
+          type: string
+        uuidProp:
+          type: string
+          format: uuid
+        dateProp:
+          type: string
+          format: date
+        timeProp:
+          type: string
+          format: time
+        datetimeProp:
+          type: string
+          format: date-time
+        enumProp:
+          enum: [
+              FOO,
+              BAR,
+              BAZ,
+          ]
+        numberOrStrProp:
+          type:
+            - number
+            - string
+        numberOrArrayProp:
+          type:
+            - number
+            - array
+        numberSequenceProp:
+          type: array
+          items:
+            type: number
+        strSequenceProp:
+          type: array
+          items:
+            type: string
+        strCollectionProp:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+        str2strMappingProp:
+          type: object
+          additionalProperties:
+            type: string
+        str2nestedObjectMappingProp:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              one:
+                type: number
+              two:
+                type: string
+        tuple2NumberStrProp:
+          type: array
+          items: false
+          minItems: 2
+          prefixItems:
+            - type: number
+            - type: string
+        tuple3NumberStrNumberProp:
+          type: array
+          items: false
+          minItems: 3
+          prefixItems:
+            - type: number
+            - type: string
+            - type: number
+        nestedObjectProp:
+          type: object
+          properties:
+            strObjectProp:
+              type: string
+        nestedNestedObjectProp:
+          type: object
+          properties:
+            nestedObjectProp:
+              type: object
+              properties:
+                numberObjectProp:
+                  type: number
+        requiredNumberProp:
+          type: number
+        requiredStrProp:
+          type: string
+        requiredNestedObjectProp:
+          type: object
+          properties:
+            numberProp:
+              type: number
+        nestedAllOf:
+          allOf:
+            - type: object
+              properties:
+                firstAllOfProp:
+                  type: number
+            - type: object
+              properties:
+                secondAllOfProp:
+                  type: string
+        nestedAnyOf:
+          anyOf:
+            - type: object
+              properties:
+                firstAnyOfProp:
+                  type: number
+            - type: object
+              properties:
+                secondAnyOfProp:
+                  type: string
+        nestedOneOf:
+          oneOf:
+            - type: object
+              properties:
+                firstOneOfProp:
+                  type: number
+            - type: object
+              properties:
+                secondOneOfProp:
+                  type: string
+        nestedAnyOfWithPropertyNameMatch:
+          anyOf:
+            - type: object
+              properties:
+                sharedProp:
+                  type: number
+            - type: object
+              properties:
+                sharedProp:
+                  type: string
+      required:
+        - requiredNumberProp
+        - requiredStrProp
+        - requiredNestedObjectProp
+  messages:
+    FooMessage:
+      name: foo message
+      payload:
+        $ref: "#/components/schemas/Foo"
+  securitySchemes:
+    user-password:
+      type: userPassword

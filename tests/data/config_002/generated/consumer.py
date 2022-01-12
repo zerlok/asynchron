@@ -3,18 +3,18 @@ import abc
 
 from asynchron.amqp.controller import AioPikaBasedAmqpController
 from asynchron.amqp.serializer.pydantic import PydanticMessageSerializer
-from asynchron.core.amqp import AmqpConsumerBindings, AmqpServerBindings
+from asynchron.core.amqp import AmqpConsumerBindings
 from asynchron.core.consumer import CallableMessageConsumer
 
 from .message import (
-    SensorTemperatureFahrenheitMessage,
+    MainFoo,
 )
 
 
 
 
-class TemperatureReadingsConsumerFacade(metaclass=abc.ABCMeta):
-    """Temperature Readings"""
+class ComplexSchemaObjectsConsumerFacade(metaclass=abc.ABCMeta):
+    """This configuration contains complex schema objects to test pydantic model codegen"""
 
     def __init__(
             self,
@@ -22,17 +22,17 @@ class TemperatureReadingsConsumerFacade(metaclass=abc.ABCMeta):
     ) -> None:
         controller.bind_consumer(
             decoder=PydanticMessageSerializer(
-                model=SensorTemperatureFahrenheitMessage,  # type: ignore[misc]
+                model=MainFoo,  # type: ignore[misc]
             ),
             consumer=CallableMessageConsumer(
-                consumer=self.consume_sensor_temperature_fahrenheit,
+                consumer=self.consume_foo,
             ),
             bindings=AmqpConsumerBindings(
-                exchange_name="events",
+                exchange_name="foo",
                 binding_keys=(
-                    "temperature.measured",
+                    "foo",
                 ),
-                queue_name="measures",
+                queue_name="foo",
                 is_auto_delete_enabled=None,
                 is_exclusive=None,
                 is_durable=None,
@@ -41,9 +41,9 @@ class TemperatureReadingsConsumerFacade(metaclass=abc.ABCMeta):
         )
 
     @abc.abstractmethod
-    async def consume_sensor_temperature_fahrenheit(
+    async def consume_foo(
             self,
-            message: SensorTemperatureFahrenheitMessage,
+            message: MainFoo,
     ) -> None:
         raise NotImplementedError
 

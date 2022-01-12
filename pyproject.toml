@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "asynchron"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python service framework with code generator based on AsyncAPI specification"
 authors = ["zerlok <denergytro@gmail.com>"]
 license = "MIT"
@@ -19,14 +19,14 @@ include = [
 
 [tool.poetry.dependencies]
 python = "^3.8"
-Jinja2 = "^3.0.3"
-pydantic = "^1.8.2"
-aio-pika = "^6.8.0"
-PyYAML = "^6.0"
-click = "^8.0.3"
-dependency-injector = "^4.37.0"
-jsonschema = "^4.2.1"
-stringcase = "^1.2.0"
+Jinja2 = { version = "^3.0.3", optional = true }
+pydantic = { version = "^1.8.2", optional = true }
+aio-pika = { version = "^6.8.0", optional = true }
+PyYAML = { version = "^6.0", optional = true }
+click = { version = "^8.0.3", optional = true }
+dependency-injector = { version = "^4.37.0", optional = true }
+jsonschema = { version = "^4.2.1", optional = true }
+stringcase = { version = "^1.2.0", optional = true }
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
@@ -36,8 +36,12 @@ pytest-cases = "^3.6.5"
 pytest-cov = "^3.0.0"
 pytest-asyncio = "^0.16.0"
 
+[tool.poetry.extras]
+codegen = ["pydantic", "Jinja2", "PyYAML", "click", "dependency-injector", "jsonschema", "stringcase"]
+aio-pika = ["pydantic", "aio-pika"]
+
 [tool.poetry.scripts]
-asynchron-codegen = "asynchron.codegen:cli"
+asynchron-codegen = "asynchron.codegen.cli:cli"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -75,7 +79,8 @@ python_version = "3.8"
 
 files = ["./src", "./tests"]
 
-disallow_any_expr = true
+# TODO: turn it on after PoC is ready
+disallow_any_expr = false
 disallow_any_explicit = true
 disallow_any_unimported = true
 disallow_any_decorated = true
@@ -89,9 +94,10 @@ no_implicit_optional = true
 strict_optional = true
 
 warn_redundant_casts = true
-warn_unused_ignores = true
+# TODO: turn it on after PoC is ready
+#warn_unused_ignores = true
+#warn_return_any = true
 warn_no_return = true
-warn_return_any = true
 warn_unreachable = true
 
 strict_equality = true
@@ -145,7 +151,7 @@ disallow_any_unimported = false
 disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
-module = ["jsonschema.*"]
+module = ["jsonschema.*", "stringcase.*"]
 follow_imports = "skip"
 ignore_errors = true
 ignore_missing_imports = true
