@@ -6,9 +6,9 @@ from asynchron.amqp.controller import AioPikaBasedAmqpController
 from asynchron.core.amqp import AmqpServerBindings
 from asynchron.core.application import ApplicationBuilder
 from asynchron.core.controller import Runnable
-from generated.consumer import TemperatureReadingsConsumerFacade
-from generated.message import SensorReading
-from generated.publisher import TemperatureReadingsPublisherFacade
+from .generated.consumer import TemperatureReadingsConsumerFacade
+from .generated.message import SensorReading
+from .generated.publisher import TemperatureReadingsPublisherFacade
 
 builder = ApplicationBuilder()
 
