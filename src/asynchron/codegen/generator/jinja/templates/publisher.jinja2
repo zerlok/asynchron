@@ -31,10 +31,10 @@ class {{ app.name|pascalcase }}PublisherFacade:
                 model={{ publisher.message.path|pascalcase }},  # type: ignore[misc]
             ),
             bindings=AmqpPublisherBindings(
-                exchange_name="{{ publisher.exchange_name }}",
-                routing_key="{{ publisher.routing_key }}",
-                is_mandatory=None,
-                prefetch_count=None,
+                exchange_name={{ publisher.exchange_name|quotes }},
+                routing_key={{ publisher.routing_key|quotes }},
+                is_mandatory={{ publisher.is_mandatory|default(None) }},
+                prefetch_count={{ publisher.prefetch_count|default(None) }},
             ),
         )
         {% endfor %}

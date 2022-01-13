@@ -1,29 +1,21 @@
-asyncapi: "2.0.0"
+asyncapi: "2.2.0"
 info:
   title: Temperature Readings
   description: Temperature Readings
   version: "1.0.0"
 servers:
-  local-dev:
-    url: amqp://localhost:5672
+  rabbitmq:
+    url: amqp://guest:guest@localhost:5672
     protocol: amqp
-    description: This is a local broker
     security:
       - user-password: [ ]
 channels:
-  sensor/temperature/fahrenheit:
+  temperature.measured:
+    servers: ['rabbitmq']
     subscribe:
-      bindings:
-        amqp:
-          cc:
-            - temperature.measured
       message:
         $ref: "#/components/messages/SensorReadingMessage"
     publish:
-      bindings:
-        amqp:
-          cc:
-            - temperature.measured
       message:
         $ref: "#/components/messages/SensorReadingMessage"
     bindings:

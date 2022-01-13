@@ -18,11 +18,11 @@ class TemperatureReadingsConsumerFacadeImpl(TemperatureReadingsConsumerFacade):
         super().__init__(controller)
         self.__publishers = publishers
 
-    async def consume_sensor_temperature_fahrenheit(
+    async def consume_temperature_measured(
             self,
             message: SensorReading,
     ) -> None:
-        await self.__publishers.publish_sensor_temperature_fahrenheit(SensorReading(
+        await self.__publishers.publish_temperature_measured(SensorReading(
             baseUnit=message.base_unit,
             sensorId=message.sensor_id,
             temperature=message.temperature,

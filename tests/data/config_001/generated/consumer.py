@@ -25,7 +25,7 @@ class TemperatureReadingsConsumerFacade(metaclass=abc.ABCMeta):
                 model=SensorReading,  # type: ignore[misc]
             ),
             consumer=CallableMessageConsumer(
-                consumer=self.consume_sensor_temperature_fahrenheit,
+                consumer=self.consume_temperature_measured,
             ),
             bindings=AmqpConsumerBindings(
                 exchange_name="events",
@@ -41,7 +41,7 @@ class TemperatureReadingsConsumerFacade(metaclass=abc.ABCMeta):
         )
 
     @abc.abstractmethod
-    async def consume_sensor_temperature_fahrenheit(
+    async def consume_temperature_measured(
             self,
             message: SensorReading,
     ) -> None:

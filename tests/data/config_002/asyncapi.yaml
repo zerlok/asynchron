@@ -1,34 +1,21 @@
-asyncapi: "2.0.0"
+asyncapi: "2.2.0"
 info:
   title: Complex schema objects
   description: This configuration contains complex schema objects to test pydantic model codegen
   version: "0.1.0"
+servers:
+  rabbitmq:
+    url: amqp://guest:guest@localhost:5672
+    protocol: amqp
 channels:
   foo:
+    servers: ['rabbitmq']
     subscribe:
-      bindings:
-        amqp:
-          cc:
-            - foo
       message:
         $ref: "#/components/messages/FooMessage"
     publish:
-      bindings:
-        amqp:
-          cc:
-            - foo
       message:
         $ref: "#/components/messages/FooMessage"
-    bindings:
-      amqp:
-        is: routingKey
-        queue:
-          name: foo
-          autoDelete: true
-        exchange:
-          name: foo
-          type: topic
-          autoDelete: true
 components:
   schemas:
     Foo:
@@ -187,6 +174,3 @@ components:
       name: foo message
       payload:
         $ref: "#/components/schemas/Foo"
-  securitySchemes:
-    user-password:
-      type: userPassword

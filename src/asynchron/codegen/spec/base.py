@@ -403,6 +403,7 @@ SchemaObject.update_forward_refs()
 
 class _WithBindingVersion(_BaseModel):
     binding_version: t.Optional[str] = Field(
+        default=None,
         alias="bindingVersion",
         description="""The version of this binding. If omitted, "latest" MUST be assumed.""",
     )
@@ -486,17 +487,21 @@ class AMQPBindingTrait:
 
         class Exchange(_BaseModel):
             name: str = Field(
+                default="",
                 max_length=255,
                 description="""The name of the exchange. It MUST NOT exceed 255 characters long.""",
             )
             type_: t.Literal["topic", "direct", "fanout", "default", "headers"] = Field(
+                default="direct",
                 alias="type",
                 description="""The type of the exchange. Can be either topic, direct, fanout, default or headers.""",
             )
             durable: t.Optional[bool] = Field(
+                default=None,
                 description="""Whether the exchange should survive broker restarts or not.""",
             )
             auto_delete: t.Optional[bool] = Field(
+                default=None,
                 alias="autoDelete",
                 description="""Whether the exchange should be deleted when the last queue is unbound from it.""",
             )
@@ -507,16 +512,20 @@ class AMQPBindingTrait:
 
         class Queue(_BaseModel):
             name: t.Optional[str] = Field(
+                default=None,
                 max_length=255,
                 description="""The name of the queue. It MUST NOT exceed 255 characters long.""",
             )
             exclusive: t.Optional[bool] = Field(
+                default=None,
                 description="""Whether the queue should be used only by one connection or not.""",
             )
             durable: t.Optional[bool] = Field(
+                default=None,
                 description="""Whether the queue should survive broker restarts or not.""",
             )
             auto_delete: t.Optional[bool] = Field(
+                default=None,
                 alias="autoDelete",
                 description="""Whether the queue should be deleted when the last consumer unsubscribes.""",
             )
@@ -531,9 +540,11 @@ class AMQPBindingTrait:
             description="""Defines what type of channel is it. Can be either queue or routingKey (default).""",
         )
         exchange: t.Optional[Exchange] = Field(
+            default=None,
             description="""When is=routingKey, this object defines the exchange properties.""",
         )
         queue: t.Optional[Queue] = Field(
+            default=None,
             description="""When is=queue, this object defines the queue properties.""",
         )
 
@@ -560,41 +571,51 @@ class AMQPBindingTrait:
             }
 
         expiration: t.Optional[int] = Field(
+            default=None,
             ge=0,
             description="""Applies to: publish, subscribe; TTL (Time-To-Live) for the message. It MUST be greater 
             than or equal to zero.""",
         )
         user_id: t.Optional[str] = Field(
+            default=None,
             alias="userId",
             description="""Applies to: publish, subscribe; Identifies the user who has sent the message.""",
         )
         cc: t.Optional[t.Sequence[str]] = Field(
+            default=None,
             description="""Applies to: publish, subscribe; The routing keys the message should be routed to at the 
             time of publishing.""",
         )
         priority: t.Optional[int] = Field(
+            default=None,
             description="""Applies to: publish, subscribe; A priority for the message.""",
         )
         delivery_mode: t.Optional[t.Literal[1, 2]] = Field(
+            default=None,
             alias="deliveryMode",
             description="""Applies to: publish, subscribe; Delivery mode of the message. Its value MUST be either 1 (
             transient) or 2 (persistent).""",
         )
         mandatory: t.Optional[bool] = Field(
+            default=None,
             description="""Applies to: publish; Whether the message is mandatory or not.""",
         )
         bcc: t.Optional[t.Sequence[str]] = Field(
+            default=None,
             description="""Applies to: publish; Like cc but consumers will not receive this information.""",
         )
         reply_to: t.Optional[str] = Field(
+            default=None,
             alias="replyTo",
             description="""Applies to: publish, subscribe; Name of the queue where the consumer should send the 
             response.""",
         )
         timestamp: t.Optional[bool] = Field(
+            default=None,
             description="""Applies to: publish, subscribe; Whether the message should include a timestamp or not.""",
         )
         ack: t.Optional[bool] = Field(
+            default=None,
             description="""Applies to: subscribe; Whether the consumer should ack the message or not.""",
         )
 
@@ -999,9 +1020,11 @@ class OperationBindingsObject(_WithSpecificationExtension, SpecObject, _BaseMode
     https://www.asyncapi.com/docs/specifications/v2.2.0#operationBindingsObject
     """
     http: t.Optional[HTTPBindingTrait.HTTPOperationBindingObject] = Field(
+        default=None,
         description="""Protocol-specific information for an HTTP operation.""",
     )
     amqp: t.Optional[AMQPBindingTrait.AMQPOperationBindingObject] = Field(
+        default=None,
         description="""Protocol-specific information for an AMQP 0-9-1 operation.""",
     )
 
@@ -1108,8 +1131,8 @@ class ChannelBindingsObject(_WithSpecificationExtension, SpecObject, _BaseModel)
     """
 
     # TODO: declare fields for all supported protocols
-    http: t.Optional[HTTPBindingTrait.HTTPChannelBindingObject]
-    amqp: t.Optional[AMQPBindingTrait.AMQPChannelBindingObject]
+    http: t.Optional[HTTPBindingTrait.HTTPChannelBindingObject] = None
+    amqp: t.Optional[AMQPBindingTrait.AMQPChannelBindingObject] = None
 
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
         return visitor.visit_channel_bindings_object(self)

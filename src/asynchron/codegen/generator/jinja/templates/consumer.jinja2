@@ -36,17 +36,17 @@ class {{ app.name|pascalcase }}ConsumerFacade(metaclass=abc.ABCMeta):
                 consumer=self.consume_{{ consumer.name|snakecase }},
             ),
             bindings=AmqpConsumerBindings(
-                exchange_name="{{ consumer.exchange_name }}",
+                exchange_name={{ consumer.exchange_name|quotes }},
                 binding_keys=(
                 {% for binding_key in consumer.binding_keys %}
-                    "{{ binding_key }}",
+                    {{ binding_key|quotes }},
                 {% endfor %}
                 ),
-                queue_name="{{ consumer.queue_name }}",
-                is_auto_delete_enabled=None,
-                is_exclusive=None,
-                is_durable=None,
-                prefetch_count=None,
+                queue_name={{ consumer.queue_name|quotes }},
+                is_auto_delete_enabled={{ consumer.is_auto_delete_enabled|default(None) }},
+                is_exclusive={{ consumer.is_exclusive|default(None) }},
+                is_durable={{ consumer.is_durable|default(None) }},
+                prefetch_count={{ consumer.prefetch_count|default(None) }},
             ),
         )
         {% endfor %}
@@ -67,9 +67,6 @@ class {{ app.name|pascalcase }}ConsumerFacade(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
         {% endfor %}
-    {% else %}
-    pass
-
     {% endif %}
 {% endblock %}
 {# @formatter:on #}

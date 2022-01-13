@@ -8,6 +8,7 @@ __all__ = (
     "TF",
     "FW",
     "as_",
+    "as_or_default",
     "as_sequence",
     "as_mapping",
     "as_async_context_manager",
@@ -45,6 +46,13 @@ def as_(type_: t.Type[T], obj: object) -> t.Optional[T]:
         return None
 
     return t.cast(T, obj)
+
+
+def as_or_default(type_: t.Type[T], obj: object, default: T) -> T:
+    if value := as_(type_, obj):
+        return value
+
+    return default
 
 
 def as_sequence(item: t.Type[T], obj: object) -> t.Optional[t.Sequence[T]]:
