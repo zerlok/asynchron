@@ -11,9 +11,9 @@ import stringcase  # type: ignore
 
 from asynchron.codegen.app import AsyncApiCodeGenerator
 from asynchron.codegen.generator.jinja.jinja_renderer import JinjaTemplateRenderer
-from asynchron.codegen.generator.schema_object_based_type_definition import (
-    SchemaObjectBasedPythonModelDefGenerator,
-    SchemaObjectBasedTypeDefGenerator,
+from asynchron.codegen.generator.json_schema_python_def import (
+    JsonSchemaBasedPythonStructuredDataModelDefGenerator,
+    JsonSchemaBasedTypeDefGenerator,
 )
 from asynchron.codegen.info import AsyncApiCodeGeneratorMetaInfo
 from asynchron.codegen.spec.base import (
@@ -22,7 +22,7 @@ from asynchron.codegen.spec.base import (
     ChannelBindingsObject, ChannelItemObject,
     MessageObject,
     OperationBindingsObject, OperationObject,
-    SchemaObject,
+    Protocol, SchemaObject, ServersObject,
 )
 from asynchron.codegen.spec.type_definition import (
     ClassDef,
@@ -35,7 +35,7 @@ from asynchron.codegen.spec.type_definition import (
 )
 from asynchron.codegen.spec.visitor.type_def_descendants import TypeDefDescendantsVisitor
 from asynchron.codegen.spec.walker.dfs import DFSPPostOrderingWalker
-from asynchron.strict_typing import as_
+from asynchron.strict_typing import as_, as_by_key_or_default, as_or_default
 
 K = t.TypeVar("K", bound=t.Hashable)
 V = t.TypeVar("V")
@@ -45,21 +45,26 @@ T = t.TypeVar("T")
 @dataclass(frozen=True)
 class ConsumerDef:
     name: str
-    description: t.Optional[str]
     message: TypeDef
     exchange_name: str
-    queue_name: t.Optional[str]
     binding_keys: t.Collection[str]
+    queue_name: t.Optional[str] = None
+    is_auto_delete_enabled: t.Optional[bool] = None
+    is_exclusive: t.Optional[bool] = None
+    is_durable: t.Optional[bool] = None
+    prefetch_count: t.Optional[int] = None
+    description: t.Optional[str] = None
 
 
 @dataclass(frozen=True)
 class PublisherDef:
     name: str
-    description: t.Optional[str]
     message: TypeDef
     exchange_name: str
     routing_key: str
-    is_mandatory: t.Optional[bool]
+    is_mandatory: t.Optional[bool] = None
+    prefetch_count: t.Optional[int] = None
+    description: t.Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -75,20 +80,24 @@ class AppDef:
 class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
     __JINJA_TEMPLATES_DIR: t.Final[Path] = Path(__file__).parent / "templates"
 
+    __AMQP_PROTOCOLS: t.Final[t.Collection[Protocol]] = {"amqp", "amqps"}
+
     def __init__(
             self,
             meta: AsyncApiCodeGeneratorMetaInfo,
-            message_def_generator: t.Optional[SchemaObjectBasedTypeDefGenerator] = None,
+            message_def_generator: t.Optional[JsonSchemaBasedTypeDefGenerator] = None,
             renderer: t.Optional[JinjaTemplateRenderer] = None,
     ) -> None:
         self.__meta = meta
-        self.__message_def_generator = message_def_generator or SchemaObjectBasedPythonModelDefGenerator()
+        self.__message_def_generator = message_def_generator or JsonSchemaBasedPythonStructuredDataModelDefGenerator()
         self.__renderer = renderer or JinjaTemplateRenderer.from_template_root_dir(self.__JINJA_TEMPLATES_DIR)
 
     def generate(self, config: AsyncAPIObject) -> t.Iterable[t.Tuple[Path, t.Iterable[str]]]:
         channel_messages: t.Dict[str, TypeDef] = dict(self.__iter_message_defs(config))
-        app_consumers = list(self.__iter_amqp_consumer_defs(config, channel_messages))
-        app_publishers = list(self.__iter_amqp_publisher_defs(config, channel_messages))
+
+        amqp_server_names = set(self.__iter_amqp_server_names(config))
+        app_consumers = list(self.__iter_amqp_consumer_defs(config, amqp_server_names, channel_messages))
+        app_publishers = list(self.__iter_amqp_publisher_defs(config, amqp_server_names, channel_messages))
         app_modules = list(self.__iter_app_modules(config))
         app_type_defs = list(self.__get_app_type_defs_ordered_by_dependency(channel_messages.values()))
 
@@ -153,39 +162,47 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
     def __iter_amqp_operations(
             self,
             operations: t.Iterable[t.Tuple[str, ChannelItemObject, OperationObject]],
+            amqp_server_names: t.Collection[str],
     ) -> t.Iterable[t.Tuple[str, ChannelItemObject, OperationObject, AMQPBindingTrait.AMQPChannelBindingObject,
                             AMQPBindingTrait.AMQPOperationBindingObject]]:
         for channel_name, channel, operation in operations:
-            channel_bindings = as_(ChannelBindingsObject, channel.bindings)
-            if channel_bindings is None:
+            if all(channel_server not in amqp_server_names for channel_server in (channel.servers or ())):
                 continue
 
-            operation_bindings = as_(OperationBindingsObject, operation.bindings)
-            if operation_bindings is None:
-                continue
-
-            amqp_channel_bindings = as_(AMQPBindingTrait.AMQPChannelBindingObject, channel_bindings.amqp)
-            amqp_operation_bindings = as_(AMQPBindingTrait.AMQPOperationBindingObject, operation_bindings.amqp)
-            if amqp_channel_bindings is None or amqp_operation_bindings is None:
-                continue
+            channel_bindings = as_or_default(ChannelBindingsObject, channel.bindings, ChannelBindingsObject())
+            operation_bindings = as_or_default(OperationBindingsObject, operation.bindings, OperationBindingsObject())
+            amqp_channel_bindings = as_or_default(AMQPBindingTrait.AMQPChannelBindingObject, channel_bindings.amqp,
+                                                  AMQPBindingTrait.AMQPChannelBindingObject())
+            amqp_operation_bindings = as_or_default(AMQPBindingTrait.AMQPOperationBindingObject,
+                                                    operation_bindings.amqp,
+                                                    AMQPBindingTrait.AMQPOperationBindingObject())
 
             yield channel_name.replace("/", "_"), channel, operation, amqp_channel_bindings, amqp_operation_bindings
+
+    def __iter_amqp_server_names(self, config: AsyncAPIObject) -> t.Iterable[str]:
+        servers = as_or_default(ServersObject, config.servers, ServersObject(__root__={}))
+
+        for name, server in servers.__root__.items():
+            if server.protocol in self.__AMQP_PROTOCOLS:
+                yield name
 
     def __iter_amqp_consumer_defs(
             self,
             config: AsyncAPIObject,
+            amqp_server_names: t.Collection[str],
             messages: t.Mapping[str, TypeDef],
     ) -> t.Iterable[ConsumerDef]:
-        publishes = self.__iter_amqp_operations(config.iter_channel_publish_operations())
+        publishes = self.__iter_amqp_operations(config.iter_channel_publish_operations(), amqp_server_names)
 
         for channel_name, channel, publish, channel_bindings, operation_bindings in publishes:
-            exchange = as_(AMQPBindingTrait.AMQPChannelBindingObject.Exchange, channel_bindings.exchange)
-            queue = as_(AMQPBindingTrait.AMQPChannelBindingObject.Queue, channel_bindings.queue)
-            binding_keys = operation_bindings.cc
-            if exchange is None or queue is None or binding_keys is None:
-                continue
+            exchange = as_or_default(AMQPBindingTrait.AMQPChannelBindingObject.Exchange, channel_bindings.exchange,
+                                     AMQPBindingTrait.AMQPChannelBindingObject.Exchange())
+            queue = as_or_default(AMQPBindingTrait.AMQPChannelBindingObject.Queue, channel_bindings.queue,
+                                  AMQPBindingTrait.AMQPChannelBindingObject.Queue())
 
+            binding_keys = operation_bindings.cc or (channel_name,)
             channel_message = messages[channel_name]
+
             yield ConsumerDef(
                 name=channel_name,
                 description=channel.description,
@@ -193,31 +210,32 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
                 queue_name=queue.name,
                 binding_keys=binding_keys,
                 message=channel_message,
+                is_auto_delete_enabled=queue.auto_delete,
+                is_durable=queue.durable,
+                is_exclusive=queue.exclusive,
+                prefetch_count=as_by_key_or_default(int, publish.extensions, "x-prefetch-count", None),
             )
 
     def __iter_amqp_publisher_defs(
             self,
             config: AsyncAPIObject,
+            amqp_server_names: t.Collection[str],
             messages: t.Mapping[str, TypeDef],
     ) -> t.Iterable[PublisherDef]:
-        subscribes = self.__iter_amqp_operations(config.iter_channel_subscribe_operations())
+        subscribes = self.__iter_amqp_operations(config.iter_channel_subscribe_operations(), amqp_server_names)
 
         for channel_name, channel, subscribe, channel_bindings, operation_bindings in subscribes:
-            exchange = as_(AMQPBindingTrait.AMQPChannelBindingObject.Exchange, channel_bindings.exchange)
-
-            binding_keys = operation_bindings.cc or []
-            routing_key = binding_keys[0] if len(binding_keys) == 1 else None
-
-            if exchange is None or routing_key is None:
-                continue
+            exchange = as_or_default(AMQPBindingTrait.AMQPChannelBindingObject.Exchange, channel_bindings.exchange,
+                                     AMQPBindingTrait.AMQPChannelBindingObject.Exchange())
 
             channel_message = messages[channel_name]
             yield PublisherDef(
                 name=channel_name,
                 description=channel.description,
-                exchange_name=exchange.name,
-                routing_key=routing_key,
+                exchange_name=exchange.name if exchange is not None else "",
+                routing_key=channel_name,
                 is_mandatory=operation_bindings.mandatory,
+                prefetch_count=as_by_key_or_default(int, subscribe.extensions, "x-prefetch-count", None),
                 message=channel_message,
             )
 

@@ -18,7 +18,7 @@ class TemperatureReadingsPublisherFacade:
             self,
             controller: AioPikaBasedAmqpController,
     ) -> None:
-        self.__sensor_temperature_fahrenheit_publisher: MessagePublisher[SensorReading] = controller.bind_publisher(
+        self.__temperature_measured_publisher: MessagePublisher[SensorReading] = controller.bind_publisher(
             encoder=PydanticMessageSerializer(
                 model=SensorReading,  # type: ignore[misc]
             ),
@@ -30,11 +30,11 @@ class TemperatureReadingsPublisherFacade:
             ),
         )
 
-    async def publish_sensor_temperature_fahrenheit(
+    async def publish_temperature_measured(
             self,
             message: SensorReading,
     ) -> None:
-        await self.__sensor_temperature_fahrenheit_publisher.publish(message)
+        await self.__temperature_measured_publisher.publish(message)
 
 
 

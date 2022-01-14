@@ -1,31 +1,8 @@
 {
-  "asyncapi": "2.0.0",
+  "asyncapi": "2.2.0",
   "channels": {
     "foo": {
-      "bindings": {
-        "amqp": {
-          "exchange": {
-            "autoDelete": true,
-            "name": "foo",
-            "type": "topic",
-            "vhost": "/"
-          },
-          "is": "routingKey",
-          "queue": {
-            "autoDelete": true,
-            "name": "foo",
-            "vhost": "/"
-          }
-        }
-      },
       "publish": {
-        "bindings": {
-          "amqp": {
-            "cc": [
-              "foo"
-            ]
-          }
-        },
         "message": {
           "name": "foo message",
           "payload": {
@@ -55,9 +32,6 @@
               "intNumberProp": {
                 "format": "integer",
                 "type": "number"
-              },
-              "intProp": {
-                "type": "integer"
               },
               "nestedAllOf": {
                 "allOf": [
@@ -279,14 +253,10 @@
           }
         }
       },
+      "servers": [
+        "rabbitmq"
+      ],
       "subscribe": {
-        "bindings": {
-          "amqp": {
-            "cc": [
-              "foo"
-            ]
-          }
-        },
         "message": {
           "name": "foo message",
           "payload": {
@@ -316,9 +286,6 @@
               "intNumberProp": {
                 "format": "integer",
                 "type": "number"
-              },
-              "intProp": {
-                "type": "integer"
               },
               "nestedAllOf": {
                 "allOf": [
@@ -574,9 +541,6 @@
               "format": "integer",
               "type": "number"
             },
-            "intProp": {
-              "type": "integer"
-            },
             "nestedAllOf": {
               "allOf": [
                 {
@@ -826,9 +790,6 @@
             "format": "integer",
             "type": "number"
           },
-          "intProp": {
-            "type": "integer"
-          },
           "nestedAllOf": {
             "allOf": [
               {
@@ -1047,16 +1008,17 @@
         "title": "MainFoo",
         "type": "object"
       }
-    },
-    "securitySchemes": {
-      "user-password": {
-        "type": "userPassword"
-      }
     }
   },
   "info": {
     "description": "This configuration contains complex schema objects to test pydantic model codegen",
     "title": "Complex schema objects",
     "version": "0.1.0"
+  },
+  "servers": {
+    "rabbitmq": {
+      "protocol": "amqp",
+      "url": "amqp://guest:guest@localhost:5672"
+    }
   }
 }

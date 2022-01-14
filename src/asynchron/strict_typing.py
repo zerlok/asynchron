@@ -8,19 +8,20 @@ __all__ = (
     "TF",
     "FW",
     "as_",
+    "as_or_default",
+    "as_by_key_or_default",
     "as_sequence",
     "as_mapping",
     "as_async_context_manager",
     "get_or_default",
+    "get_by_key_or_default",
     "raise_not_exhaustive",
     "make_sequence_of_not_none",
     "gather",
     "gather_with_errors",
-    # "MethodOverload",
     "SerializableObject",
 )
 
-import abc
 import asyncio
 import functools as ft
 import inspect
@@ -30,6 +31,7 @@ from contextlib import asynccontextmanager
 T = t.TypeVar("T")
 K = t.TypeVar("K", bound=t.Hashable)
 V = t.TypeVar("V")
+D = t.TypeVar("D")
 
 T_contra = t.TypeVar("T_contra", contravariant=True)
 T_co = t.TypeVar("T_co", covariant=True)
@@ -41,10 +43,17 @@ FW = t.Callable[[TF], TF]
 
 
 def as_(type_: t.Type[T], obj: object) -> t.Optional[T]:
-    if not isinstance(obj, type_):
-        return None
+    return t.cast(T, obj) if isinstance(obj, type_) else None
 
-    return t.cast(T, obj)
+
+def as_or_default(type_: t.Type[T], obj: object, default: D) -> t.Union[T, D]:
+    value = as_(type_, obj)
+    return value if value is not None else default
+
+
+def as_by_key_or_default(type_: t.Type[T], objs: t.Optional[t.Mapping[K, object]], key: K, default: D) -> t.Union[T, D]:
+    value = get_by_key_or_default(objs, key, default)
+    return as_or_default(type_, value, default) if value is not default else default
 
 
 def as_sequence(item: t.Type[T], obj: object) -> t.Optional[t.Sequence[T]]:
@@ -114,8 +123,12 @@ def raise_not_exhaustive(*args: t.NoReturn) -> t.NoReturn:
     raise RuntimeError("Not exhaustive expression", *args)
 
 
-def get_or_default(value: t.Optional[T], default: T) -> T:
+def get_or_default(value: t.Optional[T], default: D) -> t.Union[T, D]:
     return value if value is not None else default
+
+
+def get_by_key_or_default(values: t.Optional[t.Mapping[K, V]], key: K, default: D) -> t.Union[V, D]:
+    return values.get(key, default) if values is not None else default
 
 
 def make_sequence_of_not_none(*values: t.Optional[T]) -> t.Sequence[T]:
@@ -132,17 +145,6 @@ async def gather(coros: t.Iterable[t.Awaitable[T]]) -> t.Sequence[T]:
 
 async def gather_with_errors(coros: t.Iterable[t.Awaitable[T]]) -> t.Sequence[t.Union[T, BaseException]]:
     return await asyncio.gather(*coros, return_exceptions=True)  # type: ignore
-
-
-# class MethodOverload(t.Generic[T]):
-#     def __init__(self, func: F[T]) -> None:
-#         self.__dispatcher = ft.singledispatchmethod(func)
-#
-#     def register(self, cls: t.Type[object]) -> FW[F[T]]:
-#         return self.__dispatcher.register(cls)  # type: ignore[misc]
-#
-#     def __call__(self, *args: object, **kwargs: object) -> T:
-#         return self.__dispatcher(*args, **kwargs)
 
 
 class SerializableObject(t.Protocol):

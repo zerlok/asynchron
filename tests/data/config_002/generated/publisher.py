@@ -23,7 +23,7 @@ class ComplexSchemaObjectsPublisherFacade:
                 model=MainFoo,  # type: ignore[misc]
             ),
             bindings=AmqpPublisherBindings(
-                exchange_name="foo",
+                exchange_name="",
                 routing_key="foo",
                 is_mandatory=None,
                 prefetch_count=None,

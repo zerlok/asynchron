@@ -1,8 +1,9 @@
 # @formatter:off
 import datetime
-import pydantic
 import typing
 import uuid
+
+import pydantic
 
 
 
@@ -110,9 +111,6 @@ class MainFoo(pydantic.BaseModel):
     )
     int_number_prop: typing.Optional[int] = pydantic.Field(
         alias="intNumberProp",
-    )
-    int_prop: typing.Optional[int] = pydantic.Field(
-        alias="intProp",
     )
     nested_all_of: typing.Optional[MainFooComponentsSchemasFooPropertiesNestedAllOf] = pydantic.Field(
         alias="nestedAllOf",

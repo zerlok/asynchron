@@ -7,11 +7,13 @@ from asynchron.amqp.serializer.pydantic import PydanticMessageSerializer
 from asynchron.core.amqp import AmqpPublisherBindings
 from asynchron.core.publisher import MessagePublisher
 
+    {% if app.publishers %}
 from .message import (
-    {% for publisher in app.publishers|sorted("name") %}
+        {% for publisher in app.publishers|sorted("name") %}
     {{ publisher.message.path|pascalcase }},
-    {% endfor %}
+        {% endfor %}
 )
+    {% endif %}
 {% endblock %}
 
 {% block classes %}
@@ -31,10 +33,10 @@ class {{ app.name|pascalcase }}PublisherFacade:
                 model={{ publisher.message.path|pascalcase }},  # type: ignore[misc]
             ),
             bindings=AmqpPublisherBindings(
-                exchange_name="{{ publisher.exchange_name }}",
-                routing_key="{{ publisher.routing_key }}",
-                is_mandatory=None,
-                prefetch_count=None,
+                exchange_name={{ publisher.exchange_name|quotes }},
+                routing_key={{ publisher.routing_key|quotes }},
+                is_mandatory={{ publisher.is_mandatory|default(None) }},
+                prefetch_count={{ publisher.prefetch_count|default(None) }},
             ),
         )
         {% endfor %}

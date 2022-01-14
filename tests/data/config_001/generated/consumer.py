@@ -5,7 +5,6 @@ from asynchron.amqp.controller import AioPikaBasedAmqpController
 from asynchron.amqp.serializer.pydantic import PydanticMessageSerializer
 from asynchron.core.amqp import AmqpConsumerBindings
 from asynchron.core.consumer import CallableMessageConsumer
-
 from .message import (
     SensorReading,
 )
@@ -25,7 +24,7 @@ class TemperatureReadingsConsumerFacade(metaclass=abc.ABCMeta):
                 model=SensorReading,  # type: ignore[misc]
             ),
             consumer=CallableMessageConsumer(
-                consumer=self.consume_sensor_temperature_fahrenheit,
+                consumer=self.consume_temperature_measured,
             ),
             bindings=AmqpConsumerBindings(
                 exchange_name="events",
@@ -33,15 +32,15 @@ class TemperatureReadingsConsumerFacade(metaclass=abc.ABCMeta):
                     "temperature.measured",
                 ),
                 queue_name="measures",
-                is_auto_delete_enabled=None,
+                is_auto_delete_enabled=True,
                 is_exclusive=None,
                 is_durable=None,
-                prefetch_count=None,
+                prefetch_count=100,
             ),
         )
 
     @abc.abstractmethod
-    async def consume_sensor_temperature_fahrenheit(
+    async def consume_temperature_measured(
             self,
             message: SensorReading,
     ) -> None:

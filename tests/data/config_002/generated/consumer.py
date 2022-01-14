@@ -28,11 +28,11 @@ class ComplexSchemaObjectsConsumerFacade(metaclass=abc.ABCMeta):
                 consumer=self.consume_foo,
             ),
             bindings=AmqpConsumerBindings(
-                exchange_name="foo",
+                exchange_name="",
                 binding_keys=(
                     "foo",
                 ),
-                queue_name="foo",
+                queue_name=None,
                 is_auto_delete_enabled=None,
                 is_exclusive=None,
                 is_durable=None,
