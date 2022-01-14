@@ -5,7 +5,6 @@ from asynchron.amqp.controller import AioPikaBasedAmqpController
 from asynchron.amqp.serializer.pydantic import PydanticMessageSerializer
 from asynchron.core.amqp import AmqpConsumerBindings
 from asynchron.core.consumer import CallableMessageConsumer
-
 from .message import (
     SensorReading,
 )
@@ -33,10 +32,10 @@ class TemperatureReadingsConsumerFacade(metaclass=abc.ABCMeta):
                     "temperature.measured",
                 ),
                 queue_name="measures",
-                is_auto_delete_enabled=None,
+                is_auto_delete_enabled=True,
                 is_exclusive=None,
                 is_durable=None,
-                prefetch_count=None,
+                prefetch_count=100,
             ),
         )
 

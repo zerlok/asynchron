@@ -1,7 +1,7 @@
 __all__ = (
-    "SchemaObjectBasedTypeDefGenerator",
-    "SchemaObjectBasedPythonTypeDefGenerator",
-    "SchemaObjectBasedPythonModelDefGenerator",
+    "JsonSchemaBasedTypeDefGenerator",
+    "JsonSchemaBasedPythonPrimitiveDefGenerator",
+    "JsonSchemaBasedPythonStructuredDataModelDefGenerator",
 )
 
 import abc
@@ -10,18 +10,18 @@ from dataclasses import replace
 
 from pydantic.fields import FieldInfo
 
-from asynchron.codegen.spec.base import SchemaObject, SchemaObjectType
+from asynchron.codegen.spec.base import SchemaObject
 from asynchron.codegen.spec.type_definition import ClassDef, EnumDef, Expr, InlineEnumDef, ModuleDef, TypeDef, TypeRef
-from asynchron.strict_typing import as_, as_mapping, as_sequence, make_sequence_of_not_none, raise_not_exhaustive
+from asynchron.strict_typing import as_, as_mapping, as_sequence, make_sequence_of_not_none
 
 
-class SchemaObjectBasedTypeDefGenerator(metaclass=abc.ABCMeta):
+class JsonSchemaBasedTypeDefGenerator(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def get_type_def_from_json_schema(self, schema: SchemaObject) -> t.Optional[TypeDef]:
         raise NotImplementedError
 
 
-class SchemaObjectBasedPythonTypeDefGenerator(SchemaObjectBasedTypeDefGenerator):
+class JsonSchemaBasedPythonPrimitiveDefGenerator(JsonSchemaBasedTypeDefGenerator):
     __BUILTINS_MODULE: t.Final[ModuleDef] = ModuleDef(("builtins",))
     __TYPING_MODULE: t.Final[ModuleDef] = ModuleDef(("typing",))
     __DATETIME_MODULE: t.Final[ModuleDef] = ModuleDef(("datetime",))
@@ -40,9 +40,6 @@ class SchemaObjectBasedPythonTypeDefGenerator(SchemaObjectBasedTypeDefGenerator)
         "boolean": {
             None: ClassDef(("bool",), module=__BUILTINS_MODULE, ),
         },
-        "integer": {
-            None: __INT_TYPE,
-        },
         "number": {
             None: ClassDef(
                 path=(),
@@ -53,18 +50,22 @@ class SchemaObjectBasedPythonTypeDefGenerator(SchemaObjectBasedTypeDefGenerator)
                 bases=(__UNION_TYPE,),
             ),
             "int": __INT_TYPE,
+            "int32": __INT_TYPE,
+            "int64": __INT_TYPE,
             "integer": __INT_TYPE,
             "float": __FLOAT_TYPE,
             "double": __FLOAT_TYPE,
         },
         "string": {
             None: ClassDef(("str",), module=__BUILTINS_MODULE, ),
-            "byte": ClassDef(("bytes",), module=__BUILTINS_MODULE, ),
+            "byte": ClassDef(("bytes",), module=__BUILTINS_MODULE, ),  # base64 encoded string
+            "binary": ClassDef(("bytes",), module=__BUILTINS_MODULE, ),  # any sequence of octets
             "date": ClassDef(("date",), module=__DATETIME_MODULE, ),
             "time": ClassDef(("time",), module=__DATETIME_MODULE, ),
             "date-time": ClassDef(("datetime",), module=__DATETIME_MODULE, ),
             "uuid": ClassDef(("UUID",), module=__UUID_MODULE, ),
             "uri": ClassDef(("str",), module=__BUILTINS_MODULE, ),
+            "password": ClassDef(("str",), module=__BUILTINS_MODULE, ),
         },
     }
 
@@ -102,13 +103,13 @@ class SchemaObjectBasedPythonTypeDefGenerator(SchemaObjectBasedTypeDefGenerator)
         return scalar_defs_by_format.get(None)
 
 
-class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator):
+class JsonSchemaBasedPythonStructuredDataModelDefGenerator(JsonSchemaBasedTypeDefGenerator):
     __BUILTINS_MODULE: t.Final[ModuleDef] = ModuleDef(("builtins",))
     __TYPING_MODULE: t.Final[ModuleDef] = ModuleDef(("typing",))
     __PYDANTIC_MODULE: t.Final[ModuleDef] = ModuleDef(("pydantic",))
     __ENUM_MODULE: t.Final[ModuleDef] = ModuleDef(("enum",))
 
-    __DEFAULT_SCALAR_GENERATOR: t.Final[SchemaObjectBasedTypeDefGenerator] = SchemaObjectBasedPythonTypeDefGenerator()
+    __DEFAULT_SCALAR_GENERATOR: t.Final[JsonSchemaBasedTypeDefGenerator] = JsonSchemaBasedPythonPrimitiveDefGenerator()
     __DEFAULT_ANY: t.Final[TypeDef] = ClassDef(("Any",), module=__TYPING_MODULE, )
     __DEFAULT_OBJECT: t.Final[TypeDef] = ClassDef(("BaseModel",), module=__PYDANTIC_MODULE, )
     __DEFAULT_FIELD_INFO: t.Final[TypeDef] = ClassDef(("Field",), module=__PYDANTIC_MODULE, )
@@ -124,7 +125,7 @@ class SchemaObjectBasedPythonModelDefGenerator(SchemaObjectBasedTypeDefGenerator
 
     def __init__(
             self,
-            scalar_generator: t.Optional[SchemaObjectBasedTypeDefGenerator] = None,
+            scalar_generator: t.Optional[JsonSchemaBasedTypeDefGenerator] = None,
             any_class_def: t.Optional[TypeDef] = None,
             object_class_def: t.Optional[TypeDef] = None,
             mapping_class_def: t.Optional[TypeDef] = None,

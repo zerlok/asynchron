@@ -24,8 +24,6 @@ components:
       properties:
         boolProp:
           type: boolean
-        intProp:
-          type: integer
         numberProp:
           type: number
         intNumberProp:

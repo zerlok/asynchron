@@ -7,11 +7,13 @@ from asynchron.amqp.serializer.pydantic import PydanticMessageSerializer
 from asynchron.core.amqp import AmqpPublisherBindings
 from asynchron.core.publisher import MessagePublisher
 
+    {% if app.publishers %}
 from .message import (
-    {% for publisher in app.publishers|sorted("name") %}
+        {% for publisher in app.publishers|sorted("name") %}
     {{ publisher.message.path|pascalcase }},
-    {% endfor %}
+        {% endfor %}
 )
+    {% endif %}
 {% endblock %}
 
 {% block classes %}

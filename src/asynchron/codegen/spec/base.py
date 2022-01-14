@@ -12,7 +12,8 @@ __all__ = (
     "SecuritySchemeType",
     "SpecObject",
     "ReferenceObject",
-    "SchemaObjectType",
+    "SpecificationExtensionsObject",
+    "SchemaObjectPrimitiveType",
     "SchemaObject",
     "HTTPBindingTrait",
     "AMQPBindingTrait",
@@ -53,7 +54,7 @@ import abc
 import re
 import typing as t
 
-from pydantic import AnyUrl, BaseModel, Field, HttpUrl
+from pydantic import AnyUrl, BaseModel, Extra, Field, HttpUrl, root_validator
 
 from asynchron.strict_typing import as_
 
@@ -63,6 +64,7 @@ T_co = t.TypeVar("T_co", covariant=True)
 
 class _BaseModel(BaseModel):
     class Config:
+        extra = Extra.forbid
         allow_mutation = False
 
 
@@ -219,21 +221,48 @@ class ReferenceObject(SpecObject, _BaseModel):
         return visitor.visit_reference_object(self)
 
 
-# TODO: use it wth specification extension
-class SpecificationExtensionKey(StringRegexValidator, pattern=re.compile(r"^x-[A-Za-z0-9._-]")):
-    pass
-
-
-class _WithSpecificationExtension(_BaseModel):
+class SpecificationExtensionsObject(_BaseModel):
     """
+    While the AsyncAPI Specification tries to accommodate most use cases, additional data can be added to extend the
+    specification at certain points. The extensions properties are implemented as patterned fields that are always
+    prefixed by "x-".
+
     https://www.asyncapi.com/docs/specifications/v2.2.0#specificationExtensions
     """
 
-    # TODO: add validator __root__: t.Mapping[SpecificationExtensionKey, t.Any] # -- raises ValueError: __root__
-    #  cannot be mixed with other fields
+    __FIELD_NAME: t.Final[str] = "extensions"
+    __EXT_KEY: t.Final[t.Pattern[str]] = re.compile(r"^x-[A-Za-z0-9._-]+$")
 
-    # class Config:
-    #     extra = Extra.allow
+    @root_validator(pre=True)
+    def gather_extension_keys(cls, values: t.Mapping[str, t.Any]) -> t.Mapping[str, t.Any]:
+        extensions = values.get(cls.__FIELD_NAME, None)
+        if extensions is not None and not isinstance(extensions, dict):
+            raise ValueError("Invalid extensions value", extensions)
+
+        clean_extensions: t.Dict[str, object] = dict(extensions or ())
+        clean_values: t.Dict[str, t.Any] = {}
+
+        for key, value in values.items():
+            if key == cls.__FIELD_NAME:
+                continue
+
+            if cls.__EXT_KEY.match(key):
+                clean_extensions[key] = value
+
+            else:
+                clean_values[key] = value
+
+        if clean_extensions:
+            clean_values[cls.__FIELD_NAME] = clean_extensions
+
+        return clean_values
+
+    extensions: t.Optional[t.Mapping[str, t.Any]] = Field(
+        default=None,
+        description="""Allows extensions to the AsyncAPI Schema. The field name MUST begin with x-, for example, 
+        x-internal-id. The value can be null, a primitive, an array or an object. Can have any valid JSON format 
+        value.""",
+    )
 
 
 class _WithDescriptionField(_BaseModel):
@@ -243,10 +272,10 @@ class _WithDescriptionField(_BaseModel):
     )
 
 
-SchemaObjectType = t.Literal["null", "boolean", "number", "string", "array", "object", "integer"]
+SchemaObjectPrimitiveType = t.Literal["null", "boolean", "number", "string", "array", "object"]
 
 
-class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObject, _BaseModel):
+class SchemaObject(SpecificationExtensionsObject, _WithDescriptionField, SpecObject, _BaseModel):
     """
     The Schema Object allows the definition of input and output data types. These types can be objects,
     but also primitives and arrays. This object is a superset of the JSON Schema Specification Draft 07. The empty
@@ -261,12 +290,14 @@ class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
     # Implementation was adapted from
     # https://github.com/koxudaxi/datamodel-code-generator/blob/513988f6391497b3c272801cd0f52941ec0178cb/datamodel_code_generator/parser/jsonschema.py#L115
 
-    prefix_items: t.Optional[t.Union[bool, ReferenceObject, "SchemaObject", t.Sequence[t.Union[ReferenceObject, "SchemaObject"]]]] \
+    prefix_items: t.Optional[
+        t.Union[bool, ReferenceObject, "SchemaObject", t.Sequence[t.Union[ReferenceObject, "SchemaObject"]]]] \
         = Field(
         default=None,
         alias="prefixItems",
     )
-    items: t.Optional[t.Union[bool, ReferenceObject, "SchemaObject", t.Sequence[t.Union[ReferenceObject, "SchemaObject"]]]] \
+    items: t.Optional[
+        t.Union[bool, ReferenceObject, "SchemaObject", t.Sequence[t.Union[ReferenceObject, "SchemaObject"]]]] \
         = Field(
         default=None,
         alias="items",
@@ -275,7 +306,7 @@ class SchemaObject(_WithSpecificationExtension, _WithDescriptionField, SpecObjec
         default=None,
         alias="uniqueItems",
     )
-    type_: t.Optional[t.Union[SchemaObjectType, t.Sequence[SchemaObjectType]]] = Field(
+    type_: t.Optional[t.Union[SchemaObjectPrimitiveType, t.Sequence[SchemaObjectPrimitiveType]]] = Field(
         default=None,
         alias="type",
     )
@@ -643,7 +674,7 @@ class AMQPBindingTrait:
         )
 
 
-class ExternalDocumentationObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, _BaseModel):
+class ExternalDocumentationObject(_WithDescriptionField, SpecificationExtensionsObject, SpecObject, _BaseModel):
     url: AnyUrl = Field(
         description="""Required. The URL for the target documentation. Value MUST be in the format of a URL.""",
     )
@@ -659,7 +690,7 @@ class _WithExternalDocsField(_BaseModel):
     )
 
 
-class TagObject(_WithDescriptionField, _WithExternalDocsField, _WithSpecificationExtension, SpecObject, _BaseModel):
+class TagObject(_WithDescriptionField, _WithExternalDocsField, SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     Allows adding meta data to a single tag.
 
@@ -694,7 +725,7 @@ class _WithTagsField(_BaseModel):
     )
 
 
-class ContactObject(_WithSpecificationExtension, SpecObject, _BaseModel):
+class ContactObject(SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     Contact information for the exposed API.
 
@@ -716,7 +747,7 @@ class ContactObject(_WithSpecificationExtension, SpecObject, _BaseModel):
         return visitor.visit_contact_object(self)
 
 
-class LicenseObject(_WithSpecificationExtension, SpecObject, _BaseModel):
+class LicenseObject(SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     License information for the exposed API.
 
@@ -734,7 +765,7 @@ class LicenseObject(_WithSpecificationExtension, SpecObject, _BaseModel):
         return visitor.visit_license_object(self)
 
 
-class InfoObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, _BaseModel):
+class InfoObject(_WithDescriptionField, SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     The object provides metadata about the API. The metadata can be used by the clients if needed.
 
@@ -763,7 +794,7 @@ class InfoObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject,
         return visitor.visit_info_object(self)
 
 
-class ServerBindingsObject(_WithSpecificationExtension, SpecObject, _BaseModel):
+class ServerBindingsObject(SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     Map describing protocol-specific definitions for a server.
 
@@ -803,7 +834,7 @@ class SecurityRequirementObject(SpecObject, _BaseModel):
         return visitor.visit_security_requirement_object(self)
 
 
-class ServerVariableObject(_WithSpecificationExtension, _WithDescriptionField, SpecObject, _BaseModel):
+class ServerVariableObject(SpecificationExtensionsObject, _WithDescriptionField, SpecObject, _BaseModel):
     """
     An object representing a Server Variable for server URL template substitution.
 
@@ -826,7 +857,7 @@ class ServerVariableObject(_WithSpecificationExtension, _WithDescriptionField, S
         return visitor.visit_server_variable_object(self)
 
 
-class ServerObject(_WithSpecificationExtension, _WithDescriptionField, SpecObject, _BaseModel):
+class ServerObject(SpecificationExtensionsObject, _WithDescriptionField, SpecObject, _BaseModel):
     """
     An object representing a message broker, a server or any other kind of computer program capable of sending and/or
     receiving data. This object is used to capture details such as URIs, protocols and security configuration.
@@ -893,7 +924,7 @@ class DefaultContentType(str, SpecObject):
         return visitor.visit_default_content_type(self)
 
 
-class CorrelationIdObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, _BaseModel):
+class CorrelationIdObject(_WithDescriptionField, SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     An object that specifies an identifier at design time that can used for message tracing and correlation. For
     specifying and computing the location of a Correlation ID, a runtime expression is used.
@@ -909,7 +940,7 @@ class CorrelationIdObject(_WithDescriptionField, _WithSpecificationExtension, Sp
         return visitor.visit_correlation_id_object(self)
 
 
-class MessageBindingsObject(_WithSpecificationExtension, SpecObject, _BaseModel):
+class MessageBindingsObject(SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     Map describing protocol-specific definitions for a message.
 
@@ -926,7 +957,7 @@ class MessageBindingsObject(_WithSpecificationExtension, SpecObject, _BaseModel)
         return visitor.visit_message_bindings_object(self)
 
 
-class MessageExampleObject(_WithSpecificationExtension, SpecObject, _BaseModel):
+class MessageExampleObject(SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     Message Example Object represents an example of a Message Object and MUST contain either headers and/or payload
     fields.
@@ -951,7 +982,7 @@ class MessageExampleObject(_WithSpecificationExtension, SpecObject, _BaseModel):
 
 
 class MessageTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDocsField, SpecObject,
-                         _WithSpecificationExtension,
+                         SpecificationExtensionsObject,
                          _BaseModel):
     """
     Describes a trait that MAY be applied to a Message Object. This object MAY contain any property from the Message
@@ -1013,7 +1044,7 @@ class MessageObject(MessageTraitObject, SpecObject, _BaseModel):
         return visitor.visit_message_object(self)
 
 
-class OperationBindingsObject(_WithSpecificationExtension, SpecObject, _BaseModel):
+class OperationBindingsObject(SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     Map describing protocol-specific definitions for an operation.
 
@@ -1033,7 +1064,7 @@ class OperationBindingsObject(_WithSpecificationExtension, SpecObject, _BaseMode
 
 
 class OperationTraitObject(_WithDescriptionField, _WithTagsField, _WithExternalDocsField, SpecObject,
-                           _WithSpecificationExtension,
+                           SpecificationExtensionsObject,
                            _BaseModel):
     """
     Describes a trait that MAY be applied to an Operation Object. This object MAY contain any property from the
@@ -1087,7 +1118,7 @@ class OperationObject(OperationTraitObject, SpecObject, _BaseModel):
         return visitor.visit_operation_object(self)
 
 
-class ParameterObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, _BaseModel):
+class ParameterObject(_WithDescriptionField, SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     Describes a parameter included in a channel name.
 
@@ -1123,7 +1154,7 @@ class ParametersObject(SpecObject, _BaseModel):
         return visitor.visit_parameters_object(self)
 
 
-class ChannelBindingsObject(_WithSpecificationExtension, SpecObject, _BaseModel):
+class ChannelBindingsObject(SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     Map describing protocol-specific definitions for a channel.
 
@@ -1138,7 +1169,7 @@ class ChannelBindingsObject(_WithSpecificationExtension, SpecObject, _BaseModel)
         return visitor.visit_channel_bindings_object(self)
 
 
-class ChannelItemObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, _BaseModel):
+class ChannelItemObject(_WithDescriptionField, SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     Describes the operations available on a single channel.
 
@@ -1216,7 +1247,7 @@ class OAuthFlowObject(SpecObject, _BaseModel):
         return visitor.visit_oauth_flow_object(self)
 
 
-class OAuthFlowsObject(_WithSpecificationExtension, SpecObject, _BaseModel):
+class OAuthFlowsObject(SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     Allows configuration of the supported OAuth Flows.
 
@@ -1242,7 +1273,7 @@ class OAuthFlowsObject(_WithSpecificationExtension, SpecObject, _BaseModel):
         return visitor.visit_oauth_flows_object(self)
 
 
-class SecuritySchemeObject(_WithDescriptionField, _WithSpecificationExtension, SpecObject, _BaseModel):
+class SecuritySchemeObject(_WithDescriptionField, SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     Defines a security scheme that can be used by the operations. Supported schemes are:
         * User/Password.
@@ -1295,7 +1326,7 @@ class SecuritySchemeObject(_WithDescriptionField, _WithSpecificationExtension, S
         return visitor.visit_security_scheme_object(self)
 
 
-class ComponentsObject(_WithSpecificationExtension, SpecObject, _BaseModel):
+class ComponentsObject(SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     Holds a set of reusable objects for different aspects of the AsyncAPI specification. All objects defined within
     the components object will have no effect on the API unless they are explicitly referenced from properties
@@ -1349,7 +1380,7 @@ class ComponentsObject(_WithSpecificationExtension, SpecObject, _BaseModel):
         return visitor.visit_components_object(self)
 
 
-class AsyncAPIObject(_WithTagsField, _WithExternalDocsField, _WithSpecificationExtension, SpecObject, _BaseModel):
+class AsyncAPIObject(_WithTagsField, _WithExternalDocsField, SpecificationExtensionsObject, SpecObject, _BaseModel):
     """
     This is the root document object for the API specification. It combines resource listing and API declaration
     together into one document.

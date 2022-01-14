@@ -11,9 +11,9 @@ import stringcase  # type: ignore
 
 from asynchron.codegen.app import AsyncApiCodeGenerator
 from asynchron.codegen.generator.jinja.jinja_renderer import JinjaTemplateRenderer
-from asynchron.codegen.generator.schema_object_based_type_definition import (
-    SchemaObjectBasedPythonModelDefGenerator,
-    SchemaObjectBasedTypeDefGenerator,
+from asynchron.codegen.generator.json_schema_python_def import (
+    JsonSchemaBasedPythonStructuredDataModelDefGenerator,
+    JsonSchemaBasedTypeDefGenerator,
 )
 from asynchron.codegen.info import AsyncApiCodeGeneratorMetaInfo
 from asynchron.codegen.spec.base import (
@@ -22,7 +22,7 @@ from asynchron.codegen.spec.base import (
     ChannelBindingsObject, ChannelItemObject,
     MessageObject,
     OperationBindingsObject, OperationObject,
-    SchemaObject, ServersObject,
+    Protocol, SchemaObject, ServersObject,
 )
 from asynchron.codegen.spec.type_definition import (
     ClassDef,
@@ -35,7 +35,7 @@ from asynchron.codegen.spec.type_definition import (
 )
 from asynchron.codegen.spec.visitor.type_def_descendants import TypeDefDescendantsVisitor
 from asynchron.codegen.spec.walker.dfs import DFSPPostOrderingWalker
-from asynchron.strict_typing import as_, as_or_default
+from asynchron.strict_typing import as_, as_by_key_or_default, as_or_default
 
 K = t.TypeVar("K", bound=t.Hashable)
 V = t.TypeVar("V")
@@ -45,21 +45,26 @@ T = t.TypeVar("T")
 @dataclass(frozen=True)
 class ConsumerDef:
     name: str
-    description: t.Optional[str]
     message: TypeDef
     exchange_name: str
-    queue_name: t.Optional[str]
     binding_keys: t.Collection[str]
+    queue_name: t.Optional[str] = None
+    is_auto_delete_enabled: t.Optional[bool] = None
+    is_exclusive: t.Optional[bool] = None
+    is_durable: t.Optional[bool] = None
+    prefetch_count: t.Optional[int] = None
+    description: t.Optional[str] = None
 
 
 @dataclass(frozen=True)
 class PublisherDef:
     name: str
-    description: t.Optional[str]
     message: TypeDef
     exchange_name: str
     routing_key: str
-    is_mandatory: t.Optional[bool]
+    is_mandatory: t.Optional[bool] = None
+    prefetch_count: t.Optional[int] = None
+    description: t.Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -75,14 +80,16 @@ class AppDef:
 class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
     __JINJA_TEMPLATES_DIR: t.Final[Path] = Path(__file__).parent / "templates"
 
+    __AMQP_PROTOCOLS: t.Final[t.Collection[Protocol]] = {"amqp", "amqps"}
+
     def __init__(
             self,
             meta: AsyncApiCodeGeneratorMetaInfo,
-            message_def_generator: t.Optional[SchemaObjectBasedTypeDefGenerator] = None,
+            message_def_generator: t.Optional[JsonSchemaBasedTypeDefGenerator] = None,
             renderer: t.Optional[JinjaTemplateRenderer] = None,
     ) -> None:
         self.__meta = meta
-        self.__message_def_generator = message_def_generator or SchemaObjectBasedPythonModelDefGenerator()
+        self.__message_def_generator = message_def_generator or JsonSchemaBasedPythonStructuredDataModelDefGenerator()
         self.__renderer = renderer or JinjaTemplateRenderer.from_template_root_dir(self.__JINJA_TEMPLATES_DIR)
 
     def generate(self, config: AsyncAPIObject) -> t.Iterable[t.Tuple[Path, t.Iterable[str]]]:
@@ -176,7 +183,7 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
         servers = as_or_default(ServersObject, config.servers, ServersObject(__root__={}))
 
         for name, server in servers.__root__.items():
-            if server.protocol == "amqp":
+            if server.protocol in self.__AMQP_PROTOCOLS:
                 yield name
 
     def __iter_amqp_consumer_defs(
@@ -203,6 +210,10 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
                 queue_name=queue.name,
                 binding_keys=binding_keys,
                 message=channel_message,
+                is_auto_delete_enabled=queue.auto_delete,
+                is_durable=queue.durable,
+                is_exclusive=queue.exclusive,
+                prefetch_count=as_by_key_or_default(int, publish.extensions, "x-prefetch-count", None),
             )
 
     def __iter_amqp_publisher_defs(
@@ -224,6 +235,7 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
                 exchange_name=exchange.name if exchange is not None else "",
                 routing_key=channel_name,
                 is_mandatory=operation_bindings.mandatory,
+                prefetch_count=as_by_key_or_default(int, subscribe.extensions, "x-prefetch-count", None),
                 message=channel_message,
             )
 

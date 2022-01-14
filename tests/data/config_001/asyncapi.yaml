@@ -18,6 +18,11 @@ channels:
     publish:
       message:
         $ref: "#/components/messages/SensorReadingMessage"
+      bindings:
+        amqp:
+          mandatory: true
+          ack: true
+      x-prefetch-count: 100
     bindings:
       amqp:
         is: routingKey

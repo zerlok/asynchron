@@ -19,6 +19,15 @@
         }
       },
       "publish": {
+        "bindings": {
+          "amqp": {
+            "ack": true,
+            "mandatory": true
+          }
+        },
+        "extensions": {
+          "x-prefetch-count": 100
+        },
         "message": {
           "name": "sensorReadingMessage",
           "payload": {
