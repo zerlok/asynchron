@@ -1,9 +1,8 @@
 # @formatter:off
 import datetime
+import pydantic
 import typing
 import uuid
-
-import pydantic
 
 
 
