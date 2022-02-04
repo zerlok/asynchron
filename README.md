@@ -1,4 +1,5 @@
 # asynchron
+
 Python service framework with code generator based on AsyncAPI specification
 
 ## Usage example
@@ -12,3 +13,11 @@ Python service framework with code generator based on AsyncAPI specification
     ```bash
     poetry add asynchron -E aio-pika
     ```
+
+## Development
+
+Use bash script to install all necessary dependencies. It installs all defined extras from `pyproject.toml`
+
+```bash
+./scripts/install-dev.sh
+```
