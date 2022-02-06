@@ -16,7 +16,7 @@ from asynchron.codegen.generator.json_schema_python_def import (
     JsonSchemaBasedTypeDefGenerator,
 )
 from asynchron.codegen.info import AsyncApiCodeGeneratorMetaInfo
-from asynchron.codegen.spec.base import (
+from asynchron.codegen.spec.asyncapi import (
     AMQPBindingTrait,
     AsyncAPIObject,
     ChannelBindingsObject, ChannelItemObject,

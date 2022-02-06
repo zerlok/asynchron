@@ -1,7 +1,7 @@
 import itertools as it
 import typing as t
 
-from asynchron.codegen.spec.base import SpecObject, SpecObjectVisitor
+from asynchron.codegen.spec.asyncapi import SpecObject, SpecObjectVisitor
 from asynchron.codegen.spec.visitor.referenced_descendants import (
     ReferencedDescendantSpecObjectVisitor,
     ReferencedSpecObject,

@@ -131,7 +131,7 @@ module = ["asynchron.codegen.cli"]
 disallow_any_expr = false
 
 [[tool.mypy.overrides]]
-module = ["asynchron.codegen.spec.base"]
+module = ["asynchron.codegen.spec.asyncapi"]
 disallow_any_expr = false
 disallow_any_explicit = false
 disallow_any_decorated = false

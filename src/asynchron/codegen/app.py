@@ -15,7 +15,7 @@ import abc
 import typing as t
 from pathlib import Path
 
-from asynchron.codegen.spec.base import AsyncAPIObject
+from asynchron.codegen.spec.asyncapi import AsyncAPIObject
 
 
 class AsyncApiConfigReaderError(Exception):

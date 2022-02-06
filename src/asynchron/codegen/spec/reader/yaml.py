@@ -7,7 +7,7 @@ import typing as t
 import yaml
 
 from asynchron.codegen.app import AsyncApiConfigReader
-from asynchron.codegen.spec.base import AsyncAPIObject
+from asynchron.codegen.spec.asyncapi import AsyncAPIObject
 
 
 # TODO: handle IO, yaml and pydantic errors

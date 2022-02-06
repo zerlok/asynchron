@@ -21,15 +21,15 @@ from asynchron.codegen.app import (
 )
 from asynchron.codegen.generator.jinja.python_aio_pika import JinjaBasedPythonAioPikaCodeGenerator
 from asynchron.codegen.info import AsyncApiCodeGeneratorMetaInfo
-from asynchron.codegen.spec.base import AsyncAPIObject, SpecObject
+from asynchron.codegen.spec.asyncapi import AsyncAPIObject, SpecObject
 from asynchron.codegen.spec.reader.json import JsonAsyncApiConfigReader
 from asynchron.codegen.spec.reader.transformer import AsyncApiConfigTransformingConfigReader
 from asynchron.codegen.spec.reader.yaml import YamlAsyncApiConfigReader
 from asynchron.codegen.spec.transformer.json_reference_resolver import JsonReferenceResolvingTransformer
 from asynchron.codegen.spec.transformer.schema_object_title_normalizer import (
     SpecObjectTitleNormalizer,
-    SpecObjectTransformer,
 )
+from asynchron.codegen.spec.transformer.spec_object_visiter import SpecObjectTransformer
 from asynchron.codegen.spec.viewer.settings import AsyncApiConfigViewSettings
 from asynchron.codegen.spec.viewer.stream import AsyncApiStreamConfigViewer
 from asynchron.codegen.spec.walker.spec_object_path import SpecObjectPath
@@ -178,6 +178,7 @@ def get_config(container: CLIContainer, pretty: bool, show_null: bool) -> None:
 @click.option("-p", "--project", type=str, default=Path.cwd().stem, )
 @click.option("-o", "--output-dir", type=click.Path(exists=False, path_type=Path), default=Path.cwd(), )
 @click.option("-d", "--dry-run", is_flag=True, default=False)
+@click.option("--has-tag", type=str, default=None)
 @click.option("--enable-meta/--disable-meta", is_flag=True, default=True)
 @click.option("--allow-formatter/--ignore-formatter", is_flag=True, default=False)
 @click.option("--use-absolute-imports/--use-relative-imports", is_flag=True, default=True)
@@ -188,6 +189,7 @@ def generate_code(
         project: str,
         output_dir: Path,
         dry_run: bool,
+        has_tag: str,
         enable_meta: bool,
         allow_formatter: bool,
         use_absolute_imports: bool,
