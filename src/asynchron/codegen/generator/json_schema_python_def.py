@@ -10,7 +10,7 @@ from dataclasses import replace
 
 from pydantic.fields import FieldInfo
 
-from asynchron.codegen.spec.base import SchemaObject
+from asynchron.codegen.spec.asyncapi import SchemaObject
 from asynchron.codegen.spec.type_definition import ClassDef, EnumDef, Expr, InlineEnumDef, ModuleDef, TypeDef, TypeRef
 from asynchron.strict_typing import as_, as_mapping, as_sequence, make_sequence_of_not_none
 

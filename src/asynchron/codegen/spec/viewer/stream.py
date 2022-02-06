@@ -5,7 +5,7 @@ __all__ = (
 import typing as t
 
 from asynchron.codegen.app import AsyncApiConfigViewer
-from asynchron.codegen.spec.base import AsyncAPIObject
+from asynchron.codegen.spec.asyncapi import AsyncAPIObject
 from asynchron.codegen.spec.viewer.settings import AsyncApiConfigViewSettings
 
 

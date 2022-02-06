@@ -7,7 +7,7 @@ import typing as t
 from jsonschema import RefResolutionError, RefResolver
 
 from asynchron.codegen.app import AsyncApiConfigTransformer, AsyncApiConfigTransformerError
-from asynchron.codegen.spec.base import AsyncAPIObject, ReferenceObject, SpecObject
+from asynchron.codegen.spec.asyncapi import AsyncAPIObject, ReferenceObject, SpecObject
 from asynchron.codegen.spec.walker.spec_object_path import SpecObjectPath, SpecObjectWithPathWalker
 from asynchron.serializable_object_modifier import SerializableObjectModifier
 from asynchron.strict_typing import SerializableObject, as_

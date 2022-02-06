@@ -7,7 +7,7 @@ __all__ = (
 import typing as t
 from dataclasses import dataclass
 
-from asynchron.codegen.spec.base import (
+from asynchron.codegen.spec.asyncapi import (
     AsyncAPIObject,
     ChannelBindingsObject,
     ChannelItemObject,

@@ -15,7 +15,7 @@ from dataclasses import dataclass, field as Field
 
 from pydantic.fields import FieldInfo
 
-from asynchron.codegen.spec.base import SchemaObject
+from asynchron.codegen.spec.asyncapi import SchemaObject
 from asynchron.strict_typing import T, T_co
 
 
