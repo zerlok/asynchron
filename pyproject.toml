@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "asynchron"
-version = "0.2.0"
+version = "0.3.0"
 description = "Python service framework with code generator based on AsyncAPI specification"
 authors = ["zerlok <denergytro@gmail.com>"]
 license = "MIT"
