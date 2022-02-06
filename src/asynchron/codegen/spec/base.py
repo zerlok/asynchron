@@ -849,7 +849,7 @@ class ServerVariableObject(SpecificationExtensionsObject, _WithDescriptionField,
         description="""The default value to use for substitution, and to send, if an alternate value is not 
         supplied.""",
     )
-    examples: t.Sequence[str] = Field(
+    examples: t.Optional[t.Sequence[str]] = Field(
         description="""An array of examples of the server variable.""",
     )
 
@@ -866,7 +866,7 @@ class ServerObject(SpecificationExtensionsObject, _WithDescriptionField, SpecObj
 
     https://www.asyncapi.com/docs/specifications/v2.2.0#serverObject
     """
-    url: AnyUrl = Field(
+    url: str = Field(
         description="""REQUIRED. A URL to the target host. This URL supports Server Variables and MAY be relative, 
         to indicate that the host location is relative to the location where the AsyncAPI document is being served. 
         Variable substitutions will be made when a variable is named in {brackets}.""",

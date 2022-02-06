@@ -1,0 +1,147 @@
+{
+  "asyncapi": "2.2.0",
+  "channels": {
+    "temperature.measured": {
+      "bindings": {
+        "amqp": {
+          "exchange": {
+            "autoDelete": true,
+            "name": "events",
+            "type": "topic",
+            "vhost": "/"
+          },
+          "is": "routingKey",
+          "queue": {
+            "autoDelete": true,
+            "name": "measures",
+            "vhost": "/"
+          }
+        }
+      },
+      "publish": {
+        "bindings": {
+          "amqp": {
+            "ack": true,
+            "mandatory": true
+          }
+        },
+        "extensions": {
+          "x-prefetch-count": 100
+        },
+        "message": {
+          "name": "sensorReadingMessage",
+          "payload": {
+            "properties": {
+              "baseUnit": {
+                "enum": [
+                  "CELSIUS",
+                  "FAHRENHEIT"
+                ]
+              },
+              "sensorId": {
+                "type": "string"
+              },
+              "temperature": {
+                "type": "number"
+              }
+            },
+            "title": "SensorReading",
+            "type": "object"
+          }
+        }
+      },
+      "servers": [
+        "rabbitmq"
+      ],
+      "subscribe": {
+        "message": {
+          "name": "sensorReadingMessage",
+          "payload": {
+            "properties": {
+              "baseUnit": {
+                "enum": [
+                  "CELSIUS",
+                  "FAHRENHEIT"
+                ]
+              },
+              "sensorId": {
+                "type": "string"
+              },
+              "temperature": {
+                "type": "number"
+              }
+            },
+            "title": "SensorReading",
+            "type": "object"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "messages": {
+      "SensorReadingMessage": {
+        "name": "sensorReadingMessage",
+        "payload": {
+          "properties": {
+            "baseUnit": {
+              "enum": [
+                "CELSIUS",
+                "FAHRENHEIT"
+              ]
+            },
+            "sensorId": {
+              "type": "string"
+            },
+            "temperature": {
+              "type": "number"
+            }
+          },
+          "title": "SensorReading",
+          "type": "object"
+        }
+      }
+    },
+    "schemas": {
+      "SensorReading": {
+        "properties": {
+          "baseUnit": {
+            "enum": [
+              "CELSIUS",
+              "FAHRENHEIT"
+            ]
+          },
+          "sensorId": {
+            "type": "string"
+          },
+          "temperature": {
+            "type": "number"
+          }
+        },
+        "title": "SensorReading",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "user-password": {
+        "type": "userPassword"
+      }
+    }
+  },
+  "info": {
+    "description": "Temperature Readings",
+    "title": "Temperature Readings",
+    "version": "1.0.0"
+  },
+  "servers": {
+    "rabbitmq": {
+      "protocol": "amqp",
+      "security": [
+        {
+          "user-password": []
+        }
+      ],
+      "url": "amqp://guest:guest@localhost:5672"
+    }
+  }
+}
