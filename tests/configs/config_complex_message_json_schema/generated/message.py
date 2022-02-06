@@ -7,83 +7,83 @@ import uuid
 
 
 
-class MainFooComponentsSchemasFooPropertiesNestedAnyOfWithPropertyNameMatchComponentsSchemasFooPropertiesNestedAnyOfWithPropertyNameMatchAnyOf_1(pydantic.BaseModel):
+class MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfWithPropertyNameMatchChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfWithPropertyNameMatchAnyOf_1(pydantic.BaseModel):
     shared_prop: typing.Optional[str] = pydantic.Field(
         alias="sharedProp",
     )
 
 
-class MainFooComponentsSchemasFooPropertiesNestedAnyOfWithPropertyNameMatchComponentsSchemasFooPropertiesNestedAnyOfWithPropertyNameMatchAnyOf_0(pydantic.BaseModel):
+class MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfWithPropertyNameMatchChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfWithPropertyNameMatchAnyOf_0(pydantic.BaseModel):
     shared_prop: typing.Optional[typing.Union[int, float]] = pydantic.Field(
         alias="sharedProp",
     )
 
 
-class MainFooComponentsSchemasFooPropertiesNestedOneOfComponentsSchemasFooPropertiesNestedOneOfOneOf_1(pydantic.BaseModel):
+class MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedOneOfChannelsFooSubscribeMessagePayloadPropertiesNestedOneOfOneOf_1(pydantic.BaseModel):
     second_one_of_prop: typing.Optional[str] = pydantic.Field(
         alias="secondOneOfProp",
     )
 
 
-class MainFooComponentsSchemasFooPropertiesNestedOneOfComponentsSchemasFooPropertiesNestedOneOfOneOf_0(pydantic.BaseModel):
+class MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedOneOfChannelsFooSubscribeMessagePayloadPropertiesNestedOneOfOneOf_0(pydantic.BaseModel):
     first_one_of_prop: typing.Optional[typing.Union[int, float]] = pydantic.Field(
         alias="firstOneOfProp",
     )
 
 
-class MainFooComponentsSchemasFooPropertiesNestedAnyOfComponentsSchemasFooPropertiesNestedAnyOfAnyOf_1(pydantic.BaseModel):
+class MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfAnyOf_1(pydantic.BaseModel):
     second_any_of_prop: typing.Optional[str] = pydantic.Field(
         alias="secondAnyOfProp",
     )
 
 
-class MainFooComponentsSchemasFooPropertiesNestedAnyOfComponentsSchemasFooPropertiesNestedAnyOfAnyOf_0(pydantic.BaseModel):
+class MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfAnyOf_0(pydantic.BaseModel):
     first_any_of_prop: typing.Optional[typing.Union[int, float]] = pydantic.Field(
         alias="firstAnyOfProp",
     )
 
 
-class MainFooComponentsSchemasFooPropertiesNestedAllOfComponentsSchemasFooPropertiesNestedAllOfAllOf_1(pydantic.BaseModel):
+class MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedAllOfChannelsFooSubscribeMessagePayloadPropertiesNestedAllOfAllOf_1(pydantic.BaseModel):
     second_all_of_prop: typing.Optional[str] = pydantic.Field(
         alias="secondAllOfProp",
     )
 
 
-class MainFooComponentsSchemasFooPropertiesNestedAllOfComponentsSchemasFooPropertiesNestedAllOfAllOf_0(pydantic.BaseModel):
+class MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedAllOfChannelsFooSubscribeMessagePayloadPropertiesNestedAllOfAllOf_0(pydantic.BaseModel):
     first_all_of_prop: typing.Optional[typing.Union[int, float]] = pydantic.Field(
         alias="firstAllOfProp",
     )
 
 
-class MainFooComponentsSchemasFooPropertiesNestedAllOf(MainFooComponentsSchemasFooPropertiesNestedAllOfComponentsSchemasFooPropertiesNestedAllOfAllOf_0, MainFooComponentsSchemasFooPropertiesNestedAllOfComponentsSchemasFooPropertiesNestedAllOfAllOf_1):
+class MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedAllOf(MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedAllOfChannelsFooSubscribeMessagePayloadPropertiesNestedAllOfAllOf_0, MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedAllOfChannelsFooSubscribeMessagePayloadPropertiesNestedAllOfAllOf_1):
     pass
 
 
-class MainFooComponentsSchemasFooPropertiesRequiredNestedObjectProp(pydantic.BaseModel):
+class MainFooChannelsFooSubscribeMessagePayloadPropertiesRequiredNestedObjectProp(pydantic.BaseModel):
     number_prop: typing.Optional[typing.Union[int, float]] = pydantic.Field(
         alias="numberProp",
     )
 
 
-class MainFooComponentsSchemasFooPropertiesNestedNestedObjectPropComponentsSchemasFooPropertiesNestedNestedObjectPropPropertiesNestedObjectProp(pydantic.BaseModel):
+class MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedNestedObjectPropChannelsFooSubscribeMessagePayloadPropertiesNestedNestedObjectPropPropertiesNestedObjectProp(pydantic.BaseModel):
     number_object_prop: typing.Optional[typing.Union[int, float]] = pydantic.Field(
         alias="numberObjectProp",
     )
 
 
-class MainFooComponentsSchemasFooPropertiesNestedNestedObjectProp(pydantic.BaseModel):
-    nested_object_prop: typing.Optional[MainFooComponentsSchemasFooPropertiesNestedNestedObjectPropComponentsSchemasFooPropertiesNestedNestedObjectPropPropertiesNestedObjectProp] = pydantic.Field(
+class MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedNestedObjectProp(pydantic.BaseModel):
+    nested_object_prop: typing.Optional[MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedNestedObjectPropChannelsFooSubscribeMessagePayloadPropertiesNestedNestedObjectPropPropertiesNestedObjectProp] = pydantic.Field(
         alias="nestedObjectProp",
     )
 
 
-class MainFooComponentsSchemasFooPropertiesNestedObjectProp(pydantic.BaseModel):
+class MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedObjectProp(pydantic.BaseModel):
     str_object_prop: typing.Optional[str] = pydantic.Field(
         alias="strObjectProp",
     )
 
 
-class MainFooComponentsSchemasFooPropertiesStr2nestedObjectMappingPropComponentsSchemasFooPropertiesStr2nestedObjectMappingPropAdditionalProperties(pydantic.BaseModel):
+class MainFooChannelsFooSubscribeMessagePayloadPropertiesStr2nestedObjectMappingPropChannelsFooSubscribeMessagePayloadPropertiesStr2nestedObjectMappingPropAdditionalProperties(pydantic.BaseModel):
     one: typing.Optional[typing.Union[int, float]] = pydantic.Field(
         alias="one",
     )
@@ -111,22 +111,22 @@ class MainFoo(pydantic.BaseModel):
     int_number_prop: typing.Optional[int] = pydantic.Field(
         alias="intNumberProp",
     )
-    nested_all_of: typing.Optional[MainFooComponentsSchemasFooPropertiesNestedAllOf] = pydantic.Field(
+    nested_all_of: typing.Optional[MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedAllOf] = pydantic.Field(
         alias="nestedAllOf",
     )
-    nested_any_of: typing.Optional[typing.Union[MainFooComponentsSchemasFooPropertiesNestedAnyOfComponentsSchemasFooPropertiesNestedAnyOfAnyOf_0, MainFooComponentsSchemasFooPropertiesNestedAnyOfComponentsSchemasFooPropertiesNestedAnyOfAnyOf_1]] = pydantic.Field(
+    nested_any_of: typing.Optional[typing.Union[MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfAnyOf_0, MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfAnyOf_1]] = pydantic.Field(
         alias="nestedAnyOf",
     )
-    nested_any_of_with_property_name_match: typing.Optional[typing.Union[MainFooComponentsSchemasFooPropertiesNestedAnyOfWithPropertyNameMatchComponentsSchemasFooPropertiesNestedAnyOfWithPropertyNameMatchAnyOf_0, MainFooComponentsSchemasFooPropertiesNestedAnyOfWithPropertyNameMatchComponentsSchemasFooPropertiesNestedAnyOfWithPropertyNameMatchAnyOf_1]] = pydantic.Field(
+    nested_any_of_with_property_name_match: typing.Optional[typing.Union[MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfWithPropertyNameMatchChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfWithPropertyNameMatchAnyOf_0, MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfWithPropertyNameMatchChannelsFooSubscribeMessagePayloadPropertiesNestedAnyOfWithPropertyNameMatchAnyOf_1]] = pydantic.Field(
         alias="nestedAnyOfWithPropertyNameMatch",
     )
-    nested_nested_object_prop: typing.Optional[MainFooComponentsSchemasFooPropertiesNestedNestedObjectProp] = pydantic.Field(
+    nested_nested_object_prop: typing.Optional[MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedNestedObjectProp] = pydantic.Field(
         alias="nestedNestedObjectProp",
     )
-    nested_object_prop: typing.Optional[MainFooComponentsSchemasFooPropertiesNestedObjectProp] = pydantic.Field(
+    nested_object_prop: typing.Optional[MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedObjectProp] = pydantic.Field(
         alias="nestedObjectProp",
     )
-    nested_one_of: typing.Optional[typing.Union[MainFooComponentsSchemasFooPropertiesNestedOneOfComponentsSchemasFooPropertiesNestedOneOfOneOf_0, MainFooComponentsSchemasFooPropertiesNestedOneOfComponentsSchemasFooPropertiesNestedOneOfOneOf_1]] = pydantic.Field(
+    nested_one_of: typing.Optional[typing.Union[MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedOneOfChannelsFooSubscribeMessagePayloadPropertiesNestedOneOfOneOf_0, MainFooChannelsFooSubscribeMessagePayloadPropertiesNestedOneOfChannelsFooSubscribeMessagePayloadPropertiesNestedOneOfOneOf_1]] = pydantic.Field(
         alias="nestedOneOf",
     )
     number_or_array_prop: typing.Optional[typing.Union[typing.Union[int, float]]] = pydantic.Field(
@@ -141,7 +141,7 @@ class MainFoo(pydantic.BaseModel):
     number_sequence_prop: typing.Optional[typing.Sequence[typing.Union[int, float]]] = pydantic.Field(
         alias="numberSequenceProp",
     )
-    required_nested_object_prop: MainFooComponentsSchemasFooPropertiesRequiredNestedObjectProp = pydantic.Field(
+    required_nested_object_prop: MainFooChannelsFooSubscribeMessagePayloadPropertiesRequiredNestedObjectProp = pydantic.Field(
         alias="requiredNestedObjectProp",
     )
     required_number_prop: typing.Union[int, float] = pydantic.Field(
@@ -150,7 +150,7 @@ class MainFoo(pydantic.BaseModel):
     required_str_prop: str = pydantic.Field(
         alias="requiredStrProp",
     )
-    str2nested_object_mapping_prop: typing.Optional[typing.Mapping[str, MainFooComponentsSchemasFooPropertiesStr2nestedObjectMappingPropComponentsSchemasFooPropertiesStr2nestedObjectMappingPropAdditionalProperties]] = pydantic.Field(
+    str2nested_object_mapping_prop: typing.Optional[typing.Mapping[str, MainFooChannelsFooSubscribeMessagePayloadPropertiesStr2nestedObjectMappingPropChannelsFooSubscribeMessagePayloadPropertiesStr2nestedObjectMappingPropAdditionalProperties]] = pydantic.Field(
         alias="str2nestedObjectMappingProp",
     )
     str2str_mapping_prop: typing.Optional[typing.Mapping[str, str]] = pydantic.Field(

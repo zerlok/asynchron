@@ -3,6 +3,7 @@ __all__ = (
     "cli",
 )
 
+import functools as ft
 import typing as t
 from contextlib import closing
 from datetime import datetime
@@ -21,7 +22,7 @@ from asynchron.codegen.app import (
 )
 from asynchron.codegen.generator.jinja.python_aio_pika import JinjaBasedPythonAioPikaCodeGenerator
 from asynchron.codegen.info import AsyncApiCodeGeneratorMetaInfo
-from asynchron.codegen.spec.asyncapi import AsyncAPIObject, SpecObject
+from asynchron.codegen.spec.asyncapi import AsyncAPIObject, OperationObject, SpecObject
 from asynchron.codegen.spec.reader.json import JsonAsyncApiConfigReader
 from asynchron.codegen.spec.reader.transformer import AsyncApiConfigTransformingConfigReader
 from asynchron.codegen.spec.reader.yaml import YamlAsyncApiConfigReader
@@ -29,18 +30,35 @@ from asynchron.codegen.spec.transformer.json_reference_resolver import JsonRefer
 from asynchron.codegen.spec.transformer.schema_object_title_normalizer import (
     SpecObjectTitleNormalizer,
 )
-from asynchron.codegen.spec.transformer.spec_object_visiter import SpecObjectTransformer
+from asynchron.codegen.spec.transformer.spec_object_visitor import SpecObjectTransformer
 from asynchron.codegen.spec.viewer.settings import AsyncApiConfigViewSettings
 from asynchron.codegen.spec.viewer.stream import AsyncApiStreamConfigViewer
 from asynchron.codegen.spec.walker.spec_object_path import SpecObjectPath
 from asynchron.codegen.writer.file_system import AsyncApiFileSystemContentWriter
 from asynchron.codegen.writer.stream import AsyncApiStreamContentWriter
 from asynchron.providers import MappingValueSelector
+from asynchron.strict_typing import as_
 
 
-@SpecObjectTransformer
 def normalize_spec_object_title(path: SpecObjectPath, obj: SpecObject) -> SpecObject:
     return obj.accept_visitor(SpecObjectTitleNormalizer(path))
+
+
+def filter_operations_by_tags(
+        path: SpecObjectPath,
+        obj: SpecObject,
+        required_tag_names: t.Collection[str],
+) -> t.Optional[SpecObject]:
+    if operation := as_(OperationObject, obj):
+        tag_names = set(
+            tag.name
+            for tag in (operation.tags.__root__ if operation.tags is not None else ())
+        )
+
+        if not tag_names.issuperset(required_tag_names):
+            return None
+
+    return obj
 
 
 def _load_config_source(path: Path, click_context: click.Context) -> t.TextIO:
@@ -51,8 +69,8 @@ def _create_config_normalizers(
         *normalizers: AsyncApiConfigTransformer,
 ) -> t.Sequence[AsyncApiConfigTransformer]:
     return (
-        *normalizers,
         JsonReferenceResolvingTransformer(),
+        *normalizers,
     )
 
 
@@ -178,7 +196,7 @@ def get_config(container: CLIContainer, pretty: bool, show_null: bool) -> None:
 @click.option("-p", "--project", type=str, default=Path.cwd().stem, )
 @click.option("-o", "--output-dir", type=click.Path(exists=False, path_type=Path), default=Path.cwd(), )
 @click.option("-d", "--dry-run", is_flag=True, default=False)
-@click.option("--has-tag", type=str, default=None)
+@click.option("--operation-tags", type=str, multiple=True, default=None)
 @click.option("--enable-meta/--disable-meta", is_flag=True, default=True)
 @click.option("--allow-formatter/--ignore-formatter", is_flag=True, default=False)
 @click.option("--use-absolute-imports/--use-relative-imports", is_flag=True, default=True)
@@ -189,12 +207,19 @@ def generate_code(
         project: str,
         output_dir: Path,
         dry_run: bool,
-        has_tag: str,
+        operation_tags: t.Optional[t.Collection[str]],
         enable_meta: bool,
         allow_formatter: bool,
         use_absolute_imports: bool,
 ) -> None:
-    container.config_transformers.add_args(normalize_spec_object_title)
+    if operation_tags:
+        container.config_transformers.add_args(
+            SpecObjectTransformer(ft.partial(filter_operations_by_tags, required_tag_names=operation_tags)),
+        )
+
+    container.config_transformers.add_args(
+        SpecObjectTransformer(normalize_spec_object_title),
+    )
     container.code_generator_meta_info.override(Object(AsyncApiCodeGeneratorMetaInfo(
         generator_name="asynchron",
         generator_link="https://github.com/zerlok/asynchron",

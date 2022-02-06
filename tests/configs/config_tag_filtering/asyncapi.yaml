@@ -53,11 +53,11 @@ channels:
         $ref: "#/components/messages/Foo"
       tags:
         - name: three
+        - name: one
     publish:
       message:
         $ref: "#/components/messages/Foo"
       tags:
-        - name: one
         - name: two
   c004:
     servers: [ 'rabbitmq' ]
@@ -76,4 +76,7 @@ components:
     Foo:
       name: Foo
       payload:
-        type: string
+        type: object
+        properties:
+          bar:
+            type: string

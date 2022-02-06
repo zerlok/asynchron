@@ -1,3 +1,7 @@
+__all__ = (
+    "SpecObjectTransformer",
+)
+
 import typing as t
 
 from asynchron.codegen.app import AsyncApiConfigTransformer
@@ -11,7 +15,7 @@ class SpecObjectTransformer(AsyncApiConfigTransformer):
 
     def __init__(
             self,
-            transformer: t.Callable[[SpecObjectPath, SpecObject], SpecObject],
+            transformer: t.Callable[[SpecObjectPath, SpecObject], t.Optional[SpecObject]],
             modifier: t.Optional[SerializableObjectModifier] = None,
             walker: t.Optional[Walker[SpecObject, t.Tuple[SpecObjectPath, SpecObject]]] = None,
     ) -> None:
@@ -20,7 +24,7 @@ class SpecObjectTransformer(AsyncApiConfigTransformer):
         self.__walker = walker or SpecObjectWithPathWalker.create_dfs_pre_ordering()
 
     def transform(self, config: AsyncAPIObject) -> AsyncAPIObject:
-        changes: t.List[t.Tuple[t.Sequence[t.Union[int, str]], SpecObject]] = []
+        changes: t.List[t.Tuple[t.Sequence[t.Union[int, str]], t.Optional[SpecObject]]] = []
 
         for path, obj in self.__walker.walk(config):
             transformed_obj = self.__transformer(path, obj)

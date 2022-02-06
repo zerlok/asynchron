@@ -1,51 +1,16 @@
 {
   "asyncapi": "2.2.0",
   "channels": {
-    "temperature.measured": {
-      "bindings": {
-        "amqp": {
-          "exchange": {
-            "autoDelete": true,
-            "name": "events",
-            "type": "topic",
-            "vhost": "/"
-          },
-          "is": "routingKey",
-          "queue": {
-            "autoDelete": true,
-            "name": "measures",
-            "vhost": "/"
-          }
-        }
-      },
+    "c000": {
       "publish": {
-        "bindings": {
-          "amqp": {
-            "ack": true,
-            "mandatory": true
-          }
-        },
-        "extensions": {
-          "x-prefetch-count": 100
-        },
         "message": {
-          "name": "sensorReadingMessage",
+          "name": "Foo",
           "payload": {
             "properties": {
-              "baseUnit": {
-                "enum": [
-                  "CELSIUS",
-                  "FAHRENHEIT"
-                ]
-              },
-              "sensorId": {
+              "bar": {
                 "type": "string"
-              },
-              "temperature": {
-                "type": "number"
               }
             },
-            "title": "SensorReading",
             "type": "object"
           }
         }
@@ -55,92 +20,227 @@
       ],
       "subscribe": {
         "message": {
-          "name": "sensorReadingMessage",
+          "name": "Foo",
           "payload": {
             "properties": {
-              "baseUnit": {
-                "enum": [
-                  "CELSIUS",
-                  "FAHRENHEIT"
-                ]
-              },
-              "sensorId": {
+              "bar": {
                 "type": "string"
-              },
-              "temperature": {
-                "type": "number"
               }
             },
-            "title": "SensorReading",
             "type": "object"
           }
         }
+      }
+    },
+    "c001": {
+      "publish": {
+        "message": {
+          "name": "Foo",
+          "payload": {
+            "properties": {
+              "bar": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "tags": [
+          {
+            "name": "one"
+          },
+          {
+            "name": "two"
+          },
+          {
+            "name": "three"
+          }
+        ]
+      },
+      "servers": [
+        "rabbitmq"
+      ],
+      "subscribe": {
+        "message": {
+          "name": "Foo",
+          "payload": {
+            "properties": {
+              "bar": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "tags": [
+          {
+            "name": "one"
+          },
+          {
+            "name": "two"
+          },
+          {
+            "name": "three"
+          }
+        ]
+      }
+    },
+    "c002": {
+      "publish": {
+        "message": {
+          "name": "Foo",
+          "payload": {
+            "properties": {
+              "bar": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "tags": [
+          {
+            "name": "one"
+          },
+          {
+            "name": "three"
+          }
+        ]
+      },
+      "servers": [
+        "rabbitmq"
+      ],
+      "subscribe": {
+        "message": {
+          "name": "Foo",
+          "payload": {
+            "properties": {
+              "bar": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "tags": [
+          {
+            "name": "two"
+          },
+          {
+            "name": "three"
+          }
+        ]
+      }
+    },
+    "c003": {
+      "publish": {
+        "message": {
+          "name": "Foo",
+          "payload": {
+            "properties": {
+              "bar": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "tags": [
+          {
+            "name": "two"
+          }
+        ]
+      },
+      "servers": [
+        "rabbitmq"
+      ],
+      "subscribe": {
+        "message": {
+          "name": "Foo",
+          "payload": {
+            "properties": {
+              "bar": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "tags": [
+          {
+            "name": "three"
+          },
+          {
+            "name": "one"
+          }
+        ]
+      }
+    },
+    "c004": {
+      "publish": {
+        "message": {
+          "name": "Foo",
+          "payload": {
+            "properties": {
+              "bar": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "tags": [
+          {
+            "name": "two"
+          }
+        ]
+      },
+      "servers": [
+        "rabbitmq"
+      ],
+      "subscribe": {
+        "message": {
+          "name": "Foo",
+          "payload": {
+            "properties": {
+              "bar": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "tags": [
+          {
+            "name": "two"
+          }
+        ]
       }
     }
   },
   "components": {
     "messages": {
-      "SensorReadingMessage": {
-        "name": "sensorReadingMessage",
+      "Foo": {
+        "name": "Foo",
         "payload": {
           "properties": {
-            "baseUnit": {
-              "enum": [
-                "CELSIUS",
-                "FAHRENHEIT"
-              ]
-            },
-            "sensorId": {
+            "bar": {
               "type": "string"
-            },
-            "temperature": {
-              "type": "number"
             }
           },
-          "title": "SensorReading",
           "type": "object"
         }
-      }
-    },
-    "schemas": {
-      "SensorReading": {
-        "properties": {
-          "baseUnit": {
-            "enum": [
-              "CELSIUS",
-              "FAHRENHEIT"
-            ]
-          },
-          "sensorId": {
-            "type": "string"
-          },
-          "temperature": {
-            "type": "number"
-          }
-        },
-        "title": "SensorReading",
-        "type": "object"
-      }
-    },
-    "securitySchemes": {
-      "user-password": {
-        "type": "userPassword"
       }
     }
   },
   "info": {
-    "description": "Temperature Readings",
-    "title": "Temperature Readings",
+    "description": "This spec containes different channel operations with specific tags",
+    "title": "Codegen rendering by tags",
     "version": "1.0.0"
   },
   "servers": {
     "rabbitmq": {
       "protocol": "amqp",
-      "security": [
-        {
-          "user-password": []
-        }
-      ],
       "url": "amqp://guest:guest@localhost:5672"
     }
   }
