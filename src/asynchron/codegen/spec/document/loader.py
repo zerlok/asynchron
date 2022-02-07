@@ -83,7 +83,7 @@ class LocalFileSystemWorkingDirNormalizingDocumentLoader(DocumentLoader):
         return normalized_uri, result
 
     @contextmanager
-    def use_scope(self, ref: t.Sequence[object]) -> t.Iterable[None]:
+    def use_scope(self, ref: t.Sequence[object]) -> t.Iterator[None]:
         self.__stack.append(ref)
 
         try:
