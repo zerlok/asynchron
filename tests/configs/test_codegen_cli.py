@@ -7,15 +7,12 @@ from pytest_cases import filters, parametrize_with_cases
 from tests.cli import CliInput, CliOutput, CliRunner
 from tests.configs.config_complex_json_references.cases import ComplexJsonReferencesConfigCases
 from tests.configs.config_complex_message_json_schema.cases import ComplexMessageJsonSchemaConfigCases
-from tests.configs.config_tag_filtering.cases import TagOneFilterCases, TagTwoThreeFilterCases
 from tests.configs.config_temperature_reading.cases import TemperatureReadingsConfigCases
 
 # TODO: autoload case classes from `case` files.
 _CASES = (
     TemperatureReadingsConfigCases,
     ComplexMessageJsonSchemaConfigCases,
-    TagOneFilterCases,
-    TagTwoThreeFilterCases,
     ComplexJsonReferencesConfigCases,
 )
 

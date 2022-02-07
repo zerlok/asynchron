@@ -18,11 +18,14 @@ class CodegenConfig:
     normalized_config_json_path: Path
     normalized_config: object
 
-    generated_code_dir: Path
+    generated_code_dir: t.Optional[Path]
     generated_code_file_content: t.Mapping[Path, str]
 
 
-def iter_dir_by_relative_paths(root: Path) -> t.Iterable[t.Tuple[Path, Path]]:
+def iter_dir_by_relative_paths(root: t.Optional[Path]) -> t.Iterable[t.Tuple[Path, Path]]:
+    if root is None:
+        return
+
     abs_root = root.absolute()
     root_parts_len = len(abs_root.parts)
 
@@ -39,14 +42,14 @@ def load_codegen_config_from_dir(
         config_dir: Path,
         asyncapi_yaml: str,
         normalized_asyncapi_json: str,
-        generated_code_dir: str,
+        generated_code_dir: t.Optional[str],
 ) -> CodegenConfig:
     normalized_asyncapi_json_path = config_dir / normalized_asyncapi_json
 
     with normalized_asyncapi_json_path.open("r") as fd:
         normalized_config = json.load(fd)
 
-    generated_code_dir_path = config_dir / generated_code_dir
+    generated_code_dir_path = (config_dir / generated_code_dir) if generated_code_dir is not None else None
 
     return CodegenConfig(
         path=config_dir,
@@ -71,7 +74,7 @@ def use_codegen_config_from_dir_as_fixture(
         arg_name: str = "config",
         asyncapi_yaml: str = "asyncapi.yaml",
         normalized_asyncapi_json: str = "final.json",
-        generated_code_dir: str = "generated",
+        generated_code_dir: t.Optional[str] = "generated",
 ) -> t.Callable[[F], F]:
     assert config_dir.is_dir()
 

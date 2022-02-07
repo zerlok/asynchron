@@ -8,7 +8,7 @@ from tests.cli import CliInput, CliOutput
 from tests.configs.config import CodegenConfig, use_codegen_config_from_dir_as_fixture
 
 
-@use_codegen_config_from_dir_as_fixture(Path(__file__).parent)
+@use_codegen_config_from_dir_as_fixture(Path(__file__).parent, generated_code_dir=None)
 class ComplexJsonReferencesConfigCases:
 
     @case(tags=("cli",), )
