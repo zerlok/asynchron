@@ -67,9 +67,10 @@ def _load_config_source(path: Path, click_context: click.Context) -> t.TextIO:
 
 def _create_config_normalizers(
         *normalizers: AsyncApiConfigTransformer,
+        config_path: Path,
 ) -> t.Sequence[AsyncApiConfigTransformer]:
     return (
-        JsonReferenceResolvingTransformer(),
+        JsonReferenceResolvingTransformer(config_path),
         *normalizers,
     )
 
@@ -101,6 +102,7 @@ class CLIContainer(DeclarativeContainer):
     )
     config_transformers = Singleton(
         _create_config_normalizers,
+        config_path=config_path,
     )
     config_reader_impl: MappingValueSelector[str, AsyncApiConfigReader] = MappingValueSelector(
         {

@@ -1,9 +1,11 @@
 import typing as t
 from pathlib import Path
 
+import pytest
 from pytest_cases import filters, parametrize_with_cases
 
 from tests.cli import CliInput, CliOutput, CliRunner
+from tests.configs.config_complex_json_references.cases import ComplexJsonReferencesConfigCases
 from tests.configs.config_complex_message_json_schema.cases import ComplexMessageJsonSchemaConfigCases
 from tests.configs.config_tag_filtering.cases import TagOneFilterCases, TagTwoThreeFilterCases
 from tests.configs.config_temperature_reading.cases import TemperatureReadingsConfigCases
@@ -14,6 +16,7 @@ _CASES = (
     ComplexMessageJsonSchemaConfigCases,
     TagOneFilterCases,
     TagTwoThreeFilterCases,
+    ComplexJsonReferencesConfigCases,
 )
 
 
@@ -29,7 +32,7 @@ def test_cli_exit_code(
 
 
 @parametrize_with_cases(("input_", "output",), cases=_CASES)
-def test_cli_output(
+def test_cli_stdout(
         cli_runner: CliRunner,
         input_: CliInput,
         output: CliOutput,
@@ -37,6 +40,27 @@ def test_cli_output(
     result = cli_runner(input_)
 
     assert result.stdout[:-1] == output.stdout
+
+
+@parametrize_with_cases(("input_", "output",), cases=_CASES, filter=~filters.has_tags("exception"))
+def test_cli_no_exceptions(
+        cli_runner: CliRunner,
+        input_: CliInput,
+        output: object,
+) -> None:
+    result = cli_runner(input_)
+
+    assert not result.stderr
+
+
+@parametrize_with_cases(("input_", "exception",), cases=_CASES, filter=filters.has_tags("exception"))
+def test_cli_raises_exception(
+        cli_runner: CliRunner,
+        input_: CliInput,
+        exception: t.Type[BaseException],
+) -> None:
+    with pytest.raises(exception):
+        cli_runner(input_)
 
 
 @parametrize_with_cases(("input_", "output",), cases=_CASES, filter=~filters.has_tags("codegen"))

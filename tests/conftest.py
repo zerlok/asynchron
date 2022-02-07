@@ -18,7 +18,7 @@ def cli_command() -> click.Command:
 
 @fixture()
 def cli_runner(cli_command: click.Command) -> t.Callable[[CliInput], Result]:
-    runner = CliRunner()
+    runner = CliRunner(mix_stderr=False)
 
     def run(input_: CliInput) -> Result:
         # noinspection PyTypeChecker
@@ -27,6 +27,7 @@ def cli_runner(cli_command: click.Command) -> t.Callable[[CliInput], Result]:
             obj=input_.obj,
             args=input_.args,
             env=input_.env,
+            catch_exceptions=False,
         )
 
     return run

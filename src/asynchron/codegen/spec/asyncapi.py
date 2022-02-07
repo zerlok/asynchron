@@ -11,6 +11,10 @@ __all__ = (
     "Protocol",
     "SecuritySchemeType",
     "SpecObject",
+    "SameDocumentJsonReference",
+    "LocalFileSystemDocumentJsonReference",
+    "RemoteJsonReference",
+    "JsonReference",
     "ReferenceObject",
     "SpecificationExtensionsObject",
     "SchemaObjectPrimitiveType",
@@ -53,6 +57,7 @@ __all__ = (
 import abc
 import re
 import typing as t
+from urllib.parse import urlsplit
 
 from pydantic import AnyUrl, BaseModel, Extra, Field, HttpUrl, root_validator
 
@@ -189,6 +194,72 @@ SecuritySchemeType = t.Literal["userPassword", "apiKey", "X509", "symmetricEncry
                                "gssapi"]
 
 
+class SameDocumentJsonReference(str, Validator):
+
+    @classmethod
+    def validate(cls: t.Type["SameDocumentJsonReference"], value: t.Any) -> "SameDocumentJsonReference":
+        if not isinstance(value, str):
+            raise ValueError("Unexpected type", value)
+
+        result = urlsplit(value, allow_fragments=True)
+        if (
+                result.fragment
+                and not result.scheme
+                and not result.netloc
+                and not result.path
+                and not result.query
+        ):
+            return cls(value)
+
+        raise ValueError("Invalid url for value", value, result)
+
+
+class LocalFileSystemDocumentJsonReference(str, Validator):
+
+    @classmethod
+    def validate(
+            cls: t.Type["LocalFileSystemDocumentJsonReference"],
+            value: t.Any,
+    ) -> "LocalFileSystemDocumentJsonReference":
+        if not isinstance(value, str):
+            raise ValueError("Unexpected type", value)
+
+        result = urlsplit(value, allow_fragments=True)
+        if (
+                result.path
+                and (result.path.startswith("/") or result.path.startswith("."))
+                and (result.scheme == "" or result.scheme == "file")
+                and not result.query
+        ):
+            return cls(value)
+
+        raise ValueError("Invalid url for value", value, result)
+
+
+class RemoteJsonReference(str, Validator):
+
+    @classmethod
+    def validate(
+            cls: t.Type["RemoteJsonReference"],
+            value: t.Any,
+    ) -> "RemoteJsonReference":
+        if not isinstance(value, str):
+            raise ValueError("Unexpected type", value)
+
+        result = urlsplit(value, allow_fragments=True)
+        if (
+                result.path
+                and result.netloc
+                and result.scheme != ""
+        ):
+            return cls(value)
+
+        raise ValueError("Invalid url for value", value, result)
+
+
+JsonReference = t.Union[SameDocumentJsonReference, LocalFileSystemDocumentJsonReference, RemoteJsonReference]
+
+
 class ReferenceObject(SpecObject, _BaseModel):
     """
     A simple object to allow referencing other components in the specification, internally and externally. The
@@ -208,13 +279,15 @@ class ReferenceObject(SpecObject, _BaseModel):
                 {
                     "$ref": "#/components/schemas/Pet",
                 },
+                {
+                    "$ref": "../common/messages.yaml#/Pet",
+                },
             ],
         }
 
-    ref: str = Field(
+    ref: JsonReference = Field(
         alias="$ref",
         description="""Required. The reference string.""",
-        regex=r"^#\S+$",
     )
 
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
@@ -904,7 +977,7 @@ class ServersObject(SpecObject, _BaseModel):
     https://www.asyncapi.com/docs/specifications/v2.2.0#serversObject
     """
 
-    __root__: t.Mapping[str, ServerObject]
+    __root__: t.Mapping[str, t.Union[ReferenceObject, ServerObject]]
 
     def accept_visitor(self, visitor: "SpecObjectVisitor[T]") -> T:
         return visitor.visit_servers_object(self)

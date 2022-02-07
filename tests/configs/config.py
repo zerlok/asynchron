@@ -58,6 +58,7 @@ def load_codegen_config_from_dir(
             (
                 (rel_path, load_file_content(path))
                 for path, rel_path in iter_dir_by_relative_paths(generated_code_dir_path)
+                if path.is_file()
             ),
             key=lambda x: x[0],
         )),
