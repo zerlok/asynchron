@@ -8,7 +8,7 @@ from pathlib import Path
 
 import yaml
 
-from asynchron.codegen.app import AsyncApiConfigTransformer
+from asynchron.codegen.app import AsyncApiConfigTransformer, AsyncApiConfigTransformerError
 from asynchron.codegen.spec.asyncapi import (
     AsyncAPIObject,
     JsonReference,
@@ -60,6 +60,9 @@ class JsonReferenceResolvingTransformer(AsyncApiConfigTransformer):
         def resolve(path: SpecObjectPath, ref: JsonReference) -> SerializableObject:
             with working_dir_loader.use_scope(path):
                 uri, value = reference_loader.load(ref)
+
+            if uri is None:
+                raise AsyncApiConfigTransformerError("Invalid json reference", path, ref)
 
             return t.cast(SerializableObject, value)
 
