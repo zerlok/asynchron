@@ -1,5 +1,6 @@
 __all__ = (
     "DocumentLoader",
+    "ScopeContextManager",
     "InMemoryDocumentLoader",
     "LocalFileSystemDocumentLoader",
     "LocalFileSystemWorkingDirNormalizingDocumentLoader",
@@ -17,10 +18,18 @@ from urllib.parse import urldefrag
 
 from jsonschema import RefResolutionError, RefResolver
 
+from asynchron.codegen.spec.walker.spec_object_path import SpecObjectPath
+
 
 class DocumentLoader(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def load(self, uri: str) -> t.Tuple[t.Optional[str], object]:
+        raise NotImplementedError
+
+
+class ScopeContextManager(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def use_scope(self, key: SpecObjectPath) -> t.ContextManager[None]:
         raise NotImplementedError
 
 
@@ -62,11 +71,16 @@ class LocalFileSystemDocumentLoader(DocumentLoader):
                 return None, None
 
 
-class LocalFileSystemWorkingDirNormalizingDocumentLoader(DocumentLoader):
-    def __init__(self, inner: DocumentLoader, root: Path, root_scope: t.Sequence[object] = ()) -> None:
+class LocalFileSystemWorkingDirNormalizingDocumentLoader(DocumentLoader, ScopeContextManager):
+    def __init__(
+            self,
+            inner: DocumentLoader,
+            root: Path,
+            root_key: SpecObjectPath = (),
+    ) -> None:
         self.__inner = inner
-        self.__stack: t.List[t.Sequence[object]] = [root_scope]
-        self.__scopes: t.Dict[t.Sequence[object], Path] = {root_scope: root}
+        self.__scope_stack: t.List[SpecObjectPath] = [root_key]
+        self.__paths_by_scopes: t.Dict[SpecObjectPath, Path] = {root_key: root}
 
     def load(self, uri: str) -> t.Tuple[t.Optional[str], object]:
         absolute_uri = uri
@@ -83,28 +97,28 @@ class LocalFileSystemWorkingDirNormalizingDocumentLoader(DocumentLoader):
         return normalized_uri, result
 
     @contextmanager
-    def use_scope(self, ref: t.Sequence[object]) -> t.Iterator[None]:
-        self.__stack.append(ref)
+    def use_scope(self, key: SpecObjectPath) -> t.Iterator[None]:
+        self.__scope_stack.append(key)
 
         try:
             yield None
 
         finally:
-            self.__stack.pop(-1)
+            self.__scope_stack.pop(-1)
 
     def __get_current_working_dir(self) -> Path:
-        ref = self.__stack[-1]
+        scope = self.__scope_stack[-1]
 
-        for i in range(len(ref), -1, -1):
-            doc_path = self.__scopes.get(ref[:i])
+        for i in range(len(scope), -1, -1):
+            doc_path = self.__paths_by_scopes.get(scope[:i])
             if doc_path is not None:
                 return doc_path.parent
 
-        raise ValueError("No working directory", ref)
+        raise ValueError("No working directory", scope)
 
     def __reset_current_working_dir(self, uri: str) -> None:
-        ref = self.__stack[-1]
-        self.__scopes[ref] = Path(uri).absolute()
+        scope = self.__scope_stack[-1]
+        self.__paths_by_scopes[scope] = Path(uri).absolute()
 
 
 class SequentialAttemptingDocumentLoader(DocumentLoader):

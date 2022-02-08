@@ -51,28 +51,13 @@ class JsonReferenceResolvingTransformer(AsyncApiConfigTransformer):
     def transform(self, config: AsyncAPIObject) -> AsyncAPIObject:
         cfg = config
 
-        def serialize(c: AsyncAPIObject) -> SerializableObject:
-            return t.cast(SerializableObject, c.dict(by_alias=True, exclude_none=True))
-
-        in_mem_doc_loader = InMemoryDocumentLoader(serialize(cfg))
-        working_dir_loader, reference_loader = self.__create_loader(in_mem_doc_loader)
-
-        def resolve(path: SpecObjectPath, ref: JsonReference) -> SerializableObject:
-            with working_dir_loader.use_scope(path):
-                uri, value = reference_loader.load(ref)
-
-            if uri is None:
-                raise AsyncApiConfigTransformerError("Invalid json reference", path, ref)
-
-            return t.cast(SerializableObject, value)
+        resolver = _Resolver(self.__config_path, config, self.__external_document_loader)
 
         # TODO: get total reference graph and resolve it ordering by dependencies or cancel resolution if graph has
         #  cycles.
         for _ in self.__iter_max_iterations():
-            in_mem_doc_loader.reset(serialize(cfg))
-
             changes = [
-                (obj_path, resolve(obj_path, json_ref))
+                (obj_path, resolver.resolve(obj_path, json_ref))
                 for obj_path, json_ref in self.__iter_references(cfg)
             ]
             if not changes:
@@ -82,6 +67,7 @@ class JsonReferenceResolvingTransformer(AsyncApiConfigTransformer):
                 target=cfg,
                 changes=changes,
             )
+            resolver.reset(cfg)
 
         return cfg
 
@@ -99,31 +85,53 @@ class JsonReferenceResolvingTransformer(AsyncApiConfigTransformer):
             if ref_obj := as_(ReferenceObject, value):  # type: ignore[misc]
                 yield path, ref_obj.ref
 
-    def __create_loader(
+
+class _Resolver:
+    def __init__(
             self,
-            main: DocumentLoader,
-    ) -> t.Tuple["LocalFileSystemWorkingDirNormalizingDocumentLoader", DocumentLoader]:
-        working_dir_loader = LocalFileSystemWorkingDirNormalizingDocumentLoader(
+            path: Path,
+            config: AsyncAPIObject,
+            extra_loader: DocumentLoader,
+            document_cache_size: int = 32,
+            document_part_cache_size: int = 1024,
+    ) -> None:
+        self.__config = config
+
+        self.__in_mem_loader = InMemoryDocumentLoader(self.__serialize(config))
+        self.__working_dir_loader = LocalFileSystemWorkingDirNormalizingDocumentLoader(
             LocalFileSystemDocumentLoader(
                 (yaml.safe_load, Exception),
                 (json.load, json.JSONDecodeError),
             ),
-            root=self.__config_path,
-            root_scope=(),
+            root=path,
+            root_key=(),
         )
-
-        reference_loader = CachedDocumentLoader(
+        self.__reference_loader = CachedDocumentLoader(
             JsonReferenceBasedDocumentPartLoader(
                 CachedDocumentLoader(
                     SequentialAttemptingDocumentLoader(*make_sequence_of_not_none(
-                        main,
-                        working_dir_loader,
-                        self.__external_document_loader,
+                        self.__in_mem_loader,
+                        self.__working_dir_loader,
+                        extra_loader,
                     )),
-                    cache_size=32,
+                    cache_size=document_cache_size,
                 ),
             ),
-            cache_size=1024,
+            cache_size=document_part_cache_size,
         )
 
-        return working_dir_loader, reference_loader
+    def resolve(self, key: SpecObjectPath, ref: JsonReference) -> SerializableObject:
+        with self.__working_dir_loader.use_scope(key):
+            uri, value = self.__reference_loader.load(ref)
+
+        if uri is None:
+            raise AsyncApiConfigTransformerError("Invalid json reference", key, ref)
+
+        return t.cast(SerializableObject, value)
+
+    def reset(self, config: AsyncAPIObject) -> None:
+        if config is not self.__config:
+            self.__in_mem_loader.reset(self.__serialize(config))
+
+    def __serialize(self, config: AsyncAPIObject) -> SerializableObject:
+        return t.cast(SerializableObject, config.dict(by_alias=True, exclude_none=True))
