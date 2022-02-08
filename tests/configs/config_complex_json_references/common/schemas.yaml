@@ -5,9 +5,13 @@ SensorReading:
     sensorId:
       type: string
     temperature:
-      type: number
+      $ref: './schemas.json#/temperature'
     baseUnit:
-      enum: [
-        CELSIUS,
-        FAHRENHEIT
-      ]
+      $ref: '#/enums/temperatureUnit'
+
+enums:
+  temperatureUnit:
+    enum: [
+      CELSIUS,
+      FAHRENHEIT
+    ]

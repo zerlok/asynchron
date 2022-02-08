@@ -7,12 +7,13 @@ import typing as t
 from pathlib import Path
 
 import yaml
+from yaml.parser import ParserError as YAMLDecodeError
 
 from asynchron.codegen.app import AsyncApiConfigTransformer, AsyncApiConfigTransformerError
 from asynchron.codegen.spec.asyncapi import (
     AsyncAPIObject,
     JsonReference,
-    ReferenceObject,
+    LocalFileSystemDocumentJsonReference, ReferenceObject,
     SpecObject,
 )
 from asynchron.codegen.spec.document.loader import (
@@ -91,47 +92,53 @@ class _Resolver:
             self,
             path: Path,
             config: AsyncAPIObject,
-            extra_loader: DocumentLoader,
+            extra_loader: t.Optional[DocumentLoader] = None,
             document_cache_size: int = 32,
             document_part_cache_size: int = 1024,
     ) -> None:
         self.__config = config
 
-        self.__in_mem_loader = InMemoryDocumentLoader(self.__serialize(config))
-        self.__working_dir_loader = LocalFileSystemWorkingDirNormalizingDocumentLoader(
-            LocalFileSystemDocumentLoader(
-                (yaml.safe_load, Exception),
-                (json.load, json.JSONDecodeError),
+        self.__in_mem_doc_loader = InMemoryDocumentLoader(
+            doc=self.__serialize(config),
+            doc_uri=LocalFileSystemDocumentJsonReference(str(path)),
+        )
+        self.__document_loader = LocalFileSystemWorkingDirNormalizingDocumentLoader(
+            SequentialAttemptingDocumentLoader(
+                self.__in_mem_doc_loader,
+                CachedDocumentLoader(
+                    SequentialAttemptingDocumentLoader(*make_sequence_of_not_none(
+                        LocalFileSystemDocumentLoader(
+                            (yaml.safe_load, YAMLDecodeError),
+                            (json.load, json.JSONDecodeError),
+                        ),
+                        extra_loader,
+                    )),
+                    cache_size=document_cache_size,
+                ),
             ),
             root=path,
             root_key=(),
         )
         self.__reference_loader = CachedDocumentLoader(
             JsonReferenceBasedDocumentPartLoader(
-                CachedDocumentLoader(
-                    SequentialAttemptingDocumentLoader(*make_sequence_of_not_none(
-                        self.__in_mem_loader,
-                        self.__working_dir_loader,
-                        extra_loader,
-                    )),
-                    cache_size=document_cache_size,
-                ),
+                self.__document_loader,
             ),
             cache_size=document_part_cache_size,
         )
 
     def resolve(self, key: SpecObjectPath, ref: JsonReference) -> SerializableObject:
-        with self.__working_dir_loader.use_scope(key):
+        with self.__document_loader.use_scope(key):
             uri, value = self.__reference_loader.load(ref)
 
         if uri is None:
-            raise AsyncApiConfigTransformerError("Invalid json reference", key, ref)
+            raise AsyncApiConfigTransformerError("JSON reference resolving failed", key, ref)
 
         return t.cast(SerializableObject, value)
 
     def reset(self, config: AsyncAPIObject) -> None:
         if config is not self.__config:
-            self.__in_mem_loader.reset(self.__serialize(config))
+            self.__in_mem_doc_loader.reset(self.__serialize(config))
+            self.__reference_loader.reset()
 
     def __serialize(self, config: AsyncAPIObject) -> SerializableObject:
         return t.cast(SerializableObject, config.dict(by_alias=True, exclude_none=True))

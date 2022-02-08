@@ -18,12 +18,13 @@ from urllib.parse import urldefrag
 
 from jsonschema import RefResolutionError, RefResolver
 
+from asynchron.codegen.spec.asyncapi import JsonReference, LocalFileSystemDocumentJsonReference
 from asynchron.codegen.spec.walker.spec_object_path import SpecObjectPath
 
 
 class DocumentLoader(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def load(self, uri: str) -> t.Tuple[t.Optional[str], object]:
+    def load(self, uri: JsonReference) -> t.Tuple[t.Optional[JsonReference], object]:
         raise NotImplementedError
 
 
@@ -35,14 +36,15 @@ class ScopeContextManager(metaclass=abc.ABCMeta):
 
 class InMemoryDocumentLoader(DocumentLoader):
 
-    def __init__(self, doc: object) -> None:
+    def __init__(self, doc: object, doc_uri: JsonReference) -> None:
         self.__doc = doc
+        self.__doc_uri = doc_uri
 
     def reset(self, doc: object) -> None:
         self.__doc = doc
 
-    def load(self, uri: str) -> t.Tuple[t.Optional[str], object]:
-        if uri != "":
+    def load(self, uri: JsonReference) -> t.Tuple[t.Optional[JsonReference], object]:
+        if uri != self.__doc_uri:
             return None, None
 
         return uri, self.__doc
@@ -52,12 +54,12 @@ class LocalFileSystemDocumentLoader(DocumentLoader):
     def __init__(self, *parsers: t.Tuple[t.Callable[[t.TextIO], object], t.Type[Exception]]) -> None:
         self.__parsers = parsers
 
-    def load(self, uri: str) -> t.Tuple[t.Optional[str], object]:
+    def load(self, uri: JsonReference) -> t.Tuple[t.Optional[JsonReference], object]:
         path = Path(uri)
         if not path.exists() or not path.is_file():
             return None, None
 
-        normalized_uri = str(path)
+        normalized_uri = LocalFileSystemDocumentJsonReference(str(path))
 
         with path.open("r") as source:
             for func, parse_err in self.__parsers:
@@ -82,17 +84,20 @@ class LocalFileSystemWorkingDirNormalizingDocumentLoader(DocumentLoader, ScopeCo
         self.__scope_stack: t.List[SpecObjectPath] = [root_key]
         self.__paths_by_scopes: t.Dict[SpecObjectPath, Path] = {root_key: root}
 
-    def load(self, uri: str) -> t.Tuple[t.Optional[str], object]:
-        absolute_uri = uri
+    def load(self, uri: JsonReference) -> t.Tuple[t.Optional[JsonReference], object]:
+        if uri == "":
+            absolute_uri = str(self.__get_current_working_path())
 
-        if uri.startswith("."):
-            cwd = self.__get_current_working_dir()
-            absolute_uri = str(cwd.joinpath(uri))
+        elif uri.startswith("."):
+            absolute_uri = str(self.__get_current_working_path().parent.joinpath(uri))
+
+        else:
+            absolute_uri = uri
 
         normalized_uri, result = self.__inner.load(absolute_uri)
 
         if normalized_uri is not None and absolute_uri != uri:
-            self.__reset_current_working_dir(normalized_uri)
+            self.__reset_current_working_path(normalized_uri)
 
         return normalized_uri, result
 
@@ -106,17 +111,17 @@ class LocalFileSystemWorkingDirNormalizingDocumentLoader(DocumentLoader, ScopeCo
         finally:
             self.__scope_stack.pop(-1)
 
-    def __get_current_working_dir(self) -> Path:
+    def __get_current_working_path(self) -> Path:
         scope = self.__scope_stack[-1]
 
         for i in range(len(scope), -1, -1):
             doc_path = self.__paths_by_scopes.get(scope[:i])
             if doc_path is not None:
-                return doc_path.parent
+                return doc_path
 
         raise ValueError("No working directory", scope)
 
-    def __reset_current_working_dir(self, uri: str) -> None:
+    def __reset_current_working_path(self, uri: JsonReference) -> None:
         scope = self.__scope_stack[-1]
         self.__paths_by_scopes[scope] = Path(uri).absolute()
 
@@ -126,7 +131,7 @@ class SequentialAttemptingDocumentLoader(DocumentLoader):
     def __init__(self, *loaders: DocumentLoader) -> None:
         self.__loaders = loaders
 
-    def load(self, uri: str) -> t.Tuple[t.Optional[str], object]:
+    def load(self, uri: JsonReference) -> t.Tuple[t.Optional[JsonReference], object]:
         for loader in self.__loaders:
             normalized_uri, result = loader.load(uri)
             if normalized_uri is not None:
@@ -143,15 +148,18 @@ class CachedDocumentLoader(DocumentLoader):
     ) -> None:
         self.__load = ft.lru_cache(cache_size)(inner.load)
 
-    def load(self, uri: str) -> t.Tuple[t.Optional[str], object]:
+    def load(self, uri: JsonReference) -> t.Tuple[t.Optional[JsonReference], object]:
         return self.__load(uri)
+
+    def reset(self) -> None:
+        self.__load.cache_clear()
 
 
 class JsonReferenceBasedDocumentPartLoader(DocumentLoader):
     def __init__(self, inner: DocumentLoader) -> None:
         self.__inner = inner
 
-    def load(self, uri: str) -> t.Tuple[t.Optional[str], object]:
+    def load(self, uri: JsonReference) -> t.Tuple[t.Optional[JsonReference], object]:
         doc_uri, part_fragment = urldefrag(uri)
 
         normalized_doc_uri, document = self.__inner.load(doc_uri)
@@ -165,4 +173,4 @@ class JsonReferenceBasedDocumentPartLoader(DocumentLoader):
         except t.cast(t.Type[Exception], RefResolutionError) as err:
             return None, None
 
-        return "#".join((normalized_doc_uri, part_fragment)), t.cast(object, resolved_value)
+        return type(normalized_doc_uri)("#".join((normalized_doc_uri, part_fragment))), t.cast(object, resolved_value)
