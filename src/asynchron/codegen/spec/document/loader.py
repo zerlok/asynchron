@@ -18,7 +18,11 @@ from urllib.parse import urldefrag
 
 from jsonschema import RefResolutionError, RefResolver
 
-from asynchron.codegen.spec.asyncapi import JsonReference, LocalFileSystemDocumentJsonReference
+from asynchron.codegen.spec.asyncapi import (
+    JsonReference,
+    LocalFileSystemDocumentJsonReference,
+    SameDocumentJsonReference,
+)
 from asynchron.codegen.spec.walker.spec_object_path import SpecObjectPath
 
 
@@ -85,14 +89,14 @@ class LocalFileSystemWorkingDirNormalizingDocumentLoader(DocumentLoader, ScopeCo
         self.__paths_by_scopes: t.Dict[SpecObjectPath, Path] = {root_key: root}
 
     def load(self, uri: JsonReference) -> t.Tuple[t.Optional[JsonReference], object]:
-        if uri == "":
-            absolute_uri = str(self.__get_current_working_path())
+        absolute_uri = uri
 
-        elif uri.startswith("."):
-            absolute_uri = str(self.__get_current_working_path().parent.joinpath(uri))
+        if isinstance(uri, SameDocumentJsonReference):
+            absolute_uri = LocalFileSystemDocumentJsonReference(self.__get_current_working_path())
 
-        else:
-            absolute_uri = uri
+        elif isinstance(uri, LocalFileSystemDocumentJsonReference) and uri.startswith("."):
+            absolute_uri = LocalFileSystemDocumentJsonReference(
+                self.__get_current_working_path().parent.joinpath(uri))
 
         normalized_uri, result = self.__inner.load(absolute_uri)
 
@@ -160,7 +164,7 @@ class JsonReferenceBasedDocumentPartLoader(DocumentLoader):
         self.__inner = inner
 
     def load(self, uri: JsonReference) -> t.Tuple[t.Optional[JsonReference], object]:
-        doc_uri, part_fragment = urldefrag(uri)
+        doc_uri, part_fragment = self.__split(uri)
 
         normalized_doc_uri, document = self.__inner.load(doc_uri)
         if normalized_doc_uri is None:
@@ -174,3 +178,8 @@ class JsonReferenceBasedDocumentPartLoader(DocumentLoader):
             return None, None
 
         return type(normalized_doc_uri)("#".join((normalized_doc_uri, part_fragment))), t.cast(object, resolved_value)
+
+    def __split(self, uri: JsonReference) -> t.Tuple[JsonReference, SameDocumentJsonReference]:
+        doc_uri, part_fragment = urldefrag(uri)
+
+        return type(uri)(doc_uri), SameDocumentJsonReference(part_fragment)
