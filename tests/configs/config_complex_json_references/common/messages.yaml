@@ -1,0 +1,4 @@
+SensorReadingMessage:
+  name: sensorReadingMessage
+  payload:
+    $ref: './schemas.yaml#/SensorReading'

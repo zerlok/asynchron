@@ -2,51 +2,73 @@ __all__ = (
     "JsonReferenceResolvingTransformer",
 )
 
+import json
 import typing as t
+from pathlib import Path
 
-from jsonschema import RefResolutionError, RefResolver
+import yaml
+from yaml.parser import ParserError as YAMLDecodeError
 
 from asynchron.codegen.app import AsyncApiConfigTransformer, AsyncApiConfigTransformerError
-from asynchron.codegen.spec.asyncapi import AsyncAPIObject, ReferenceObject, SpecObject
+from asynchron.codegen.spec.asyncapi import (
+    AsyncAPIObject,
+    JsonReference,
+    LocalFileSystemDocumentJsonReference, ReferenceObject,
+    SpecObject,
+)
+from asynchron.codegen.spec.document.loader import (
+    CachedDocumentLoader,
+    DocumentLoader,
+    InMemoryDocumentLoader,
+    JsonReferenceBasedDocumentPartLoader,
+    LocalFileSystemDocumentLoader,
+    LocalFileSystemWorkingDirNormalizingDocumentLoader,
+    SequentialAttemptingDocumentLoader,
+)
 from asynchron.codegen.spec.walker.spec_object_path import SpecObjectPath, SpecObjectWithPathWalker
 from asynchron.serializable_object_modifier import SerializableObjectModifier
-from asynchron.strict_typing import SerializableObject, as_
-
-JsonReference = t.NewType("JsonReference", str)
+from asynchron.strict_typing import SerializableObject, as_, make_sequence_of_not_none
 
 
 class JsonReferenceResolvingTransformer(AsyncApiConfigTransformer):
 
     def __init__(
             self,
+            config_path: Path,
             modifier: t.Optional[SerializableObjectModifier] = None,
             max_iterations: int = 256,
+            external_document_loader: t.Optional[DocumentLoader] = None,
     ) -> None:
         if not (0 < max_iterations <= 256):
             raise ValueError("Max iterations not in valid values range", max_iterations)
 
+        self.__config_path = config_path
         self.__modifier = modifier or SerializableObjectModifier()
         self.__max_iterations = max_iterations
+        self.__external_document_loader = external_document_loader
+
         self.__walker = SpecObjectWithPathWalker.create_bfs()
 
     def transform(self, config: AsyncAPIObject) -> AsyncAPIObject:
         cfg = config
 
+        resolver = _Resolver(self.__config_path, config, self.__external_document_loader)
+
         # TODO: get total reference graph and resolve it ordering by dependencies or cancel resolution if graph has
         #  cycles.
         for _ in self.__iter_max_iterations():
-            resolver = _AsyncAPIObjectJsonReferenceResolver(cfg)
-            references = list(self.__iter_references(cfg))
-            if not references:
+            changes = [
+                (obj_path, resolver.resolve(obj_path, json_ref))
+                for obj_path, json_ref in self.__iter_references(cfg)
+            ]
+            if not changes:
                 break
 
             cfg = self.__modifier.replace(
                 target=cfg,
-                changes=[
-                    (obj_path, resolver(json_ref))
-                    for json_ref, obj_path in references
-                ],
+                changes=changes,
             )
+            resolver.reset(cfg)
 
         return cfg
 
@@ -57,24 +79,66 @@ class JsonReferenceResolvingTransformer(AsyncApiConfigTransformer):
         else:
             raise RuntimeError("Iteration limits on reference resolving is exceeded", self.__max_iterations)
 
-    def __iter_references(self, config: SpecObject) -> t.Iterable[t.Tuple[JsonReference, SpecObjectPath]]:
+    def __iter_references(self, config: SpecObject) -> t.Iterable[t.Tuple[SpecObjectPath, JsonReference]]:
         for path, value in self.__walker.walk(config):
             # FIXME: mypy can't infer the type of `value`
             #  error: Expression type contains "Any" (has type "Type[ReferenceObject]")  [misc]
             if ref_obj := as_(ReferenceObject, value):  # type: ignore[misc]
-                yield JsonReference(ref_obj.ref), path
+                yield path, ref_obj.ref
 
 
-class _AsyncAPIObjectJsonReferenceResolver:
-    def __init__(self, data: AsyncAPIObject) -> None:
-        self.__resolver = RefResolver.from_schema(data.dict(by_alias=True, exclude_none=True))  # type: ignore
+class _Resolver:
+    def __init__(
+            self,
+            path: Path,
+            config: AsyncAPIObject,
+            extra_loader: t.Optional[DocumentLoader] = None,
+            document_cache_size: int = 32,
+            document_part_cache_size: int = 1024,
+    ) -> None:
+        self.__config = config
 
-    def __call__(self, ref: str) -> SerializableObject:
-        try:
-            _, resolved_value = self.__resolver.resolve(ref)  # type: ignore
+        self.__in_mem_doc_loader = InMemoryDocumentLoader(
+            doc=self.__serialize(config),
+            doc_uri=LocalFileSystemDocumentJsonReference(str(path)),
+        )
+        self.__document_loader = LocalFileSystemWorkingDirNormalizingDocumentLoader(
+            SequentialAttemptingDocumentLoader(
+                self.__in_mem_doc_loader,
+                CachedDocumentLoader(
+                    SequentialAttemptingDocumentLoader(*make_sequence_of_not_none(
+                        LocalFileSystemDocumentLoader(
+                            (yaml.safe_load, YAMLDecodeError),
+                            (json.load, json.JSONDecodeError),
+                        ),
+                        extra_loader,
+                    )),
+                    cache_size=document_cache_size,
+                ),
+            ),
+            root=path,
+            root_key=(),
+        )
+        self.__reference_loader = CachedDocumentLoader(
+            JsonReferenceBasedDocumentPartLoader(
+                self.__document_loader,
+            ),
+            cache_size=document_part_cache_size,
+        )
 
-        except t.cast(t.Type[Exception], RefResolutionError) as err:
-            raise AsyncApiConfigTransformerError("Json reference resolving failed", ref)
+    def resolve(self, key: SpecObjectPath, ref: JsonReference) -> SerializableObject:
+        with self.__document_loader.use_scope(key):
+            uri, value = self.__reference_loader.load(ref)
 
-        else:
-            return t.cast(SerializableObject, resolved_value)
+        if uri is None:
+            raise AsyncApiConfigTransformerError("JSON reference resolving failed", key, ref)
+
+        return t.cast(SerializableObject, value)
+
+    def reset(self, config: AsyncAPIObject) -> None:
+        if config is not self.__config:
+            self.__in_mem_doc_loader.reset(self.__serialize(config))
+            self.__reference_loader.reset()
+
+    def __serialize(self, config: AsyncAPIObject) -> SerializableObject:
+        return t.cast(SerializableObject, config.dict(by_alias=True, exclude_none=True))

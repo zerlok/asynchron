@@ -1,0 +1,29 @@
+asyncapi: "2.2.0"
+info:
+  title: Temperature Readings
+  description: Temperature Readings
+  version: "1.0.0"
+channels:
+  temperature.measured:
+    servers: [ 'rabbitmq' ]
+    subscribe:
+      message:
+        $ref: './common/messages.yaml#/InvalidSensorReadingMessage'
+    publish:
+      message:
+        $ref: './common/messages.yaml#/SensorReadingMessage'
+      bindings:
+        amqp:
+          mandatory: true
+          ack: true
+      x-prefetch-count: 100
+    bindings:
+      amqp:
+        is: routingKey
+        queue:
+          name: measures
+          autoDelete: true
+        exchange:
+          name: events
+          type: topic
+          autoDelete: true

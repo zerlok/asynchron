@@ -22,7 +22,7 @@ from asynchron.codegen.spec.asyncapi import (
     ChannelBindingsObject, ChannelItemObject,
     MessageObject,
     OperationBindingsObject, OperationObject,
-    Protocol, SchemaObject, ServersObject,
+    Protocol, SchemaObject, ServerObject, ServersObject,
 )
 from asynchron.codegen.spec.type_definition import (
     ClassDef,
@@ -182,8 +182,8 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
     def __iter_amqp_server_names(self, config: AsyncAPIObject) -> t.Iterable[str]:
         servers = as_or_default(ServersObject, config.servers, ServersObject(__root__={}))
 
-        for name, server in servers.__root__.items():
-            if server.protocol in self.__AMQP_PROTOCOLS:
+        for name, value in servers.__root__.items():
+            if (server := as_(ServerObject, value)) and server.protocol in self.__AMQP_PROTOCOLS:
                 yield name
 
     def __iter_amqp_consumer_defs(

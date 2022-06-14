@@ -1,0 +1,17 @@
+SensorReading:
+  title: SensorReading
+  type: object
+  properties:
+    sensorId:
+      type: string
+    temperature:
+      $ref: './schemas.json#/temperature'
+    baseUnit:
+      $ref: '#/enums/temperatureUnit'
+
+enums:
+  temperatureUnit:
+    enum: [
+      CELSIUS,
+      FAHRENHEIT
+    ]
