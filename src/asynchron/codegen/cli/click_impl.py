@@ -90,9 +90,8 @@ def config(
 @click.option("-p", "--project", type=str, default=None, )
 @click.option("-d", "--dry-run", is_flag=True, default=False)
 @click.option("--enable-main/--disable-main", is_flag=True, default=True)
-# @click.option("--preview/--no-preview", is_flag=True, default=False)
 @click.option("--enable-meta/--disable-meta", is_flag=True, default=True)
-@click.option("--allow-formatter/--ignore-formatter", "ignore_formatter", is_flag=True, default=True)
+@click.option("--ignore-formatter/--allow-formatter", is_flag=True, default=True)
 @click.option("--use-absolute-imports/--use-relative-imports", is_flag=True, default=False)
 @click.pass_obj
 def codegen(
