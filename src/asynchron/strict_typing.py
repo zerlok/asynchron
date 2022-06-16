@@ -43,7 +43,7 @@ FW = t.Callable[[TF], TF]
 
 
 def as_(type_: t.Type[T], obj: object) -> t.Optional[T]:
-    return t.cast(T, obj) if isinstance(obj, type_) else None
+    return obj if isinstance(obj, type_) else None
 
 
 def as_or_default(type_: t.Type[T], obj: object, default: D) -> t.Union[T, D]:
