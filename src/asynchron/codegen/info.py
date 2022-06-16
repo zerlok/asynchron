@@ -15,6 +15,7 @@ class AsyncApiCodeGeneratorMetaInfo:
     config_path: Path
     project_name: str
     author: str
+    enable_main: bool = True
     enable_meta_doc: bool = True
     ignore_formatter: bool = True
     use_absolute_imports: bool = True
