@@ -42,7 +42,9 @@ class ConfigReaderContainer(DeclarativeContainer):
         json_resolving_transformer_factory=json_reference_resolving_config_transformer.provider,
     )
 
-    transformers: Provider[t.Sequence[AsyncApiConfigTransformer]] = List()
+    # FIXME: Incompatible types in assignment (expression has type "dependency_injector.providers.List", variable has
+    #  type "Provider[Sequence[AsyncApiConfigTransformer]]")  [assignment]
+    transformers: Provider[t.Sequence[AsyncApiConfigTransformer]] = List()  # type: ignore
     normalized: Provider[AsyncApiConfigReader] = Factory(
         AsyncApiConfigTransformingConfigReader,
         transformers=transformers,

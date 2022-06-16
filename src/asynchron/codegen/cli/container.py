@@ -89,7 +89,9 @@ class CLIContainer(DeclarativeContainer):
     now: Provider[datetime] = Callable(datetime.utcnow)
 
     config_source: Provider[t.TextIO] = Callable(
-        config_source_loader,
+        # FIXME: Argument 1 to "Callable" has incompatible type "Provider[Callable[[Path], TextIO]]"; expected
+        #  "Optional[Callable[..., TextIO]]"  [arg-type]
+        config_source_loader,  # type: ignore
         config_path,
     )
 
@@ -99,7 +101,7 @@ class CLIContainer(DeclarativeContainer):
         transformer=_normalize_spec_object_title,
     )
 
-    config_readers: ConfigReaderContainer = Container(
+    config_readers: Container[ConfigReaderContainer] = Container(
         ConfigReaderContainer,
         transformers=List(config_titles_normalizer, ),
     )
@@ -112,33 +114,33 @@ class CLIContainer(DeclarativeContainer):
         source=config_source,
     )
 
-    config_view_settings: Provider[AsyncApiConfigViewSettings] = Factory(
+    config_view_settings: Factory[AsyncApiConfigViewSettings] = Factory(
         AsyncApiConfigViewSettings,
     )
-    config_viewers: ConfigViewerContainer = Container(
+    config_viewers: Container[ConfigViewerContainer] = Container(
         ConfigViewerContainer,
         output_stream=stdout,
         settings=config_view_settings,
     )
-    code_generators: CodeGeneratorContainer = Container(
+    code_generators: Container[CodeGeneratorContainer] = Container(
         CodeGeneratorContainer,
         now=now,
     )
     code_generator: MappingValueSelector[str, AsyncApiCodeGenerator] = MappingValueSelector({
         "python-aio-pika": code_generators.jinja_based_python_aio_pika,
     })
-    generated_code: Provider[AsyncApiCodeGeneratorContent] = Callable(
+    generated_code: Callable[AsyncApiCodeGeneratorContent] = Callable(
         _generate_code_from_config,
         meta=code_generators.meta_info.provided,
         config=config,
         code_generator_factory=code_generator.provider,
     )
 
-    code_writers: CodeWriterContainer = Container(
+    code_writers: Container[CodeWriterContainer] = Container(
         CodeWriterContainer,
         output_stream=stdout,
     )
-    code_writer: Provider[AsyncApiContentWriter] = Factory(
+    code_writer: Factory[AsyncApiContentWriter] = Factory(
         code_writers.file_system,
     )
 
