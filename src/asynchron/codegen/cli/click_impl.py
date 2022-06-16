@@ -110,7 +110,8 @@ def codegen(
         code_generator_format=format,
     )
 
-    container.code_generators.meta_info.add_kwargs(
+    # FIXME: "Provider[Any]" has no attribute "add_kwargs"  [attr-defined]
+    container.code_generators.meta_info.add_kwargs(  # type: ignore
         config_path=container.config_path,
         project_name=project if project is not None else output_dir.stem,
         enable_main=enable_main,

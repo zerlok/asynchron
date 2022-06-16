@@ -23,7 +23,7 @@ from asynchron.codegen.info import AsyncApiCodeGeneratorMetaInfo
 class CodeGeneratorContainer(DeclarativeContainer):
     now: Provider[datetime] = Callable(datetime.utcnow)
 
-    meta_info: Provider[AsyncApiCodeGeneratorMetaInfo] = Factory(
+    meta_info: Factory[AsyncApiCodeGeneratorMetaInfo] = Factory(
         AsyncApiCodeGeneratorMetaInfo,
         generator_name=Object("asynchron"),
         generator_link=Object("https://github.com/zerlok/asynchron"),
