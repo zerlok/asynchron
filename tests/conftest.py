@@ -11,7 +11,7 @@ from tests.cli import CliInput
 
 @fixture()
 def cli_command() -> click.Command:
-    from asynchron.codegen.cli import cli
+    from asynchron.codegen.cli.click_impl import cli
     # noinspection PyTypeChecker
     return cli
 

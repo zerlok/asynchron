@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "asynchron"
-version = "0.3.0"
+version = "0.4.0"
 description = "Python service framework with code generator based on AsyncAPI specification"
 authors = ["zerlok <denergytro@gmail.com>"]
 license = "MIT"
@@ -41,7 +41,7 @@ codegen = ["pydantic", "Jinja2", "PyYAML", "click", "dependency-injector", "json
 aio-pika = ["pydantic", "aio-pika"]
 
 [tool.poetry.scripts]
-asynchron-codegen = "asynchron.codegen.cli:cli"
+asynchron = "asynchron.codegen.cli.click_impl:cli"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
