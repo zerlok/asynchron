@@ -1,4 +1,5 @@
 __all__ = (
+    "SpecObjectWalkingTransformer",
     "SpecObjectTitleNormalizer",
 )
 
@@ -7,14 +8,21 @@ import typing as t
 
 import stringcase
 
+from asynchron.codegen.app import AsyncApiConfigTransformer
 from asynchron.codegen.spec.asyncapi import (
     AsyncAPIObject,
     ChannelBindingsObject,
     ChannelItemObject,
     ChannelsObject,
     ComponentsObject,
-    ContactObject, CorrelationIdObject,
-    DefaultContentType, ExternalDocumentationObject, Identifier, InfoObject, LicenseObject, MessageBindingsObject,
+    ContactObject,
+    CorrelationIdObject,
+    DefaultContentType,
+    ExternalDocumentationObject,
+    Identifier,
+    InfoObject,
+    LicenseObject,
+    MessageBindingsObject,
     MessageExampleObject,
     MessageObject,
     MessageTraitObject,
@@ -25,13 +33,46 @@ from asynchron.codegen.spec.asyncapi import (
     OperationTraitObject,
     ParameterObject,
     ParametersObject,
-    ReferenceObject, RuntimeExpression, SchemaObject,
-    SecurityRequirementObject, SecuritySchemeObject,
-    ServerBindingsObject, ServerObject, ServerVariableObject, ServersObject, SpecObject,
+    ReferenceObject,
+    RuntimeExpression,
+    SchemaObject,
+    SecurityRequirementObject,
+    SecuritySchemeObject,
+    ServerBindingsObject,
+    ServerObject,
+    ServerVariableObject,
+    ServersObject,
+    SpecObject,
     SpecObjectVisitor,
-    TagObject, TagsObject,
+    TagObject,
+    TagsObject,
 )
-from asynchron.codegen.spec.walker.spec_object_path import SpecObjectPath
+from asynchron.codegen.spec.walker.base import Walker
+from asynchron.codegen.spec.walker.spec_object_path import SpecObjectPath, SpecObjectWithPathWalker
+from asynchron.serializable_object_modifier import SerializableObjectModifier
+
+
+class SpecObjectWalkingTransformer(AsyncApiConfigTransformer):
+
+    def __init__(
+            self,
+            transformer: t.Callable[[SpecObjectPath, SpecObject], t.Optional[SpecObject]],
+            modifier: t.Optional[SerializableObjectModifier] = None,
+            walker: t.Optional[Walker[SpecObject, t.Tuple[SpecObjectPath, SpecObject]]] = None,
+    ) -> None:
+        self.__transformer = transformer
+        self.__modifier = modifier or SerializableObjectModifier()
+        self.__walker = walker or SpecObjectWithPathWalker.create_dfs_pre_ordering()
+
+    def transform(self, config: AsyncAPIObject) -> AsyncAPIObject:
+        changes: t.List[t.Tuple[t.Sequence[t.Union[int, str]], t.Optional[SpecObject]]] = []
+
+        for path, obj in self.__walker.walk(config):
+            transformed_obj = self.__transformer(path, obj)
+            if transformed_obj != obj:
+                changes.append((path, transformed_obj))
+
+        return self.__modifier.replace(config, changes)
 
 
 class SpecObjectTitleNormalizer(SpecObjectVisitor[SpecObject]):
@@ -155,7 +196,7 @@ class SpecObjectTitleNormalizer(SpecObjectVisitor[SpecObject]):
 
     def __normalize_name(self, *values: str) -> str:
         result = re.sub(r"[^A-Za-z0-9_]+", "_", "_".join(values))
-        result = stringcase.snakecase(result) # type: ignore[misc]
+        result = stringcase.snakecase(result)  # type: ignore[misc]
         result = re.sub(r"_+", "_", result)
         result = re.sub(r"^_?(.*?)_$", "\1", result)
 
