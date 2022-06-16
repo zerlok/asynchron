@@ -21,7 +21,7 @@ class ComplexJsonReferencesConfigCases:
     ) -> t.Tuple[CliInput, CliOutput]:
         return (
             CliInput(
-                args=("-f", str(config.asyncapi_config_path), "get", "--pretty",),
+                args=("-f", str(config.asyncapi_config_path), "config", "--pretty",),
             ),
             CliOutput(
                 stdout=json.dumps(config.normalized_config, indent=2, separators=(", ", ": "), sort_keys=True),
@@ -45,7 +45,7 @@ class ComplexBrokenJsonReferencesConfigCases:
 
         return (
             CliInput(
-                args=("-f", str(asyncapi_config_path), "get", "--pretty",),
+                args=("-f", str(asyncapi_config_path), "config", "--pretty",),
             ),
             AsyncApiConfigTransformerError,
             # CliOutput(
