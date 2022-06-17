@@ -12,7 +12,7 @@ __all__ = (
 import abc
 import functools as ft
 import typing as t
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import urldefrag
 
@@ -69,8 +69,14 @@ class LocalFileSystemDocumentLoader(DocumentLoader):
             for func, parse_err in self.__parsers:
                 source.seek(0)
 
-                with suppress(parse_err):
+                # noinspection PyBroadException
+                try:
                     result = func(source)
+
+                except parse_err:
+                    continue
+
+                else:
                     return normalized_uri, result
 
             else:

@@ -14,4 +14,4 @@ from asynchron.codegen.spec.asyncapi import AsyncAPIObject
 class YamlAsyncApiConfigReader(AsyncApiConfigReader):
 
     def read(self, source: t.TextIO) -> AsyncAPIObject:
-        return AsyncAPIObject.parse_obj(yaml.safe_load(source))  # type: ignore[misc]
+        return AsyncAPIObject.parse_obj(yaml.safe_load(source))

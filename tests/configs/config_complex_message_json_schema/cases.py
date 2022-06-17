@@ -18,7 +18,7 @@ class ComplexMessageJsonSchemaConfigCases:
     ) -> t.Tuple[CliInput, CliOutput]:
         return (
             CliInput(
-                args=("-f", str(config.asyncapi_config_path), "get",),
+                args=("-f", str(config.asyncapi_config_path), "config",),
             ),
             CliOutput(
                 stdout=json.dumps(config.normalized_config, indent=None, separators=(",", ":"), sort_keys=True),
@@ -36,7 +36,7 @@ class ComplexMessageJsonSchemaConfigCases:
             CliInput(
                 args=(
                     "-f", str(config.asyncapi_config_path),
-                    "generate", "python-aio-pika",
+                    "codegen", "python-aio-pika",
                     "-o", str(target_dir),
                     "-p", project_name,
                     "--disable-meta", "--ignore-formatter", "--use-relative-imports",

@@ -83,7 +83,7 @@ class JsonReferenceResolvingTransformer(AsyncApiConfigTransformer):
         for path, value in self.__walker.walk(config):
             # FIXME: mypy can't infer the type of `value`
             #  error: Expression type contains "Any" (has type "Type[ReferenceObject]")  [misc]
-            if ref_obj := as_(ReferenceObject, value):  # type: ignore[misc]
+            if ref_obj := as_(ReferenceObject, value):
                 yield path, ref_obj.ref
 
 

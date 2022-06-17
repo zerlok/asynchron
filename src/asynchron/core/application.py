@@ -103,9 +103,9 @@ class ApplicationBuilder:
             asyncgen_func = asynccontextmanager(
                 t.cast(t.Callable[..., t.AsyncIterator[object]], func))  # type: ignore[misc]
 
-            @asynccontextmanager  # type: ignore[misc]
-            @ft.wraps(asyncgen_func)  # type: ignore[misc]
-            async def async_gen_func_wrapper(  # type: ignore[misc]
+            @asynccontextmanager
+            @ft.wraps(asyncgen_func)
+            async def async_gen_func_wrapper(
                     *args: object,
                     **kwargs: object,
             ) -> t.AsyncIterator[Runnable]:
@@ -120,9 +120,9 @@ class ApplicationBuilder:
         if inspect.iscoroutinefunction(func):
             coroutine_func = t.cast(t.Callable[..., t.Awaitable[object]], func)  # type: ignore[misc]
 
-            @asynccontextmanager  # type: ignore[misc]
-            @ft.wraps(coroutine_func)  # type: ignore[misc]
-            async def coroutine_func_wrapper(  # type: ignore[misc]
+            @asynccontextmanager
+            @ft.wraps(coroutine_func)
+            async def coroutine_func_wrapper(
                     *args: object,
                     **kwargs: object,
             ) -> t.AsyncIterator[Runnable]:
@@ -137,9 +137,9 @@ class ApplicationBuilder:
         if inspect.isfunction(func):
             sync_func = t.cast(t.Callable[..., object], func)  # type: ignore[misc]
 
-            @asynccontextmanager  # type: ignore[misc]
-            @ft.wraps(sync_func)  # type: ignore[misc]
-            async def sync_func_wrapper(  # type: ignore[misc]
+            @asynccontextmanager
+            @ft.wraps(sync_func)
+            async def sync_func_wrapper(
                     *args: object,
                     **kwargs: object,
             ) -> t.AsyncIterator[Runnable]:

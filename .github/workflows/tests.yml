@@ -3,8 +3,18 @@ name: Test Python Code
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'README.md'
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'README.md'
 
 jobs:
   test:

@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 
 from click.testing import Result
 
-from asynchron.codegen.cli import CLIContainer
+from asynchron.codegen.cli.container import CLIContainer
 
 
 @dataclass(frozen=True)

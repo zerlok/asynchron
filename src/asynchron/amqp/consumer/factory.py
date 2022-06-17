@@ -4,7 +4,7 @@ __all__ = (
 
 import typing as t
 
-import aio_pika
+from aio_pika.abc import AbstractIncomingMessage
 
 from asynchron.amqp.consumer.processing import ProcessingMessageConsumer
 from asynchron.core.consumer import (
@@ -17,7 +17,7 @@ T_contra = t.TypeVar("T_contra", contravariant=True)
 
 
 class ProcessingCallableDecodedMessageConsumerFactory(
-    MessageConsumerFactory[MessageConsumer[aio_pika.IncomingMessage], aio_pika.IncomingMessage],
+    MessageConsumerFactory[MessageConsumer[AbstractIncomingMessage], AbstractIncomingMessage],
 ):
     def __init__(
             self,
@@ -31,8 +31,8 @@ class ProcessingCallableDecodedMessageConsumerFactory(
 
     def create_consumer(
             self,
-            settings: MessageConsumer[aio_pika.IncomingMessage],
-    ) -> MessageConsumer[aio_pika.IncomingMessage]:
+            settings: MessageConsumer[AbstractIncomingMessage],
+    ) -> MessageConsumer[AbstractIncomingMessage]:
         # callable_consumer_wrapper = CallableMessageConsumer(consumer=callable_consumer, )
         # message_with_context_decoder = MessageWithContextDecoder(decoder=decoder, )
         #

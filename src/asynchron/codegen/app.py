@@ -6,6 +6,7 @@ __all__ = (
     "AsyncApiConfigViewerError",
     "AsyncApiConfigViewer",
     "AsyncApiCodeGeneratorError",
+    "AsyncApiCodeGeneratorContent",
     "AsyncApiCodeGenerator",
     "AsyncApiContentWriterError",
     "AsyncApiContentWriter",
@@ -52,9 +53,24 @@ class AsyncApiCodeGeneratorError(Exception):
     pass
 
 
+class AsyncApiCodeGeneratorContent(t.Collection[t.Tuple[Path, t.Sequence[str]]]):
+
+    def __init__(self, content_by_paths: t.Optional[t.Mapping[Path, t.Sequence[str]]] = None) -> None:
+        self.__content_by_paths: t.Dict[Path, t.Sequence[str]] = dict(content_by_paths or {})
+
+    def __contains__(self, __x: object) -> bool:
+        return __x in self.__content_by_paths
+
+    def __len__(self) -> int:
+        return len(self.__content_by_paths)
+
+    def __iter__(self) -> t.Iterator[t.Tuple[Path, t.Sequence[str]]]:
+        yield from self.__content_by_paths.items()
+
+
 class AsyncApiCodeGenerator(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def generate(self, config: AsyncAPIObject) -> t.Iterable[t.Tuple[Path, t.Iterable[str]]]:
+    def generate(self, config: AsyncAPIObject) -> AsyncApiCodeGeneratorContent:
         raise NotImplementedError
 
 
@@ -64,5 +80,5 @@ class AsyncApiContentWriterError(Exception):
 
 class AsyncApiContentWriter(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def write(self, content: t.Iterable[t.Tuple[Path, t.Iterable[str]]]) -> None:
+    def write(self, content: AsyncApiCodeGeneratorContent) -> None:
         raise NotImplementedError

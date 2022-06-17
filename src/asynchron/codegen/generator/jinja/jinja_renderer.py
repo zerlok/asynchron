@@ -6,8 +6,10 @@ import typing as t
 from datetime import datetime
 from pathlib import Path
 
-import stringcase  # type: ignore
+import stringcase
 from jinja2 import Environment, FileSystemLoader
+
+from asynchron.strict_typing import Supports
 
 
 class JinjaTemplateRenderer:
@@ -58,19 +60,19 @@ class JinjaTemplateRenderer:
         if not isinstance(value, str) and isinstance(value, t.Iterable):
             return "_".join(stringcase.snakecase(str(item)) for item in value)
 
-        return stringcase.snakecase(str(value))
+        return t.cast(str, stringcase.snakecase(str(value)))
 
     def __convert_to_pascalcase(self, value: object) -> str:
         if not isinstance(value, str) and isinstance(value, t.Iterable):
             return "".join(stringcase.pascalcase(str(item)) for item in value)
 
-        return stringcase.pascalcase(str(value))
+        return t.cast(str, stringcase.pascalcase(str(value)))
 
     def __convert_to_constcase(self, value: object) -> str:
         if not isinstance(value, str) and isinstance(value, t.Iterable):
             return "_".join(stringcase.constcase(str(item)) for item in value)
 
-        return stringcase.constcase(str(value))
+        return t.cast(str, stringcase.constcase(str(value)))
 
     def __iter_unique(self, items: object) -> t.Iterable[object]:
         if isinstance(items, t.Iterable):
@@ -80,19 +82,22 @@ class JinjaTemplateRenderer:
         if isinstance(items, t.Iterable):
             for item in items:
                 if getattr(item, attribute, None) == value:
-                    return item
+                    return t.cast(object, item)
 
         return None
 
     def __iter_sorted(self, values: object, attribute: str) -> t.Iterable[object]:
         if isinstance(values, t.Iterable):
             # FIXME: fix typing.
-            yield from sorted(values, key=lambda v: getattr(v, attribute, 0))  # type: ignore
+            yield from sorted(values, key=lambda v: getattr(v, attribute, 0))
 
     def __iter_items_sorted_by_keys(self, values: object) -> t.Iterable[t.Tuple[object, object]]:
+        def _get_sort_key(pair: t.Tuple[Supports.LessThan, object]) -> Supports.LessThan:
+            return pair[0]
+
         if isinstance(values, t.Mapping):
             # FIXME: fix typing.
-            yield from sorted(values.items(), key=lambda pair: pair[0])  # type: ignore
+            yield from sorted(values.items(), key=_get_sort_key)
 
     def __convert_datetime_to_iso_format(self, value: object) -> str:
         if not isinstance(value, datetime):

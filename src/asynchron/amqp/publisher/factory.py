@@ -4,7 +4,7 @@ __all__ = (
 
 import typing as t
 
-import aio_pika
+from aio_pika.abc import AbstractMessage
 
 from asynchron.amqp.serializer.context import MessageContext, MessageContextAssigningMessageEncoder
 from asynchron.core.message import MessageEncoder
@@ -16,7 +16,7 @@ T_co = t.TypeVar("T_co", covariant=True)
 
 
 class EncodedWithContextMessagePublisherFactory(
-    MessagePublisherFactory[t.Tuple[MessageEncoder[T, aio_pika.Message], MessagePublisher[aio_pika.Message]], T],
+    MessagePublisherFactory[t.Tuple[MessageEncoder[T, AbstractMessage], MessagePublisher[AbstractMessage]], T],
 ):
     def __init__(
             self,
@@ -26,7 +26,7 @@ class EncodedWithContextMessagePublisherFactory(
 
     def create_publisher(
             self,
-            settings: t.Tuple[MessageEncoder[T, aio_pika.Message], MessagePublisher[aio_pika.Message]],
+            settings: t.Tuple[MessageEncoder[T, AbstractMessage], MessagePublisher[AbstractMessage]],
     ) -> MessagePublisher[T]:
         encoder, publisher = settings
 

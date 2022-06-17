@@ -7,9 +7,7 @@ import typing as t
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-import stringcase  # type: ignore
-
-from asynchron.codegen.app import AsyncApiCodeGenerator
+from asynchron.codegen.app import AsyncApiCodeGenerator, AsyncApiCodeGeneratorContent
 from asynchron.codegen.generator.jinja.jinja_renderer import JinjaTemplateRenderer
 from asynchron.codegen.generator.json_schema_python_def import (
     JsonSchemaBasedPythonStructuredDataModelDefGenerator,
@@ -92,7 +90,7 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
         self.__message_def_generator = message_def_generator or JsonSchemaBasedPythonStructuredDataModelDefGenerator()
         self.__renderer = renderer or JinjaTemplateRenderer.from_template_root_dir(self.__JINJA_TEMPLATES_DIR)
 
-    def generate(self, config: AsyncAPIObject) -> t.Iterable[t.Tuple[Path, t.Iterable[str]]]:
+    def generate(self, config: AsyncAPIObject) -> AsyncApiCodeGeneratorContent:
         channel_messages: t.Dict[str, TypeDef] = dict(self.__iter_message_defs(config))
 
         amqp_server_names = set(self.__iter_amqp_server_names(config))
@@ -110,15 +108,13 @@ class JinjaBasedPythonAioPikaCodeGenerator(AsyncApiCodeGenerator):
             type_defs=app_type_defs,
         )
 
-        for module, render_context in self.__iter_rendering_modules(app):
-            module_path = Path(*module.path[:-1], f"{module.path[-1]}.py")
-
-            stream = self.__renderer.render(
+        return AsyncApiCodeGeneratorContent({
+            Path(*module.path[:-1], f"{module.path[-1]}.py"): list(self.__renderer.render(
                 name=module.path[-1],
                 context=render_context,
-            )
-
-            yield module_path, stream
+            ))
+            for module, render_context in self.__iter_rendering_modules(app)
+        })
 
     def __iter_app_modules(
             self,
