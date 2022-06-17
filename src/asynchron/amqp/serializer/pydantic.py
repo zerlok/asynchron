@@ -6,6 +6,7 @@ import pickle
 import typing as t
 
 import aio_pika
+from aio_pika.abc import AbstractMessage
 from pydantic import BaseModel, Protocol
 
 from asynchron.core.message import MessageSerializer
@@ -14,7 +15,7 @@ from asynchron.strict_typing import raise_not_exhaustive
 T_model = t.TypeVar("T_model", bound=BaseModel)
 
 
-class PydanticMessageSerializer(t.Generic[T_model], MessageSerializer[aio_pika.Message, T_model]):
+class PydanticMessageSerializer(t.Generic[T_model], MessageSerializer[AbstractMessage, T_model]):
 
     def __init__(
             self,
@@ -24,7 +25,7 @@ class PydanticMessageSerializer(t.Generic[T_model], MessageSerializer[aio_pika.M
         self.__model = model
         self.__protocol = protocol
 
-    def decode(self, message: aio_pika.Message) -> T_model:
+    def decode(self, message: AbstractMessage) -> T_model:
         return self.__model.parse_raw(
             b=message.body,
             content_type=message.content_type or "",
@@ -33,7 +34,7 @@ class PydanticMessageSerializer(t.Generic[T_model], MessageSerializer[aio_pika.M
             allow_pickle=self.__protocol is Protocol.pickle,
         )
 
-    def encode(self, message: T_model) -> aio_pika.Message:
+    def encode(self, message: T_model) -> AbstractMessage:
         if self.__protocol is Protocol.json:
             return aio_pika.Message(
                 body=message.json().encode("utf-8"),

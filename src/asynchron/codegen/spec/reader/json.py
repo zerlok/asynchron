@@ -13,4 +13,4 @@ from asynchron.codegen.spec.asyncapi import AsyncAPIObject
 class JsonAsyncApiConfigReader(AsyncApiConfigReader):
 
     def read(self, source: t.TextIO) -> AsyncAPIObject:
-        return AsyncAPIObject.parse_obj(json.load(source))  # type: ignore[misc]
+        return AsyncAPIObject.parse_obj(json.load(source))

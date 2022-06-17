@@ -42,6 +42,11 @@ TF = t.TypeVar("TF", bound=F[t.Any])  # type: ignore[misc]
 FW = t.Callable[[TF], TF]
 
 
+class Supports:
+    class LessThan(t.Protocol):
+        def __lt__(self: T, other: object) -> bool: ...
+
+
 def as_(type_: t.Type[T], obj: object) -> t.Optional[T]:
     return obj if isinstance(obj, type_) else None
 
@@ -76,9 +81,9 @@ def as_async_context_manager(type_: t.Type[T], func: object) -> t.Optional[t.Asy
         asyncgen_func = asynccontextmanager(
             t.cast(t.Callable[..., t.AsyncIterator[object]], func))  # type: ignore[misc]
 
-        @asynccontextmanager  # type: ignore[misc]
-        @ft.wraps(asyncgen_func)  # type: ignore[misc]
-        async def async_gen_func_wrapper(*args: object, **kwargs: object) -> t.AsyncIterator[T]:  # type: ignore[misc]
+        @asynccontextmanager
+        @ft.wraps(asyncgen_func)
+        async def async_gen_func_wrapper(*args: object, **kwargs: object) -> t.AsyncIterator[T]:
             async with asyncgen_func(*args, **kwargs) as value:
                 if not isinstance(value, type_):
                     raise ValueError()
@@ -90,9 +95,9 @@ def as_async_context_manager(type_: t.Type[T], func: object) -> t.Optional[t.Asy
     if inspect.iscoroutinefunction(func):
         coroutine_func = t.cast(t.Callable[..., t.Awaitable[object]], func)  # type: ignore[misc]
 
-        @asynccontextmanager  # type: ignore[misc]
-        @ft.wraps(coroutine_func)  # type: ignore[misc]
-        async def coroutine_func_wrapper(*args: object, **kwargs: object) -> t.AsyncIterator[T]:  # type: ignore[misc]
+        @asynccontextmanager
+        @ft.wraps(coroutine_func)
+        async def coroutine_func_wrapper(*args: object, **kwargs: object) -> t.AsyncIterator[T]:
             value = await coroutine_func(*args, **kwargs)
             if not isinstance(value, type_):
                 raise ValueError()
@@ -104,9 +109,9 @@ def as_async_context_manager(type_: t.Type[T], func: object) -> t.Optional[t.Asy
     if inspect.isfunction(func):
         sync_func = t.cast(t.Callable[..., object], func)  # type: ignore[misc]
 
-        @asynccontextmanager  # type: ignore[misc]
-        @ft.wraps(sync_func)  # type: ignore[misc]
-        async def sync_func_wrapper(*args: object, **kwargs: object) -> t.AsyncIterator[T]:  # type: ignore[misc]
+        @asynccontextmanager
+        @ft.wraps(sync_func)
+        async def sync_func_wrapper(*args: object, **kwargs: object) -> t.AsyncIterator[T]:
             value = sync_func(*args, **kwargs)
             if not isinstance(value, type_):
                 raise ValueError()
@@ -140,11 +145,11 @@ def make_sequence_of_not_none(*values: t.Optional[T]) -> t.Sequence[T]:
 
 
 async def gather(coros: t.Iterable[t.Awaitable[T]]) -> t.Sequence[T]:
-    return await asyncio.gather(*coros)  # type: ignore
+    return await asyncio.gather(*coros)
 
 
 async def gather_with_errors(coros: t.Iterable[t.Awaitable[T]]) -> t.Sequence[t.Union[T, BaseException]]:
-    return await asyncio.gather(*coros, return_exceptions=True)  # type: ignore
+    return await asyncio.gather(*coros, return_exceptions=True)
 
 
 class SerializableObject(t.Protocol):

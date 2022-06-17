@@ -196,7 +196,7 @@ class SpecObjectTitleNormalizer(SpecObjectVisitor[SpecObject]):
 
     def __normalize_name(self, *values: str) -> str:
         result = re.sub(r"[^A-Za-z0-9_]+", "_", "_".join(values))
-        result = stringcase.snakecase(result)  # type: ignore[misc]
+        result = stringcase.snakecase(result)
         result = re.sub(r"_+", "_", result)
         result = re.sub(r"^_?(.*?)_$", "\1", result)
 

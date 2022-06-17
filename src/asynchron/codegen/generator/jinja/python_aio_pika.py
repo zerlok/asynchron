@@ -7,8 +7,6 @@ import typing as t
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-import stringcase  # type: ignore
-
 from asynchron.codegen.app import AsyncApiCodeGenerator, AsyncApiCodeGeneratorContent
 from asynchron.codegen.generator.jinja.jinja_renderer import JinjaTemplateRenderer
 from asynchron.codegen.generator.json_schema_python_def import (

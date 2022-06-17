@@ -87,7 +87,7 @@ class SerializableObjectModifier:
     ) -> object:
         return obj
 
-    @__deserialize_object.register(BaseModel)  # type: ignore[misc]
+    @__deserialize_object.register(BaseModel)
     def __deserialize_pydantic_model(  # type: ignore[misc]
             self,
             source: BaseModel,

@@ -4,7 +4,7 @@ __all__ = (
 
 import typing as t
 
-import aio_pika
+from aio_pika.abc import AbstractIncomingMessage, AbstractMessage, AbstractQueue
 
 from asynchron.amqp.connector import AmqpConnector
 from asynchron.amqp.publisher.exchange import ExchangeMessagePublisher
@@ -29,7 +29,7 @@ T_co = t.TypeVar("T_co", covariant=True)
 
 
 class AioPikaBasedAmqpController(
-    Controller[aio_pika.IncomingMessage, AmqpConsumerBindings, aio_pika.Message, AmqpPublisherBindings],
+    Controller[AbstractIncomingMessage, AmqpConsumerBindings, AbstractMessage, AmqpPublisherBindings],
 ):
     class DefaultConsumerFactory(MessageConsumerFactory[MessageConsumer[T], T]):
         def create_consumer(self, settings: MessageConsumer[T]) -> MessageConsumer[T]:
@@ -54,16 +54,16 @@ class AioPikaBasedAmqpController(
 
         self.__default_mandatory = default_mandatory
 
-        self.__declared_consumers: t.Dict[AmqpConsumerBindings, MessageConsumer[aio_pika.IncomingMessage]] = {}
+        self.__declared_consumers: t.Dict[AmqpConsumerBindings, MessageConsumer[AbstractIncomingMessage]] = {}
         self.__declared_publishers: t.Dict[AmqpPublisherBindings, ExchangeMessagePublisher] = {}
-        self.__consumer_tags: t.Dict[str, aio_pika.Queue] = {}
+        self.__consumer_tags: t.Dict[str, AbstractQueue] = {}
 
     def bind_consumer(
             self,
-            decoder: MessageDecoder[aio_pika.IncomingMessage, T],
+            decoder: MessageDecoder[AbstractIncomingMessage, T],
             consumer: MessageConsumer[T],
             bindings: AmqpConsumerBindings,
-    ) -> MessageConsumer[aio_pika.IncomingMessage]:
+    ) -> MessageConsumer[AbstractIncomingMessage]:
         result = self.__declared_consumers[bindings] = DecodedMessageConsumer(
             decoder=decoder,
             consumer=self.__consumer_factory.create_consumer(consumer),
@@ -73,7 +73,7 @@ class AioPikaBasedAmqpController(
 
     def bind_publisher(
             self,
-            encoder: MessageEncoder[T, aio_pika.Message],
+            encoder: MessageEncoder[T, AbstractMessage],
             bindings: AmqpPublisherBindings,
     ) -> MessagePublisher[T]:
         exchange = self.__declared_publishers[bindings] = \

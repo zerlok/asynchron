@@ -2,17 +2,15 @@ __all__ = (
     "ProcessingMessageConsumer",
 )
 
-import typing as t
-
-import aio_pika
+from aio_pika.abc import AbstractIncomingMessage
 
 from asynchron.core.consumer import MessageConsumer
 
 
-class ProcessingMessageConsumer(MessageConsumer[aio_pika.IncomingMessage]):
+class ProcessingMessageConsumer(MessageConsumer[AbstractIncomingMessage]):
     def __init__(
             self,
-            consumer: MessageConsumer[aio_pika.IncomingMessage],
+            consumer: MessageConsumer[AbstractIncomingMessage],
             requeue_on_exception: bool = False,
             reject_on_redelivered: bool = False,
             ignore_processed: bool = False,
@@ -22,10 +20,10 @@ class ProcessingMessageConsumer(MessageConsumer[aio_pika.IncomingMessage]):
         self.__reject_on_redelivered = reject_on_redelivered
         self.__ignore_processed = ignore_processed
 
-    async def consume(self, message: aio_pika.IncomingMessage) -> None:
-        async with t.cast(t.AsyncContextManager[aio_pika.IncomingMessage], message.process(
+    async def consume(self, message: AbstractIncomingMessage) -> None:
+        async with message.process(
                 requeue=self.__requeue_on_exception,
                 reject_on_redelivered=self.__reject_on_redelivered,
                 ignore_processed=self.__ignore_processed,
-        )):
+        ):
             await self.__consumer.consume(message)
