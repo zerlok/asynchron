@@ -1,5 +1,7 @@
 # asynchron
 
+**DEPRECATED:** don't use my project, try https://github.com/airtai/faststream instead.
+
 Python service framework with code generator based on AsyncAPI specification
 
 ## Usage example
